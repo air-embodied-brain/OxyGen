@@ -235,7 +235,7 @@ class AbsoluteActions(DataTransformFn):
         if "actions" not in data or self.mask is None:
             return data
 
-        state, actions = data["state"], data["actions"]
+        state, actions = data["state"], np.array(data["actions"])
         mask = np.asarray(self.mask)
         dims = mask.shape[-1]
         actions[..., :dims] += np.expand_dims(np.where(mask, state[..., :dims], 0), axis=-2)
@@ -265,6 +265,20 @@ class TokenizePrompt(DataTransformFn):
         tokens, token_masks = self.tokenizer.tokenize(prompt, state)
         return {**data, "tokenized_prompt": tokens, "tokenized_prompt_mask": token_masks}
 
+@dataclasses.dataclass(frozen=True)
+class TokenizeHighPrompt(DataTransformFn):
+    tokenizer: _tokenizer.PaligemmaTokenizer
+    discrete_state_input: bool = False
+
+    def __call__(self, data: DataDict) -> DataDict:
+        if (prompt := data.pop("prompt", None)) is None:
+            raise ValueError("Prompt is required")
+            
+        if not isinstance(prompt, str):
+            prompt = prompt.item()
+        # print(f"tokenize high prompt: {prompt}")
+        tokens, token_masks = self.tokenizer.tokenize_high_level_prompt(prompt)
+        return {**data, "tokenized_prompt": tokens, "tokenized_prompt_mask": token_masks}
 
 @dataclasses.dataclass(frozen=True)
 class TokenizeFASTInputs(DataTransformFn):

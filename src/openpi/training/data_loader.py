@@ -4,12 +4,15 @@ import multiprocessing
 import os
 import typing
 from typing import Literal, Protocol, SupportsIndex, TypeVar
+from pathlib import Path
+from omegaconf import OmegaConf
 
 import jax
 import jax.numpy as jnp
-import lerobot.common.datasets.lerobot_dataset as lerobot_dataset
+# import lerobot.common.datasets.lerobot_dataset as lerobot_dataset
 import numpy as np
 import torch
+import logging
 
 import openpi.models.model as _model
 import openpi.training.config as _config
@@ -137,7 +140,7 @@ def create_torch_dataset(
     if repo_id == "fake":
         return FakeDataset(model_config, num_samples=1024)
 
-    dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id)
+    dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id, local_files_only=True)
     dataset = lerobot_dataset.LeRobotDataset(
         data_config.repo_id,
         delta_timestamps={
@@ -377,6 +380,8 @@ def create_rlds_data_loader(
 
     return DataLoaderImpl(data_config, data_loader)
 
+def default(config:OmegaConf, attribute_level:str, default_value):
+    return OmegaConf.select(config, attribute_level, default=default_value)
 
 class TorchDataLoader:
     """Torch data loader implementation."""

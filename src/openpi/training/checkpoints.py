@@ -22,20 +22,25 @@ def initialize_checkpoint_dir(
 ) -> tuple[ocp.CheckpointManager, bool]:
     checkpoint_dir = epath.Path(checkpoint_dir).resolve()
     resuming = False
-    if checkpoint_dir.exists():
-        if overwrite:
-            checkpoint_dir.rmtree()
-            checkpoint_dir.mkdir(parents=True, exist_ok=True)
-            logging.info(f"Wiped checkpoint directory {checkpoint_dir}")
-        elif resume:
-            resuming = True
-        else:
-            raise FileExistsError(
-                f"Checkpoint directory {checkpoint_dir} already exists. Use --overwrite or --resume "
-                "to indicate how to handle it."
-            )
-
+    if resume is True:
+        resuming = True
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    if jax.process_index() == 0:
+        if checkpoint_dir.exists():
+            if overwrite:
+                checkpoint_dir.rmtree()
+                checkpoint_dir.mkdir(parents=True, exist_ok=True)
+                logging.info(f"Wiped checkpoint directory {checkpoint_dir}")
+            elif resume:
+                logging.info(f"Resuming training from checkpoint directory {checkpoint_dir}")
+                resuming = True
+            else:
+                # raise FileExistsError(
+                #     f"Checkpoint directory {checkpoint_dir} already exists. Use --overwrite or --resume "
+                #     "to indicate how to handle it."
+                # )
+                pass
+
 
     mngr = ocp.CheckpointManager(
         checkpoint_dir,
@@ -85,25 +90,68 @@ def save_state(
     }
     checkpoint_manager.save(step, items)
 
+def save_custom_state(
+    checkpoint_manager: ocp.CheckpointManager,
+    state: training_utils.TrainState,
+    step: int,
+):
+    # Split params that can be used for inference into a separate item.
+    with at.disable_typechecking():
+        train_state, params = _split_params(state)
+    items = {
+        "train_state": train_state,
+        "params": {"params": params},
+    }
+    checkpoint_manager.save(step, items)
 
 def restore_state(
     checkpoint_manager: ocp.CheckpointManager,
     state: training_utils.TrainState,
-    data_loader: _data_loader.DataLoader,
+    mesh: jax.sharding.Mesh | None = None,
     step: int | None = None,
 ) -> training_utils.TrainState:
-    del data_loader
+    # del data_loader
 
     with at.disable_typechecking():
         # Split params that can be used for inference into a separate item.
         train_state, params = _split_params(state)
-        restored = checkpoint_manager.restore(
-            step,
-            items={
-                "train_state": train_state,
-                "params": {"params": params},
-            },
-        )
+
+        # Create proper sharding for restoration if mesh is provided
+        if mesh is not None:
+            replicated_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec())
+            step_to_restore = step or checkpoint_manager.latest_step()
+            if step_to_restore is None:
+                raise FileNotFoundError("No checkpoint found to restore.")
+            step_dir = checkpoint_manager.directory / str(step_to_restore)
+
+            # Restore 'train_state' by bypassing the manager and using the handler directly.
+            train_state_handler = ocp.PyTreeCheckpointHandler()
+            train_state_restore_args = jax.tree.map(
+                lambda _: ocp.ArrayRestoreArgs(sharding=replicated_sharding), train_state
+            )
+            restored_train_state = train_state_handler.restore(
+                step_dir / 'train_state', item=train_state, restore_args=train_state_restore_args
+            )
+
+            # Restore 'params'
+            params_handler = ocp.PyTreeCheckpointHandler()
+            params_restore_args = jax.tree.map(
+                lambda _: ocp.ArrayRestoreArgs(sharding=replicated_sharding), {"params": params}
+            )
+            restored_params = params_handler.restore(
+                step_dir / 'params', item={"params": params}, restore_args=params_restore_args
+            )
+
+            restored = {"train_state": restored_train_state, "params": restored_params}
+        else:
+            # Fallback to default behavior without explicit sharding
+            restored = checkpoint_manager.restore(
+                step,
+                items={
+                    "train_state": train_state,
+                    "params": {"params": params},
+                },
+            )
     return _merge_params(restored["train_state"], restored["params"])
 
 

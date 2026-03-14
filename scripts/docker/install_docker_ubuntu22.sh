@@ -17,7 +17,7 @@ sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Add current user to the 'docker' group, which allows them to use docker commands (docker build, docker run, etc).
-# See https://docs.docker.com/engine/install/linux-postinstall/
+# See Docker post-install notes.
 username=$(whoami)
 sudo usermod -aG docker $username
 
@@ -25,7 +25,7 @@ sudo usermod -aG docker $username
 sudo systemctl enable docker.service
 sudo systemctl enable containerd.service
 
-# https://forums.docker.com/t/docker-credential-desktop-exe-executable-file-not-found-in-path-using-wsl2/100225/5
+# Docker credential helper compatibility notes.
 if [ ~/.docker/config.json ]; then
 	sed -i 's/credsStore/credStore/g' ~/.docker/config.json
 fi

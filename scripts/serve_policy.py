@@ -19,7 +19,6 @@ class EnvMode(enum.Enum):
     DROID = "droid"
     LIBERO = "libero"
 
-
 @dataclasses.dataclass
 class Checkpoint:
     """Load a policy from a trained checkpoint."""

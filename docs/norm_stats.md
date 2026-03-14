@@ -21,12 +21,11 @@ TrainConfig(
 )
 ```
 
-For an example of a full training config that reloads normalization statistics, see the `pi0_aloha_pen_uncap` config in the [training config file](https://github.com/physical-intelligence/openpi/blob/main/src/openpi/training/config.py).
+For an example of a full training config that reloads normalization statistics, see the `pi0_aloha_pen_uncap` config in the training config file.
 
 **Note:** To successfully reload normalization statistics, it's important that your robot + dataset are following the action space definitions used in pre-training. We provide a detailed description of our action space definitions below.
 
 **Note #2:** Whether reloading normalization statistics is beneficial depends on the similarity of your robot and task to the robot and task distribution in the pre-training dataset. We recommend to always try both, reloading and training with a fresh set of statistics computed on your new dataset (see [main README](../README.md) for instructions on how to compute new statistics), and pick the one that works better for your task.
-
 
 ## Provided Pre-training Normalization Statistics
 
@@ -42,7 +41,6 @@ Below is a list of all the pre-training normalization statistics we provide. We 
 | ARX | Bi-manual ARX-5 robot arm setup with parallel gripper | arx |
 | ARX mobile | Mobile version of bi-manual ARX-5 robot arm setup mounted on a Slate base | arx_mobile |
 | Fibocom mobile | Fibocom mobile robot with 2x ARX-5 arms | fibocom_mobile |
-
 
 ## Pi0 Model Action Space Definitions
 

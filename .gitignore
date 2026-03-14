@@ -1,8 +1,40 @@
+# Experiments
+experiments/results*
+experiments/**/*.csv
+experiments/**/*.json
+experiments/**/*.png
+experiments/**/*.jpg
+experiments/**/*.txt
+experiments/**/*.pdf
+
+# Generated experiment outputs
+results/
+**/results/
+**/videos/
+**/*.mp4
+**/*.webm
+**/*.pid
+
+# Local one-off artifacts
+results_eccv*
+
+# Chat
+chat/
+
 # Data directories.
 assets/
 checkpoints/
 data/
 wandb/
+dataset/
+config/
+examples_distributed/
+outputs/
+workspace/
+sbatch_scripts/
+.vscode
+.claude
+.ruff_cache
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
