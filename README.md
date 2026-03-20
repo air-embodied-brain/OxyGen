@@ -1,6 +1,6 @@
 # OxyGen
 
-This repository contains code for paper *OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism* (TODO: link). It is built atop [openpi](https://github.com/Physical-Intelligence/openpi).
+This repository contains code for paper [*OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism*](https://arxiv.org/abs/2603.14371). It is built atop [openpi](https://github.com/Physical-Intelligence/openpi).
 
 OxyGen optimizes multi-task inference for Mixture-of-Transformers (MoT) Vision-Language-Action (VLA) models through a unified KV cache management, with cross-task KV sharing and cross-frame continuous batching.
 
@@ -111,12 +111,6 @@ Outputs:
 | `--gpu` | GPU id (default: `0`) |
 | `--prompt` | Text prompt for synthetic observations |
 
-## Citation
-
-```bibtex
-TODO
-```
-
 ## Acknowledgments
 
 This codebase is built on [openpi](https://github.com/Physical-Intelligence/openpi) by Physical Intelligence. We thank the openpi team for open-sourcing their code and models.
@@ -126,3 +120,16 @@ We use [openpi_subtask_generation](https://github.com/BrunoFANG1/openpi_subtask_
 ## License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details. The Gemma model components are subject to [additional terms](LICENSE_GEMMA.txt).
+
+## Citation
+
+If you find this project useful, please cite our [paper](https://arxiv.org/abs/2603.14371):
+
+```bibtex
+@article{li2026oxygen,
+  title={OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism},
+  author={Li, Xiangyu and Tang, Huaizhi and Ding, Xin and Wang, Weijun and Cao, Ting and Liu, Yunxin},
+  journal={arXiv preprint arXiv:2603.14371},
+  year={2026}
+}
+```
