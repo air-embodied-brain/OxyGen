@@ -513,6 +513,40 @@ def main():
     if cb_batch4_result:
         results.append(cb_batch4_result)
 
+    # 6. Continuous batching with steps_per_frame=2 → batch≈10
+    cb_batch10_result = measure_continuous_batching(
+        policy, policy_config, prompt, num_denoise_steps, max_decoding_steps,
+        steps_per_frame=2, arrival_rate=arrival_rate, label="Ours (batch≈10)", gpu_monitor=gpu_monitor
+    )
+    if cb_batch10_result:
+        results.append(cb_batch10_result)
+
+    # 7. Continuous batching with steps_per_frame=1 → batch≈20
+    cb_batch20_result = measure_continuous_batching(
+        policy, policy_config, prompt, num_denoise_steps, max_decoding_steps,
+        steps_per_frame=1, arrival_rate=arrival_rate, label="Ours (batch≈20)", gpu_monitor=gpu_monitor
+    )
+    if cb_batch20_result:
+        results.append(cb_batch20_result)
+
+    stress_arrival_rate = 0.2  # uniform_arrivals(rate=0.2) gives 5 new requests per frame
+
+    # 8. Stress test with steps_per_frame=2 and 5 arrivals/frame for batch ~= 50
+    cb_batch50_result = measure_continuous_batching(
+        policy, policy_config, prompt, num_denoise_steps, max_decoding_steps,
+        steps_per_frame=2, arrival_rate=stress_arrival_rate, label="Ours (batch≈50)", gpu_monitor=gpu_monitor
+    )
+    if cb_batch50_result:
+        results.append(cb_batch50_result)
+
+    # 9. Stress test with steps_per_frame=1 and 5 arrivals/frame for batch ~= 100
+    cb_batch100_result = measure_continuous_batching(
+        policy, policy_config, prompt, num_denoise_steps, max_decoding_steps,
+        steps_per_frame=1, arrival_rate=stress_arrival_rate, label="Ours (batch≈100)", gpu_monitor=gpu_monitor
+    )
+    if cb_batch100_result:
+        results.append(cb_batch100_result)
+
     # Save results
     output_dir = Path(args.results_dir) / "analysis" / "overhead"
     output_dir.mkdir(parents=True, exist_ok=True)
