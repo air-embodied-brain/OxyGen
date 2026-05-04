@@ -74,6 +74,29 @@ uv run python -m experiments.run_experiments \
     --settings continuous_batching --policies pi05_o2_libero --gpu 0
 ```
 
+### PyTorch checkpoints
+
+If a checkpoint directory contains `model.safetensors`, `create_trained_policy` loads the PyTorch backend automatically. You can run the continuous batching experiment against a local PyTorch checkpoint with:
+
+```bash
+uv run python -m experiments.run_experiments \
+    --settings continuous_batching --policies pi05_o2_libero --gpu 0 \
+    --checkpoint-dir /path/to/pytorch/checkpoint --pytorch-device cuda:0
+```
+
+The PyTorch backend currently supports action inference, text inference, and continuous batching for `pi05_o2_*` configs. New requests are batched for prefill and action generation; active text states use a fixed-size PyTorch KV cache and are decoded as one batch.
+
+For performance benchmarking, enable PyTorch compilation:
+
+```bash
+OPENPI_TORCH_COMPILE=1 uv run python -m experiments.run_experiments \
+    --settings baseline shared_kv continuous_batching \
+    --policies pi05_o2_libero --gpu 0 \
+    --checkpoint-dir /path/to/pytorch/checkpoint --pytorch-device cuda:0
+```
+
+`OPENPI_TORCH_COMPILE=1` compiles PI05 denoising, VLM prefill, and language decoding. To keep prefill eager while compiling the other hot paths, set `OPENPI_TORCH_COMPILE_PREFILL=0`. Continuous batching uses a fixed-size PyTorch text KV cache so active requests are decoded as one batch.
+
 Other settings: `shared_kv` ("Ours w/o Batching" in the ablation) and `parallel_mps` ("Parallel").
 
 ### Analysis and plotting
@@ -110,6 +133,8 @@ Outputs:
 | `--results-dir` | Output root (default: `experiments/results`) |
 | `--gpu` | GPU id (default: `0`) |
 | `--prompt` | Text prompt for synthetic observations |
+| `--checkpoint-dir` | Override checkpoint directory; `model.safetensors` selects PyTorch |
+| `--pytorch-device` | PyTorch device override, e.g. `cuda:0` |
 
 ## Acknowledgments
 

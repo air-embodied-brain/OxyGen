@@ -83,6 +83,8 @@ class GemmaRMSNorm(nn.Module):
         # adaptive RMSNorm (if cond is provided and dense layer exists)
         if cond.shape[-1] != self.cond_dim:
             raise ValueError(f"Expected cond dimension {self.cond_dim}, got {cond.shape[-1]}")
+        if cond.dtype != self.dense.weight.dtype:
+            cond = cond.to(self.dense.weight.dtype)
         
         #self.dense.to(dtype=torch.bfloat16).to(dtype=torch.float32)
         modulation = self.dense(cond)

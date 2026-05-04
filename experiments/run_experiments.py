@@ -56,22 +56,40 @@ def _import_grid_search(setting: str):
 def _build_search_space(
     setting: str,
     policy_configs: list[str],
+    num_denoise_steps: list[int] | None = None,
+    max_decoding_steps: list[int] | None = None,
+    steps_per_frame: list[int] | None = None,
 ) -> dict:
     """Build the search space dict for a given setting."""
     space = dict(DEFAULT_SEARCH_SPACE)
     space["policy_config"] = policy_configs
+    if num_denoise_steps is not None:
+        space["num_denoise_steps"] = num_denoise_steps
+    if max_decoding_steps is not None:
+        space["max_decoding_steps"] = max_decoding_steps
 
     if setting == "continuous_batching":
         space.update(CB_SEARCH_SPACE_EXTRA)
+        if steps_per_frame is not None:
+            space["steps_per_frame"] = steps_per_frame
 
     return space
 
 
-def _build_fixed_params(setting: str, prompt: str) -> dict:
+def _build_fixed_params(
+    setting: str,
+    prompt: str,
+    total_frames: int | None = None,
+    arrival_pattern: str | None = None,
+) -> dict:
     """Build the fixed_params dict for a given setting."""
     fixed = {"prompt": prompt}
     if setting == "continuous_batching":
         fixed.update(CB_FIXED_PARAMS)
+        if total_frames is not None:
+            fixed["total_frames"] = total_frames
+        if arrival_pattern is not None:
+            fixed["arrival_pattern"] = arrival_pattern
     return fixed
 
 
@@ -81,6 +99,15 @@ def _run_setting_in_subprocess(
     results_dir: Path,
     gpu_id: int,
     prompt: str,
+    checkpoint_dir: Path | None,
+    pytorch_device: str | None,
+    num_denoise_steps: list[int] | None,
+    max_decoding_steps: list[int] | None,
+    steps_per_frame: list[int] | None,
+    total_frames: int | None,
+    arrival_pattern: str | None,
+    num_measured_runs: int,
+    warmup_runs: int,
 ) -> None:
     """Run a single setting in an isolated subprocess to reclaim GPU memory on exit."""
     cmd = [
@@ -92,6 +119,22 @@ def _run_setting_in_subprocess(
         "--gpu", str(gpu_id),
         "--prompt", prompt,
     ]
+    if checkpoint_dir is not None:
+        cmd.extend(["--checkpoint-dir", str(checkpoint_dir)])
+    if pytorch_device is not None:
+        cmd.extend(["--pytorch-device", pytorch_device])
+    if num_denoise_steps is not None:
+        cmd.extend(["--num-denoise-steps", *map(str, num_denoise_steps)])
+    if max_decoding_steps is not None:
+        cmd.extend(["--max-decoding-steps", *map(str, max_decoding_steps)])
+    if steps_per_frame is not None:
+        cmd.extend(["--steps-per-frame", *map(str, steps_per_frame)])
+    if total_frames is not None:
+        cmd.extend(["--total-frames", str(total_frames)])
+    if arrival_pattern is not None:
+        cmd.extend(["--arrival-pattern", arrival_pattern])
+    cmd.extend(["--num-measured-runs", str(num_measured_runs)])
+    cmd.extend(["--warmup-runs", str(warmup_runs)])
     logger.info("Launching subprocess for setting '%s': %s", setting, " ".join(cmd))
     result = subprocess.run(cmd)
     if result.returncode != 0:
@@ -106,6 +149,15 @@ def run_all(
     results_dir: Path,
     gpu_id: int = 0,
     prompt: str = "pick the red cup",
+    checkpoint_dir: Path | None = None,
+    pytorch_device: str | None = None,
+    num_denoise_steps: list[int] | None = None,
+    max_decoding_steps: list[int] | None = None,
+    steps_per_frame: list[int] | None = None,
+    total_frames: int | None = None,
+    arrival_pattern: str | None = None,
+    num_measured_runs: int = 3,
+    warmup_runs: int = 1,
 ) -> None:
     """Run grid search for each requested setting.
 
@@ -128,15 +180,21 @@ def run_all(
         logger.info("=" * 60)
 
         run_grid_search = _import_grid_search(setting)
-        fixed_params = _build_fixed_params(setting, prompt)
+        fixed_params = _build_fixed_params(setting, prompt, total_frames, arrival_pattern)
 
         if setting in SETTINGS_WITH_SHARED_POLICY:
             # Create a separate policy per config so transforms/checkpoint match
             for pc in policy_configs:
                 logger.info("Creating policy for config '%s'...", pc)
-                policy = create_policy(pc)
+                policy = create_policy(pc, checkpoint_dir=checkpoint_dir, pytorch_device=pytorch_device)
 
-                search_space = _build_search_space(setting, [pc])
+                search_space = _build_search_space(
+                    setting,
+                    [pc],
+                    num_denoise_steps=num_denoise_steps,
+                    max_decoding_steps=max_decoding_steps,
+                    steps_per_frame=steps_per_frame,
+                )
                 kwargs = dict(
                     policy=policy,
                     search_space=search_space,
@@ -144,8 +202,8 @@ def run_all(
                     results_dir=results_dir,
                 )
                 if setting in ("baseline", "shared_kv"):
-                    kwargs["num_measured_runs"] = 3
-                    kwargs["warmup_runs"] = 1
+                    kwargs["num_measured_runs"] = num_measured_runs
+                    kwargs["warmup_runs"] = warmup_runs
 
                 results = run_grid_search(**kwargs)
                 logger.info("Setting '%s' config '%s' complete: %d grid points.",
@@ -158,8 +216,8 @@ def run_all(
                 search_space=search_space,
                 fixed_params=fixed_params,
                 results_dir=results_dir,
-                num_measured_runs=3,
-                warmup_runs=1,
+                num_measured_runs=num_measured_runs,
+                warmup_runs=warmup_runs,
             )
             from experiments.parallel_mps.grid_search import start_mps, stop_mps
             start_mps(gpu_id=gpu_id)
@@ -201,6 +259,42 @@ def main():
         help="Prompt for synthetic observations.",
     )
     parser.add_argument(
+        "--checkpoint-dir", type=Path, default=None,
+        help="Override checkpoint directory. If it contains model.safetensors, the PyTorch backend is used.",
+    )
+    parser.add_argument(
+        "--pytorch-device", default=None,
+        help='PyTorch device override, e.g. "cuda", "cuda:0", or "cpu".',
+    )
+    parser.add_argument(
+        "--num-denoise-steps", nargs="+", type=int, default=None,
+        help="Override num_denoise_steps search values.",
+    )
+    parser.add_argument(
+        "--max-decoding-steps", nargs="+", type=int, default=None,
+        help="Override max_decoding_steps search values.",
+    )
+    parser.add_argument(
+        "--steps-per-frame", nargs="+", type=int, default=None,
+        help="Override continuous batching steps_per_frame search values.",
+    )
+    parser.add_argument(
+        "--total-frames", type=int, default=None,
+        help="Override continuous batching total_frames.",
+    )
+    parser.add_argument(
+        "--arrival-pattern", default=None,
+        help="Override continuous batching arrival pattern.",
+    )
+    parser.add_argument(
+        "--num-measured-runs", type=int, default=3,
+        help="Measured runs for baseline/shared_kv/parallel_mps.",
+    )
+    parser.add_argument(
+        "--warmup-runs", type=int, default=1,
+        help="Warmup runs for baseline/shared_kv/parallel_mps.",
+    )
+    parser.add_argument(
         "--_isolated", action="store_true", help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
@@ -230,6 +324,15 @@ def main():
             results_dir=args.results_dir,
             gpu_id=args.gpu,
             prompt=args.prompt,
+            checkpoint_dir=args.checkpoint_dir,
+            pytorch_device=args.pytorch_device,
+            num_denoise_steps=args.num_denoise_steps,
+            max_decoding_steps=args.max_decoding_steps,
+            steps_per_frame=args.steps_per_frame,
+            total_frames=args.total_frames,
+            arrival_pattern=args.arrival_pattern,
+            num_measured_runs=args.num_measured_runs,
+            warmup_runs=args.warmup_runs,
         )
     else:
         for setting in args.settings:
@@ -239,6 +342,15 @@ def main():
                 results_dir=args.results_dir,
                 gpu_id=args.gpu,
                 prompt=args.prompt,
+                checkpoint_dir=args.checkpoint_dir,
+                pytorch_device=args.pytorch_device,
+                num_denoise_steps=args.num_denoise_steps,
+                max_decoding_steps=args.max_decoding_steps,
+                steps_per_frame=args.steps_per_frame,
+                total_frames=args.total_frames,
+                arrival_pattern=args.arrival_pattern,
+                num_measured_runs=args.num_measured_runs,
+                warmup_runs=args.warmup_runs,
             )
 
 

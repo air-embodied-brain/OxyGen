@@ -70,12 +70,19 @@ class ContinuousBatchManager:
             return {"status": "finished_or_not_found"}
 
         state = self.active_states[request_id]
+        current_step = state.current_step
+        is_finished = state.is_finished
+        if hasattr(current_step, "detach"):
+            current_step = current_step.detach().cpu().numpy()
+        if hasattr(is_finished, "detach"):
+            is_finished = is_finished.detach().cpu().numpy()
+
         return {
             "status": "active",
-            "tokens_generated": state.current_step,
-            "current_len": state.current_step,
+            "tokens_generated": current_step,
+            "current_len": current_step,
             "max_len": state.max_decoding_steps,
-            "is_finished": bool(jnp.all(state.is_finished)),
+            "is_finished": bool(np.all(is_finished)),
         }
 
     def get_all_active_requests(self) -> list[str]:

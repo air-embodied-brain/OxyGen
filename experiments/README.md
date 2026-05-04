@@ -72,6 +72,43 @@ uv run python -m experiments.run_experiments \
     --gpu 0
 ```
 
+### Run PyTorch backend experiments
+
+Pass a checkpoint directory containing `model.safetensors` to select the PyTorch backend. For benchmark runs, enable PyTorch compilation:
+
+```bash
+OPENPI_TORCH_COMPILE=1 uv run python -m experiments.run_experiments \
+    --settings baseline shared_kv continuous_batching \
+    --policies pi05_o2_arx \
+    --gpu 0 \
+    --checkpoint-dir /home/lixiangyu/.cache/openpi/openpi-assets/checkpoints/pi05_base_pytorch \
+    --pytorch-device cuda:0 \
+    --num-denoise-steps 10 \
+    --max-decoding-steps 5 \
+    --steps-per-frame 1 \
+    --total-frames 8 \
+    --arrival-pattern 'uniform_arrivals(rate=1,t_max=5)'
+```
+
+`OPENPI_TORCH_COMPILE=1` compiles the PI05 denoising step, VLM prefill, and one-token language decode. The individual switches are:
+
+| Env var | Default when `OPENPI_TORCH_COMPILE=1` | Description |
+|---|---|---|
+| `OPENPI_TORCH_COMPILE_DENOISE` | `1` | Compile the repeated action denoising step |
+| `OPENPI_TORCH_COMPILE_PREFILL` | `1` | Compile VLM/language prefill |
+| `OPENPI_TORCH_COMPILE_TEXT_DECODE` | `1` | Compile one-token autoregressive language decode |
+| `OPENPI_TORCH_COMPILE_MODE` | `reduce-overhead` | Mode passed to `torch.compile` for denoising |
+
+Set a component flag to `0` to disable it, for example:
+
+```bash
+OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_PREFILL=0 uv run python -m experiments.run_experiments ...
+```
+
+The PyTorch continuous batching path uses a fixed-size text KV cache and advances all active requests in one batched decode call. New requests still run prefill and action generation as a batch.
+
+Note: Inductor-compiled prefill is intended for performance benchmarking. It can shift BF16 logits relative to eager prefill, especially when the top tokens are very close. Use `OPENPI_TORCH_COMPILE_PREFILL=0` for stricter eager-prefill parity checks.
+
 ### Run a single setting's grid_search directly (for debugging)
 
 ```python

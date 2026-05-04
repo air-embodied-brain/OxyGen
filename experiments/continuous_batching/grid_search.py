@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import jax
+import torch
 
 from experiments.continuous_batching.runner import run_continuous_batching
 from experiments.common.setup import collect_metadata
@@ -25,11 +26,7 @@ def warmup_batch_sizes(
     max_decoding_steps: int,
     steps_per_frame: int,
 ) -> None:
-    """Pre-compile continuous batching for batch sizes 1..max_batch.
-
-    This ensures JAX traces all needed batch sizes ahead of time,
-    so the actual measured frames don't include compilation overhead.
-    """
+    """Warm up continuous batching for batch sizes 1..max_batch."""
     logger.info("Warmup: continuous batching batch sizes 1..%d", max_batch)
     for bs in range(1, max_batch + 1):
         logger.info("  Warmup bs=%d/%d — compiling...", bs, max_batch)
@@ -46,7 +43,11 @@ def warmup_batch_sizes(
             num_action_steps=num_denoise_steps,
         )
         val = res[0]["actions"] if res[0].get("actions") is not None else res[0]["tokens_this_frame"]
-        jax.block_until_ready(val)
+        if isinstance(val, torch.Tensor):
+            if val.is_cuda:
+                torch.cuda.synchronize(val.device)
+        else:
+            jax.block_until_ready(val)
         logger.info("  bs=%d done", bs)
     logger.info("Warmup complete.")
 

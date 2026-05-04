@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 import jax
+import torch
 
 from openpi.policies.policy_config import create_trained_policy
 from openpi.shared import download
@@ -46,7 +47,12 @@ def resolve_policy_checkpoint(policy_config: str) -> Path:
         return download.maybe_download("gs://openpi-assets/checkpoints/pi05_base")
 
 
-def create_policy(policy_config: str):
+def create_policy(
+    policy_config: str,
+    *,
+    checkpoint_dir: str | Path | None = None,
+    pytorch_device: str | None = None,
+):
     """Create a trained policy from a config name.
 
     Args:
@@ -56,8 +62,8 @@ def create_policy(policy_config: str):
         An initialized Policy object.
     """
     config = get_config(policy_config)
-    checkpoint = resolve_policy_checkpoint(policy_config)
-    return create_trained_policy(config, checkpoint)
+    checkpoint = Path(checkpoint_dir) if checkpoint_dir is not None else resolve_policy_checkpoint(policy_config)
+    return create_trained_policy(config, checkpoint, pytorch_device=pytorch_device)
 
 
 def collect_metadata() -> dict:
@@ -81,4 +87,6 @@ def collect_metadata() -> dict:
         "timestamp": timestamp,
         "gpu": gpu,
         "jax_version": jax.__version__,
+        "torch_version": torch.__version__,
+        "torch_cuda_available": torch.cuda.is_available(),
     }

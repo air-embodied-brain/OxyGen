@@ -1,5 +1,7 @@
 import logging
 import math
+import os
+from dataclasses import dataclass
 from importlib import util
 from pathlib import Path
 import shutil
@@ -9,6 +11,7 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F  # noqa: N812
+from transformers.cache_utils import Cache
 
 import openpi.models.gemma as _gemma
 import openpi.models_pytorch.preprocessing_pytorch as _preprocessing
@@ -119,12 +122,142 @@ def make_att_2d_masks(pad_masks, att_masks):
     return att_2d_masks & pad_2d_masks
 
 
-class PI0Pytorch(nn.Module):
+@dataclass
+class PytorchIncrementalTextState:
+    """State needed to resume PyTorch text generation across frames."""
+
+    past_key_values: object
+    last_logits: torch.Tensor
+    output_tokens: torch.Tensor
+    current_step: torch.Tensor
+    is_finished: torch.Tensor
+    prefix_mask: torch.Tensor
+    prefill_len: torch.Tensor
+    max_decoding_steps: int
+    prefill_size: int
+    cache_size: int
+
+
+class PI05StaticTextCache(Cache):
+    """Fixed-size KV cache with per-batch decode positions for PI05 text generation."""
+
+    is_compileable = True
+
+    def __init__(
+        self,
+        dynamic_cache,
+        *,
+        max_decoding_steps: int,
+        prefix_mask: torch.Tensor,
+    ):
+        super().__init__()
+        self.max_decoding_steps = max_decoding_steps
+        self.prefix_size = prefix_mask.shape[1]
+        self.cache_size = self.prefix_size + max_decoding_steps
+        self.prefix_mask = prefix_mask
+        self.key_cache = []
+        self.value_cache = []
+        for key, value in zip(dynamic_cache.key_cache, dynamic_cache.value_cache, strict=True):
+            key_static = key.new_zeros((key.shape[0], key.shape[1], self.cache_size, key.shape[3]))
+            value_static = value.new_zeros((value.shape[0], value.shape[1], self.cache_size, value.shape[3]))
+            key_static[:, :, : self.prefix_size, :].copy_(key)
+            value_static[:, :, : self.prefix_size, :].copy_(value)
+            self.key_cache.append(key_static)
+            self.value_cache.append(value_static)
+
+    @classmethod
+    def from_tensors(
+        cls,
+        key_cache: list[torch.Tensor],
+        value_cache: list[torch.Tensor],
+        *,
+        max_decoding_steps: int,
+        prefix_mask: torch.Tensor,
+    ):
+        cache = cls.__new__(cls)
+        Cache.__init__(cache)
+        cache.max_decoding_steps = max_decoding_steps
+        cache.prefix_size = prefix_mask.shape[1]
+        cache.cache_size = cache.prefix_size + max_decoding_steps
+        cache.prefix_mask = prefix_mask
+        cache.key_cache = key_cache
+        cache.value_cache = value_cache
+        return cache
+
+    def __len__(self):
+        return len(self.key_cache)
+
+    def __getitem__(self, layer_idx: int):
+        return self.key_cache[layer_idx], self.value_cache[layer_idx]
+
+    def update(self, key_states, value_states, layer_idx, cache_kwargs=None):
+        if cache_kwargs is None:
+            cache_kwargs = {}
+        cache_position = cache_kwargs.get("cache_position")
+        key_cache = self.key_cache[layer_idx]
+        value_cache = self.value_cache[layer_idx]
+        key_states = key_states.to(key_cache.dtype)
+        value_states = value_states.to(value_cache.dtype)
+
+        if cache_position is None:
+            key_cache[:, :, : key_states.shape[2], :].copy_(key_states)
+            value_cache[:, :, : value_states.shape[2], :].copy_(value_states)
+        elif cache_position.ndim == 1:
+            key_cache.index_copy_(2, cache_position, key_states)
+            value_cache.index_copy_(2, cache_position, value_states)
+        else:
+            batch_indices = torch.arange(key_cache.shape[0], device=key_cache.device)[:, None]
+            for seq_idx in range(cache_position.shape[1]):
+                pos = cache_position[:, seq_idx]
+                key_cache[batch_indices[:, 0], :, pos, :] = key_states[:, :, seq_idx, :]
+                value_cache[batch_indices[:, 0], :, pos, :] = value_states[:, :, seq_idx, :]
+        return key_cache, value_cache
+
+    def get_seq_length(self, layer_idx: int = 0):
+        return self.cache_size
+
+    def get_mask_sizes(self, cache_position, layer_idx: int):
+        return self.cache_size, 0
+
+    def get_max_cache_shape(self):
+        return self.cache_size
+
+    def reorder_cache(self, beam_idx: torch.LongTensor):
+        self.key_cache = [key.index_select(0, beam_idx.to(key.device)) for key in self.key_cache]
+        self.value_cache = [value.index_select(0, beam_idx.to(value.device)) for value in self.value_cache]
+
+    def batch_split(self, full_batch_size: int, split_size: int):
+        out = []
+        for i in range(0, full_batch_size, split_size):
+            out.append(
+                type(self).from_tensors(
+                    [tensor[i : i + split_size].clone() for tensor in self.key_cache],
+                    [tensor[i : i + split_size].clone() for tensor in self.value_cache],
+                    max_decoding_steps=self.max_decoding_steps,
+                    prefix_mask=self.prefix_mask[i : i + split_size].clone(),
+                )
+            )
+        return out
+
+    @classmethod
+    def from_batch_splits(cls, splits: list["PI05StaticTextCache"]):
+        if not splits:
+            raise ValueError("Cannot stack empty PI05StaticTextCache splits.")
+        return cls.from_tensors(
+            [torch.cat([split.key_cache[i] for split in splits], dim=0) for i in range(len(splits[0]))],
+            [torch.cat([split.value_cache[i] for split in splits], dim=0) for i in range(len(splits[0]))],
+            max_decoding_steps=splits[0].max_decoding_steps,
+            prefix_mask=torch.cat([split.prefix_mask for split in splits], dim=0),
+        )
+
+
+class PI05Pytorch(nn.Module):
     def __init__(self, config):
         super().__init__()
-        if config.pi05:
-            raise ValueError("PI0Pytorch no longer handles pi05 configs; use PI05Pytorch.")
+        if not config.pi05:
+            raise ValueError("PI05Pytorch requires a pi05 model config.")
         self.config = config
+        self.pi05 = config.pi05
 
         paligemma_config = _gemma.get_config(config.paligemma_variant)
         action_expert_config = _gemma.get_config(config.action_expert_variant)
@@ -132,15 +265,15 @@ class PI0Pytorch(nn.Module):
         self.paligemma_with_expert = PaliGemmaWithExpertModel(
             paligemma_config,
             action_expert_config,
-            use_adarms=[False, False],
+            use_adarms=[False, True],
             precision=config.dtype,
         )
 
         self.action_in_proj = nn.Linear(32, action_expert_config.width)
         self.action_out_proj = nn.Linear(action_expert_config.width, 32)
-        self.state_proj = nn.Linear(32, action_expert_config.width)
-        self.action_time_mlp_in = nn.Linear(2 * action_expert_config.width, action_expert_config.width)
-        self.action_time_mlp_out = nn.Linear(action_expert_config.width, action_expert_config.width)
+
+        self.time_mlp_in = nn.Linear(action_expert_config.width, action_expert_config.width)
+        self.time_mlp_out = nn.Linear(action_expert_config.width, action_expert_config.width)
 
         torch.set_float32_matmul_precision("high")
 
@@ -156,6 +289,26 @@ class PI0Pytorch(nn.Module):
         except ImportError:
             raise ValueError(msg) from None
 
+        compile_all = os.environ.get("OPENPI_TORCH_COMPILE", "0") == "1"
+        if compile_all and os.environ.get("OPENPI_TORCH_COMPILE_DENOISE", "1") != "0":
+            mode = os.environ.get("OPENPI_TORCH_COMPILE_MODE", "reduce-overhead")
+            self.denoise_step = torch.compile(self.denoise_step, mode=mode)
+        if compile_all and os.environ.get("OPENPI_TORCH_COMPILE_PREFILL", "1") != "0":
+            self._prefill_language_model = torch.compile(
+                self._prefill_language_model,
+                options={"triton.cudagraphs": False},
+            )
+        elif os.environ.get("OPENPI_TORCH_COMPILE_PREFILL", "0") == "1":
+            logging.warning(
+                "OPENPI_TORCH_COMPILE_PREFILL=1 is ignored unless OPENPI_TORCH_COMPILE=1. "
+                "Set OPENPI_TORCH_COMPILE=1 and OPENPI_TORCH_COMPILE_PREFILL=0 to disable only prefill."
+            )
+        if compile_all and os.environ.get("OPENPI_TORCH_COMPILE_TEXT_DECODE", "1") != "0":
+            self._decode_one_token = torch.compile(
+                self._decode_one_token,
+                options={"triton.cudagraphs": False},
+            )
+
     def gradient_checkpointing_enable(self):
         """Enable gradient checkpointing for memory optimization."""
         self.gradient_checkpointing_enabled = True
@@ -163,7 +316,7 @@ class PI0Pytorch(nn.Module):
         self.paligemma_with_expert.paligemma.vision_tower.gradient_checkpointing = True
         self.paligemma_with_expert.gemma_expert.model.gradient_checkpointing = True
 
-        logging.info("Enabled gradient checkpointing for PI0Pytorch model")
+        logging.info("Enabled gradient checkpointing for PI05Pytorch model")
 
     def gradient_checkpointing_disable(self):
         """Disable gradient checkpointing."""
@@ -172,7 +325,7 @@ class PI0Pytorch(nn.Module):
         self.paligemma_with_expert.paligemma.vision_tower.gradient_checkpointing = False
         self.paligemma_with_expert.gemma_expert.model.gradient_checkpointing = False
 
-        logging.info("Disabled gradient checkpointing for PI0Pytorch model")
+        logging.info("Disabled gradient checkpointing for PI05Pytorch model")
 
     def is_gradient_checkpointing_enabled(self):
         """Check if gradient checkpointing is enabled."""
@@ -193,6 +346,28 @@ class PI0Pytorch(nn.Module):
 
     def _deembed_prefix(self, hidden_states):
         return self.paligemma_with_expert.paligemma.lm_head(hidden_states)
+
+    def _prefill_language_model(self, prefix_embs, attention_mask, position_ids):
+        return self.paligemma_with_expert.forward(
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=None,
+            inputs_embeds=[prefix_embs, None],
+            use_cache=True,
+            cache_position=None,
+            adarms_cond=[None, None],
+        )
+
+    def _decode_one_token(self, token_embedding, attention_mask, position_ids, cache_position, past_key_values):
+        return self.paligemma_with_expert.forward(
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=[token_embedding, None],
+            use_cache=True,
+            cache_position=cache_position,
+            adarms_cond=[None, None],
+        )
 
     def _preprocess_observation(self, observation, *, train=True):
         """Helper method to preprocess observation."""
@@ -257,8 +432,7 @@ class PI0Pytorch(nn.Module):
         pad_masks.append(lang_masks)
 
         num_lang_embs = lang_emb.shape[1]
-        # full attention between image and language inputs
-        att_masks += [0] * num_lang_embs
+        att_masks += [1] * num_lang_embs
 
         embs = torch.cat(embs, dim=1)
         pad_masks = torch.cat(pad_masks, dim=1)
@@ -270,30 +444,157 @@ class PI0Pytorch(nn.Module):
 
         return embs, pad_masks, att_masks
 
+    def prefill(self, observation, max_decoding_steps: int = 0):
+        """Prefill the language KV cache for text generation."""
+        images, img_masks, lang_tokens, lang_masks, _ = self._preprocess_observation(observation, train=False)
+        prefix_embs, prefix_pad_masks, prefix_att_masks = self.embed_prefix(images, img_masks, lang_tokens, lang_masks)
+
+        if (
+            self.paligemma_with_expert.paligemma.language_model.layers[0].self_attn.q_proj.weight.dtype
+            == torch.bfloat16
+        ):
+            prefix_embs = prefix_embs.to(dtype=torch.bfloat16)
+
+        prefix_att_2d_masks = make_att_2d_masks(prefix_pad_masks, prefix_att_masks)
+        prefix_position_ids = torch.cumsum(prefix_pad_masks, dim=1) - 1
+        prefix_att_2d_masks_4d = self._prepare_attention_masks_4d(prefix_att_2d_masks)
+        self.paligemma_with_expert.paligemma.language_model.config._attn_implementation = "eager"  # noqa: SLF001
+        (prefix_out, _), past_key_values = self._prefill_language_model(
+            prefix_embs, prefix_att_2d_masks_4d, prefix_position_ids
+        )
+        return prefix_out, past_key_values, prefix_pad_masks, max_decoding_steps
+
+    def init_incremental_state(self, prefill_result) -> PytorchIncrementalTextState:
+        """Initialize resumable text-generation state from a PyTorch prefill result."""
+        prefix_out, past_key_values, prefix_mask, max_decoding_steps = prefill_result
+        batch_size = prefix_out.shape[0]
+        prefill_len = torch.sum(prefix_mask.to(torch.long), dim=-1)
+        batch_idx = torch.arange(batch_size, device=prefix_out.device)
+        last_token_embedding = prefix_out[batch_idx, prefill_len - 1][:, None, :]
+        last_logits = F.log_softmax(self._deembed_prefix(last_token_embedding), dim=-1)
+        output_tokens = torch.zeros(
+            (batch_size, max_decoding_steps),
+            dtype=torch.long,
+            device=prefix_out.device,
+        )
+        return PytorchIncrementalTextState(
+            past_key_values=past_key_values,
+            last_logits=last_logits,
+            output_tokens=output_tokens,
+            current_step=torch.zeros(batch_size, dtype=torch.long, device=prefix_out.device),
+            is_finished=torch.zeros(batch_size, dtype=torch.bool, device=prefix_out.device),
+            prefix_mask=prefix_mask,
+            prefill_len=prefill_len,
+            max_decoding_steps=max_decoding_steps,
+            prefill_size=prefix_mask.shape[1],
+            cache_size=prefix_mask.shape[1] + max_decoding_steps,
+        )
+
+    def init_static_incremental_state(self, prefill_result) -> PytorchIncrementalTextState:
+        """Initialize text state with fixed-size KV cache for batched/compiled decoding."""
+        state = self.init_incremental_state(prefill_result)
+        state.past_key_values = PI05StaticTextCache(
+            state.past_key_values,
+            max_decoding_steps=state.max_decoding_steps,
+            prefix_mask=state.prefix_mask,
+        )
+        return state
+
+    def generate_n_tokens(
+        self,
+        state: PytorchIncrementalTextState,
+        *,
+        tokens_to_generate: int = 5,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        temperature: float = 0.0,
+    ) -> tuple[torch.Tensor, PytorchIncrementalTextState, torch.Tensor]:
+        """Generate a fixed number of language tokens from a PyTorch incremental state."""
+        tokens_this_call = []
+        batch_size = state.output_tokens.shape[0]
+        device = state.output_tokens.device
+
+        for _ in range(tokens_to_generate):
+            should_update = (~state.is_finished) & (state.current_step < state.max_decoding_steps)
+
+            if temperature > 0.0:
+                probs = F.softmax(state.last_logits[:, -1, :] / temperature, dim=-1)
+                token = torch.multinomial(probs, num_samples=1).to(torch.long)
+            else:
+                token = torch.argmax(state.last_logits[:, -1, :], dim=-1, keepdim=True).to(torch.long)
+
+            token_flat = token[:, 0]
+            write_step = torch.clamp(state.current_step, max=state.max_decoding_steps - 1)
+            updated_output_tokens = state.output_tokens.scatter(1, write_step[:, None], token)
+            state.output_tokens = torch.where(should_update[:, None], updated_output_tokens, state.output_tokens)
+            tokens_this_call.append(torch.where(should_update, token_flat, torch.zeros_like(token_flat)))
+
+            has_eos = token_flat == PALIGEMMA_EOS_TOKEN
+            next_finished = state.is_finished | has_eos | (state.current_step + 1 >= state.max_decoding_steps)
+
+            token_embedding = self.paligemma_with_expert.embed_language_tokens(token)
+            token_embedding = token_embedding * math.sqrt(token_embedding.shape[-1])
+            if (
+                self.paligemma_with_expert.paligemma.language_model.layers[0].self_attn.q_proj.weight.dtype
+                == torch.bfloat16
+            ):
+                token_embedding = token_embedding.to(dtype=torch.bfloat16)
+
+            decoded_len = state.max_decoding_steps
+            decoded_positions = torch.arange(decoded_len, device=device)[None, :]
+            decoded_mask = decoded_positions <= state.current_step[:, None]
+            attention_mask = torch.cat([state.prefix_mask, decoded_mask], dim=1)[:, None, :]
+            attention_mask = self._prepare_attention_masks_4d(attention_mask)
+            position_ids = (state.prefill_len + state.current_step)[:, None]
+            cache_position = (state.prefix_mask.shape[1] + state.current_step)[:, None]
+            self.paligemma_with_expert.paligemma.language_model.config._attn_implementation = "eager"  # noqa: SLF001
+            (prefix_out, _), past_key_values = self._decode_one_token(
+                token_embedding, attention_mask, position_ids, cache_position, state.past_key_values
+            )
+            state.past_key_values = past_key_values
+            state.last_logits = F.log_softmax(self._deembed_prefix(prefix_out[:, -1:]), dim=-1)
+            state.current_step = state.current_step + should_update.to(torch.long)
+            state.is_finished = next_finished
+
+        if tokens_this_call:
+            tokens_generated = torch.stack(tokens_this_call, dim=1)
+        else:
+            tokens_generated = torch.zeros((batch_size, 0), dtype=torch.long, device=device)
+        all_finished = torch.all(state.is_finished | (state.current_step >= state.max_decoding_steps))
+        return tokens_generated, state, all_finished
+
+    @torch.no_grad()
+    def sample_text(
+        self,
+        device,
+        observation,
+        max_decoding_steps: int = 20,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        temperature: float = 0.0,
+    ) -> tuple[torch.Tensor, object, torch.Tensor, torch.Tensor]:
+        """Sample text tokens from an observation."""
+        prefill_result = self.prefill(observation, max_decoding_steps=max_decoding_steps)
+        state = self.init_incremental_state(prefill_result)
+        tokens, state, _ = self.generate_n_tokens(
+            state,
+            tokens_to_generate=max_decoding_steps,
+            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+            temperature=temperature,
+        )
+        mask = torch.cat([state.prefix_mask, state.output_tokens != 0], dim=1)
+        ar_mask = torch.cat(
+            [
+                torch.zeros(state.prefix_mask.shape[1], dtype=torch.bool, device=device),
+                torch.ones(max_decoding_steps, dtype=torch.bool, device=device),
+            ],
+            dim=0,
+        )
+        return tokens, state.past_key_values, mask, ar_mask
+
     def embed_suffix(self, state, noisy_actions, timestep):
         """Embed state, noisy_actions, timestep to prepare for Expert Gemma processing."""
         embs = []
         pad_masks = []
         att_masks = []
-
-        if state.dtype != self.state_proj.weight.dtype:
-            state = state.to(self.state_proj.weight.dtype)
-
-        # Embed state
-        def state_proj_func(state):
-            return self.state_proj(state)
-
-        state_emb = self._apply_checkpoint(state_proj_func, state)
-
-        embs.append(state_emb[:, None, :])
-        bsize = state_emb.shape[0]
-        device = state_emb.device
-
-        state_mask = torch.ones(bsize, 1, dtype=torch.bool, device=device)
-        pad_masks.append(state_mask)
-
-        # Set attention masks so that image and language inputs do not attend to state or actions
-        att_masks += [1]
 
         # Embed timestep using sine-cosine positional encoding with sensitivity in the range [0, 1]
         time_emb = create_sinusoidal_pos_embedding(
@@ -309,19 +610,18 @@ class PI0Pytorch(nn.Module):
 
         action_emb = self._apply_checkpoint(action_proj_func, noisy_actions)
 
-        time_emb = time_emb[:, None, :].expand_as(action_emb)
-        action_time_emb = torch.cat([action_emb, time_emb], dim=2)
-
-        # Apply MLP layers
-        def mlp_func(action_time_emb):
-            if action_time_emb.dtype != self.action_time_mlp_in.weight.dtype:
-                action_time_emb = action_time_emb.to(self.action_time_mlp_in.weight.dtype)
-            x = self.action_time_mlp_in(action_time_emb)
+        # time MLP (for adaRMS)
+        def time_mlp_func(time_emb):
+            if time_emb.dtype != self.time_mlp_in.weight.dtype:
+                time_emb = time_emb.to(self.time_mlp_in.weight.dtype)
+            x = self.time_mlp_in(time_emb)
             x = F.silu(x)  # swish == silu
-            return self.action_time_mlp_out(x)
+            x = self.time_mlp_out(x)
+            return F.silu(x)
 
-        action_time_emb = self._apply_checkpoint(mlp_func, action_time_emb)
-        adarms_cond = None
+        time_emb = self._apply_checkpoint(time_mlp_func, time_emb)
+        action_time_emb = action_emb
+        adarms_cond = time_emb
 
         # Add to input tokens
         embs.append(action_time_emb)
@@ -443,6 +743,35 @@ class PI0Pytorch(nn.Module):
             )
 
             # Euler step - use new tensor assignment instead of in-place operation
+            x_t = x_t + dt * v_t
+            time += dt
+        return x_t
+
+    @torch.no_grad()
+    def sample_actions_with_kv(self, device, observation, prefill_result, noise=None, num_steps=10) -> Tensor:
+        """Sample actions using an existing language prefix KV cache."""
+        _, past_key_values, prefix_pad_masks, _ = prefill_result
+        bsize = observation.state.shape[0]
+        if noise is None:
+            actions_shape = (bsize, self.config.action_horizon, self.config.action_dim)
+            noise = self.sample_noise(actions_shape, device)
+
+        _, _, _, _, state = self._preprocess_observation(observation, train=False)
+
+        dt = -1.0 / num_steps
+        dt = torch.tensor(dt, dtype=torch.float32, device=device)
+
+        x_t = noise
+        time = torch.tensor(1.0, dtype=torch.float32, device=device)
+        while time >= -dt / 2:
+            expanded_time = time.expand(bsize)
+            v_t = self.denoise_step(
+                state,
+                prefix_pad_masks,
+                past_key_values,
+                x_t,
+                expanded_time,
+            )
             x_t = x_t + dt * v_t
             time += dt
         return x_t

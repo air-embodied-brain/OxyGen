@@ -17,7 +17,6 @@ import orbax.checkpoint as ocp
 import safetensors
 import torch
 
-# from openpi.models_pytorch import pi0_pytorch
 from openpi.shared import image_tools
 import openpi.shared.array_typing as at
 
@@ -252,11 +251,24 @@ class BaseModelConfig(abc.ABC):
         state.replace_by_pure_dict(params)
         return nnx.merge(graphdef, state)
 
-    # def load_pytorch(self, train_config, weight_path: str):
-    #     logger.info(f"train_config: {train_config}")
-    #     model = pi0_pytorch.PI0Pytorch(config=train_config.model)
-    #     safetensors.torch.load_model(model, weight_path)
-    #     return model
+    def load_pytorch(self, train_config, weight_path: str) -> torch.nn.Module:
+        """Create the PyTorch model implementation and load a safetensors checkpoint."""
+        from openpi.models_pytorch import pi0_pytorch
+        from openpi.models_pytorch import pi05_pytorch
+
+        logger.info("Loading PyTorch model from %s", weight_path)
+        if train_config.model.model_type is ModelType.PI05_O2:
+            model = pi05_pytorch.PI05Pytorch(config=train_config.model)
+        else:
+            model = pi0_pytorch.PI0Pytorch(config=train_config.model)
+        if train_config.pytorch_training_precision == "bfloat16":
+            model = model.to(torch.bfloat16)
+        elif train_config.pytorch_training_precision == "float32":
+            model = model.to(torch.float32)
+        else:
+            raise ValueError(f"Unsupported PyTorch precision: {train_config.pytorch_training_precision}")
+        safetensors.torch.load_model(model, weight_path)
+        return model
 
     @abc.abstractmethod
     def inputs_spec(self, *, batch_size: int = 1) -> tuple[Observation, Actions]:
