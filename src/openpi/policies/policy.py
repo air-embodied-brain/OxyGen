@@ -1411,18 +1411,19 @@ class Policy(BasePolicy):
             return []
 
         if self._is_pytorch_model:
-            return self._infer_text_actions_continuous_batch_pytorch(
-                obs_list,
-                cache_manager,
-                request_ids=request_ids,
-                steps_per_frame=steps_per_frame,
-                num_action_steps=num_action_steps,
-                max_decoding_steps=max_decoding_steps,
-                temperature=temperature,
-                PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
-                noise=noise,
-                generate_actions_for_resumed=generate_actions_for_resumed,
-            )
+            with torch.inference_mode():
+                return self._infer_text_actions_continuous_batch_pytorch(
+                    obs_list,
+                    cache_manager,
+                    request_ids=request_ids,
+                    steps_per_frame=steps_per_frame,
+                    num_action_steps=num_action_steps,
+                    max_decoding_steps=max_decoding_steps,
+                    temperature=temperature,
+                    PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                    noise=noise,
+                    generate_actions_for_resumed=generate_actions_for_resumed,
+                )
 
         batch_size = len(obs_list)
         t0 = time.monotonic()
@@ -1639,8 +1640,6 @@ class Policy(BasePolicy):
         t1 = time.monotonic()
 
         new_states = {}
-        new_prefills = {}
-        new_observations = {}
         new_actions = {}
         new_state_inputs = {}
         if new_indices:
@@ -1652,28 +1651,26 @@ class Policy(BasePolicy):
             new_observation = _model.Observation.from_dict(new_inputs_torch)
 
             prefill_result = self._prefill(new_observation, max_decoding_steps=max_decoding_steps)
-            batched_state = self._init_static_incremental_state(prefill_result)
-            split_states = _split_pytorch_incremental_state(batched_state, len(new_indices))
-            for j, idx in enumerate(new_indices):
-                new_states[idx] = split_states[j]
-                new_state_inputs[idx] = _torch_to_numpy(new_inputs_torch["state"][j])
-                new_prefills[idx] = (
-                    prefill_result[0][j:j + 1],
-                    _clone_pytorch_cache(prefill_result[1].batch_split(len(new_indices), 1)[j]),
-                    prefill_result[2][j:j + 1],
-                    prefill_result[3],
-                )
-                new_observations[idx] = _model.Observation.from_dict(
-                    jax.tree.map(lambda x: x[j:j + 1] if hasattr(x, "shape") else x, new_inputs_torch)
-                )
-
             if noise is not None:
                 noise_new = torch.as_tensor(noise, device=self._pytorch_device)
                 if noise_new.ndim == 2:
                     noise_new = noise_new[None, ...].expand(len(new_indices), *noise_new.shape)
             else:
                 noise_new = None
-            noise_by_index = {idx: noise_new[j:j + 1] for j, idx in enumerate(new_indices)} if noise_new is not None else {}
+            actions_batched = self._sample_actions_with_kv(
+                self._pytorch_device,
+                new_observation,
+                prefill_result,
+                num_steps=num_action_steps,
+                noise=noise_new,
+            )
+
+            batched_state = self._init_static_incremental_state(prefill_result)
+            split_states = _split_pytorch_incremental_state(batched_state, len(new_indices))
+            for j, idx in enumerate(new_indices):
+                new_states[idx] = split_states[j]
+                new_state_inputs[idx] = _torch_to_numpy(new_inputs_torch["state"][j])
+                new_actions[idx] = _torch_to_numpy(actions_batched[j])
 
         t_prefill = time.monotonic()
 
@@ -1699,16 +1696,6 @@ class Policy(BasePolicy):
         split_updated_states = _split_pytorch_incremental_state(updated_batched_state, batch_size)
         updated_states = {i: split_updated_states[i] for i in range(batch_size)}
         tokens_frame = {i: _torch_to_numpy(tokens_batched[i]) for i in range(batch_size)}
-
-        for idx in new_indices:
-            actions_i = self._sample_actions_with_kv(
-                self._pytorch_device,
-                new_observations[idx],
-                new_prefills[idx],
-                num_steps=num_action_steps,
-                noise=noise_by_index.get(idx),
-            )
-            new_actions[idx] = _torch_to_numpy(actions_i[0])
 
         self._sync_torch()
         t2 = time.monotonic()

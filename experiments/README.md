@@ -77,27 +77,30 @@ uv run python -m experiments.run_experiments \
 Pass a checkpoint directory containing `model.safetensors` to select the PyTorch backend. For benchmark runs, enable PyTorch compilation:
 
 ```bash
-OPENPI_TORCH_COMPILE=1 uv run python -m experiments.run_experiments \
+OPENPI_TORCH_COMPILE=1 python -m experiments.run_experiments \
     --settings baseline shared_kv continuous_batching \
-    --policies pi05_o2_arx \
+    --policies pi05_o2_libero pi05_o2_aloha pi05_o2_droid \
     --gpu 0 \
-    --checkpoint-dir /home/lixiangyu/.cache/openpi/openpi-assets/checkpoints/pi05_base_pytorch \
+    --checkpoint-dir ~/.cache/openpi/openpi-assets/checkpoints/pi05_base_pytorch \
     --pytorch-device cuda:0 \
-    --num-denoise-steps 10 \
-    --max-decoding-steps 5 \
-    --steps-per-frame 1 \
-    --total-frames 8 \
-    --arrival-pattern 'uniform_arrivals(rate=1,t_max=5)'
+    --results-dir experiments/results_eccv
 ```
 
-`OPENPI_TORCH_COMPILE=1` compiles the PI05 denoising step, VLM prefill, and one-token language decode. The individual switches are:
+`OPENPI_TORCH_COMPILE=1` is the master switch. Without it, none of the PI05 PyTorch inference functions are compiled, even if component flags are set. With it, the default compiled functions are:
+
+- `denoise_step`: repeated action denoising step
+- `_prefill_language_model`: VLM/language prefill
+- `_decode_one_token`: one-token autoregressive language decode
+
+Component flags only take effect when `OPENPI_TORCH_COMPILE=1` is also set:
 
 | Env var | Default when `OPENPI_TORCH_COMPILE=1` | Description |
 |---|---|---|
 | `OPENPI_TORCH_COMPILE_DENOISE` | `1` | Compile the repeated action denoising step |
 | `OPENPI_TORCH_COMPILE_PREFILL` | `1` | Compile VLM/language prefill |
 | `OPENPI_TORCH_COMPILE_TEXT_DECODE` | `1` | Compile one-token autoregressive language decode |
-| `OPENPI_TORCH_COMPILE_MODE` | `reduce-overhead` | Mode passed to `torch.compile` for denoising |
+| `OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS` | `0` | Enable Inductor CUDA graphs for denoising. Faster in some single-policy runs, but can fail in continuous batching when policy/configs change in one process. |
+| `OPENPI_TORCH_COMPILE_MODE` | `reduce-overhead` | Mode passed to `torch.compile` for denoising only when denoise CUDA graphs are enabled |
 
 Set a component flag to `0` to disable it, for example:
 
@@ -105,9 +108,31 @@ Set a component flag to `0` to disable it, for example:
 OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_PREFILL=0 uv run python -m experiments.run_experiments ...
 ```
 
+Common cases:
+
+```bash
+# No compilation: all PyTorch inference functions run eagerly.
+python -m experiments.run_experiments ...
+
+# Same as no compilation. Component flags are ignored without OPENPI_TORCH_COMPILE=1.
+OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS=1 python -m experiments.run_experiments ...
+
+# Default compiled benchmark path. Denoise, prefill, and text decode are compiled.
+# CUDA graphs are disabled for all three compiled functions.
+OPENPI_TORCH_COMPILE=1 python -m experiments.run_experiments ...
+
+# Opt-in denoise CUDA graphs. This compiles denoise with CUDA graphs and compiles
+# prefill/text decode with CUDA graphs disabled. Use for controlled single-policy
+# benchmarking; leave disabled for robust continuous batching sweeps.
+OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS=1 python -m experiments.run_experiments ...
+```
+
 The PyTorch continuous batching path uses a fixed-size text KV cache and advances all active requests in one batched decode call. New requests still run prefill and action generation as a batch.
 
-Note: Inductor-compiled prefill is intended for performance benchmarking. It can shift BF16 logits relative to eager prefill, especially when the top tokens are very close. Use `OPENPI_TORCH_COMPILE_PREFILL=0` for stricter eager-prefill parity checks.
+Notes:
+
+- Inductor-compiled prefill is intended for performance benchmarking. It can shift BF16 logits relative to eager prefill, especially when the top tokens are very close. Use `OPENPI_TORCH_COMPILE_PREFILL=0` for stricter eager-prefill parity checks.
+- `OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS=1` can improve steady-state denoising latency, but it is not the default because Inductor CUDA graph replay is sensitive to allocator state. In local tests it passed a single-policy continuous batching run but failed after switching to another policy/config in the same process.
 
 ### Run a single setting's grid_search directly (for debugging)
 

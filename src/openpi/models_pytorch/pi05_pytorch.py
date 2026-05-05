@@ -63,6 +63,32 @@ def get_safe_dtype(target_dtype, device_type):
     return target_dtype
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _warn_ignored_compile_flags() -> None:
+    ignored = [
+        name
+        for name in (
+            "OPENPI_TORCH_COMPILE_DENOISE",
+            "OPENPI_TORCH_COMPILE_PREFILL",
+            "OPENPI_TORCH_COMPILE_TEXT_DECODE",
+            "OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS",
+            "OPENPI_TORCH_COMPILE_MODE",
+        )
+        if name in os.environ
+    ]
+    if ignored:
+        logging.warning(
+            "Ignoring %s because OPENPI_TORCH_COMPILE is not enabled.",
+            ", ".join(ignored),
+        )
+
+
 def create_sinusoidal_pos_embedding(
     time: torch.tensor, dimension: int, min_period: float, max_period: float, device="cpu"
 ) -> Tensor:
@@ -289,21 +315,36 @@ class PI05Pytorch(nn.Module):
         except ImportError:
             raise ValueError(msg) from None
 
-        compile_all = os.environ.get("OPENPI_TORCH_COMPILE", "0") == "1"
-        if compile_all and os.environ.get("OPENPI_TORCH_COMPILE_DENOISE", "1") != "0":
+        compile_all = _env_flag("OPENPI_TORCH_COMPILE")
+        if not compile_all:
+            _warn_ignored_compile_flags()
+
+        if compile_all and _env_flag("OPENPI_TORCH_COMPILE_DENOISE", default=True):
             mode = os.environ.get("OPENPI_TORCH_COMPILE_MODE", "reduce-overhead")
-            self.denoise_step = torch.compile(self.denoise_step, mode=mode)
-        if compile_all and os.environ.get("OPENPI_TORCH_COMPILE_PREFILL", "1") != "0":
+            denoise_cudagraphs = _env_flag("OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS")
+            if denoise_cudagraphs:
+                logging.info("Compiling PI05 denoise_step with mode=%s and CUDA graphs enabled.", mode)
+                self.denoise_step = torch.compile(self.denoise_step, mode=mode)
+            else:
+                if mode != "reduce-overhead":
+                    logging.warning(
+                        "OPENPI_TORCH_COMPILE_MODE=%s is ignored for denoise because "
+                        "denoise compile disables CUDA graphs via options.",
+                        mode,
+                    )
+                self.denoise_step = torch.compile(
+                    self.denoise_step,
+                    options={"triton.cudagraphs": False},
+                )
+                logging.info("Compiling PI05 denoise_step with CUDA graphs disabled.")
+        if compile_all and _env_flag("OPENPI_TORCH_COMPILE_PREFILL", default=True):
+            logging.info("Compiling PI05 VLM/language prefill with CUDA graphs disabled.")
             self._prefill_language_model = torch.compile(
                 self._prefill_language_model,
                 options={"triton.cudagraphs": False},
             )
-        elif os.environ.get("OPENPI_TORCH_COMPILE_PREFILL", "0") == "1":
-            logging.warning(
-                "OPENPI_TORCH_COMPILE_PREFILL=1 is ignored unless OPENPI_TORCH_COMPILE=1. "
-                "Set OPENPI_TORCH_COMPILE=1 and OPENPI_TORCH_COMPILE_PREFILL=0 to disable only prefill."
-            )
-        if compile_all and os.environ.get("OPENPI_TORCH_COMPILE_TEXT_DECODE", "1") != "0":
+        if compile_all and _env_flag("OPENPI_TORCH_COMPILE_TEXT_DECODE", default=True):
+            logging.info("Compiling PI05 one-token language decode with CUDA graphs disabled.")
             self._decode_one_token = torch.compile(
                 self._decode_one_token,
                 options={"triton.cudagraphs": False},
