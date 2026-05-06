@@ -209,7 +209,9 @@ def run_all(
                 logger.info("Setting '%s' config '%s' complete: %d grid points.",
                             setting, pc, len(results))
         elif setting == "parallel_mps":
-            # parallel_mps creates its own policies internally
+            # parallel_mps creates its own policies internally; checkpoint_dir /
+            # pytorch_device must be forwarded so workers pick the right backend
+            # instead of falling back to the default JAX checkpoint.
             search_space = _build_search_space(setting, policy_configs)
             kwargs = dict(
                 policy=None,
@@ -218,6 +220,8 @@ def run_all(
                 results_dir=results_dir,
                 num_measured_runs=num_measured_runs,
                 warmup_runs=warmup_runs,
+                checkpoint_dir=checkpoint_dir,
+                pytorch_device=pytorch_device,
             )
             from experiments.parallel_mps.grid_search import start_mps, stop_mps
             start_mps(gpu_id=gpu_id)

@@ -176,6 +176,8 @@ def run_grid_search(
     results_dir: Path,
     num_measured_runs: int = 3,
     warmup_runs: int = 1,
+    checkpoint_dir: Path | str | None = None,
+    pytorch_device: str | None = None,
 ) -> list[dict]:
     """Run cartesian product of search_space for the parallel_mps setting.
 
@@ -188,6 +190,11 @@ def run_grid_search(
         results_dir: Where to save raw JSON results.
         num_measured_runs: Repeated measurements per grid point.
         warmup_runs: Discarded warmup runs per grid point.
+        checkpoint_dir: Optional checkpoint directory override. When it
+            contains ``model.safetensors`` the workers use the PyTorch
+            backend; otherwise they fall back to the default JAX checkpoint.
+        pytorch_device: Optional PyTorch device override (e.g. ``"cuda:0"``).
+            Only meaningful for PyTorch checkpoints.
 
     Returns:
         List of result dicts (one per grid point).
@@ -214,7 +221,12 @@ def run_grid_search(
 
     for policy_cfg, policy_combos in by_policy.items():
         logger.info("Starting MPSWorkerPool for policy '%s'...", policy_cfg)
-        with MPSWorkerPool(policy_cfg, prompt) as pool:
+        with MPSWorkerPool(
+            policy_cfg,
+            prompt,
+            checkpoint_dir=checkpoint_dir,
+            pytorch_device=pytorch_device,
+        ) as pool:
             for params in policy_combos:
                 idx += 1
                 logger.info("Grid point %d/%d: %s", idx, total, params)
