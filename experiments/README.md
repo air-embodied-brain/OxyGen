@@ -76,6 +76,8 @@ uv run python -m experiments.run_experiments \
 
 Pass a checkpoint directory containing `model.safetensors` to select the PyTorch backend. For benchmark runs, enable PyTorch compilation:
 
+Server/default compiled path:
+
 ```bash
 OPENPI_TORCH_COMPILE=1 python -m experiments.run_experiments \
     --settings baseline shared_kv continuous_batching \
@@ -85,6 +87,24 @@ OPENPI_TORCH_COMPILE=1 python -m experiments.run_experiments \
     --pytorch-device cuda:0 \
     --results-dir experiments/results_eccv
 ```
+
+Jetson Thor stable compiled path:
+
+```bash
+export PYTHONPATH=packages/openpi-client/src:src:.:$PYTHONPATH
+
+OPENPI_TORCH_COMPILE=1 \
+OPENPI_TORCH_COMPILE_TEXT_DECODE=0 \
+python -m experiments.run_experiments \
+    --settings baseline shared_kv continuous_batching \
+    --policies pi05_o2_libero pi05_o2_aloha pi05_o2_droid \
+    --gpu 0 \
+    --checkpoint-dir ~/.cache/openpi/openpi-assets/checkpoints/pi05_base_pytorch \
+    --pytorch-device cuda:0 \
+    --results-dir experiments/results_eccv_jetson_pytorch
+```
+
+Both commands use the default experiment sweep unless explicit CLI overrides are provided.
 
 `OPENPI_TORCH_COMPILE=1` is the master switch. Without it, none of the PI05 PyTorch inference functions are compiled, even if component flags are set. With it, the default compiled functions are:
 
@@ -125,6 +145,11 @@ OPENPI_TORCH_COMPILE=1 python -m experiments.run_experiments ...
 # prefill/text decode with CUDA graphs disabled. Use for controlled single-policy
 # benchmarking; leave disabled for robust continuous batching sweeps.
 OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS=1 python -m experiments.run_experiments ...
+
+# Jetson Thor stable compiled path. Denoise and prefill are compiled; text decode
+# remains eager because compiled one-token decode has produced invalid sampling
+# probabilities on Jetson Thor.
+OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_TEXT_DECODE=0 python -m experiments.run_experiments ...
 ```
 
 The PyTorch continuous batching path uses a fixed-size text KV cache and advances all active requests in one batched decode call. New requests still run prefill and action generation as a batch.
@@ -133,6 +158,7 @@ Notes:
 
 - Inductor-compiled prefill is intended for performance benchmarking. It can shift BF16 logits relative to eager prefill, especially when the top tokens are very close. Use `OPENPI_TORCH_COMPILE_PREFILL=0` for stricter eager-prefill parity checks.
 - `OPENPI_TORCH_COMPILE_DENOISE_CUDAGRAPHS=1` can improve steady-state denoising latency, but it is not the default because Inductor CUDA graph replay is sensitive to allocator state. In local tests it passed a single-policy continuous batching run but failed after switching to another policy/config in the same process.
+- On Jetson Thor, use `OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_TEXT_DECODE=0` for stable compiled continuous batching. This keeps denoise and VLM prefill compiled while leaving one-token language decode eager. Continuous batching warmup detects this mode and warms new-request batch sizes instead of all active batch sizes.
 
 ### Run a single setting's grid_search directly (for debugging)
 
@@ -665,6 +691,8 @@ uv run python -m experiments.analysis.copy_plots_to_paper \
 
 For convenience, here's the complete sequence of commands to run all experiments and generate all figures:
 
+Server/JAX pipeline:
+
 ```bash
 # Step A: Run experiments (change --gpu 0 to another GPU ID if needed)
 uv run python -m experiments.run_experiments --settings baseline shared_kv continuous_batching parallel_mps --policies pi05_o2_aloha pi05_o2_droid pi05_o2_libero --results-dir experiments/results_eccv --gpu 0
@@ -680,4 +708,37 @@ uv run python -m experiments.analysis.plot_all --results-root-dir experiments/re
 
 # Step C: Copy to paper (optional)
 uv run python -m experiments.analysis.copy_plots_to_paper --results-root-dir experiments/results_eccv --paper-figures-dir ECCV-2026---MoT-VLA-Inference/figures/experiments
+```
+
+Server/PyTorch pipeline:
+
+```bash
+# Step A: Run experiments (change --gpu 0 to another GPU ID if needed)
+OPENPI_TORCH_COMPILE=1 uv run python -m experiments.run_experiments --settings baseline shared_kv continuous_batching --policies pi05_o2_aloha pi05_o2_droid pi05_o2_libero --checkpoint-dir ~/.cache/openpi/openpi-assets/checkpoints/pi05_base_pytorch --pytorch-device cuda:0 --results-dir experiments/results_eccv_pytorch --gpu 0
+uv run python -m experiments.run_overhead --gpu 0 --results-dir experiments/results_eccv_pytorch --policy pi05_o2_libero
+uv run python -m experiments.run_workload_sweep --gpu 0 --results-dir experiments/results_eccv_pytorch --policy pi05_o2_libero
+
+# Step B: Analysis and plotting (no GPU needed)
+uv run python -m experiments.analysis.aggregate_metrics --results-root-dir experiments/results_eccv_pytorch
+uv run python -m experiments.analysis.compute_speedup_cb --results-root-dir experiments/results_eccv_pytorch
+uv run python -m experiments.analysis.compute_speedup_ablation --results-root-dir experiments/results_eccv_pytorch
+uv run python -m experiments.analysis.compute_workload_sweep --results-root-dir experiments/results_eccv_pytorch --policy pi05_o2_libero --num-denoise-steps 10 --max-decoding-steps 30
+uv run python -m experiments.analysis.plot_all --results-root-dir experiments/results_eccv_pytorch --steps-per-frame 5 --num-denoise-steps 10 --policy all
+```
+
+Jetson Thor/PyTorch pipeline:
+
+```bash
+export PYTHONPATH=packages/openpi-client/src:src:.:$PYTHONPATH
+
+# Step A: Run experiments. This uses the default sweep; only the PyTorch backend
+# and Jetson-stable compile mode are changed.
+OPENPI_TORCH_COMPILE=1 OPENPI_TORCH_COMPILE_TEXT_DECODE=0 python -m experiments.run_experiments --settings baseline shared_kv continuous_batching --policies pi05_o2_aloha pi05_o2_droid pi05_o2_libero --checkpoint-dir ~/.cache/openpi/openpi-assets/checkpoints/pi05_base_pytorch --pytorch-device cuda:0 --results-dir experiments/results_eccv_jetson_pytorch --gpu 0
+
+# Step B: Analysis and plotting (no GPU needed)
+python -m experiments.analysis.aggregate_metrics --results-root-dir experiments/results_eccv_jetson_pytorch
+python -m experiments.analysis.compute_speedup_cb --results-root-dir experiments/results_eccv_jetson_pytorch
+python -m experiments.analysis.compute_speedup_ablation --results-root-dir experiments/results_eccv_jetson_pytorch
+python -m experiments.analysis.compute_workload_sweep --results-root-dir experiments/results_eccv_jetson_pytorch --policy pi05_o2_libero --num-denoise-steps 10 --max-decoding-steps 30
+python -m experiments.analysis.plot_all --results-root-dir experiments/results_eccv_jetson_pytorch --steps-per-frame 5 --num-denoise-steps 10 --policy all
 ```

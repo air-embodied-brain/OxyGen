@@ -3,6 +3,7 @@
 import itertools
 import json
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -16,6 +17,13 @@ from experiments.common.workload import create_synthetic_observation
 logger = logging.getLogger(__name__)
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def warmup_batch_sizes(
     policy,
     *,
@@ -25,11 +33,17 @@ def warmup_batch_sizes(
     num_denoise_steps: int,
     max_decoding_steps: int,
     steps_per_frame: int,
+    new_request_batch_sizes: list[int] | None = None,
 ) -> None:
     """Warm up continuous batching for batch sizes 1..max_batch."""
-    logger.info("Warmup: continuous batching batch sizes 1..%d", max_batch)
-    for bs in range(1, max_batch + 1):
-        logger.info("  Warmup bs=%d/%d — compiling...", bs, max_batch)
+    if new_request_batch_sizes is None:
+        batch_sizes = list(range(1, max_batch + 1))
+    else:
+        batch_sizes = sorted(set(max(1, bs) for bs in new_request_batch_sizes))
+
+    logger.info("Warmup: continuous batching batch sizes %s", batch_sizes)
+    for i, bs in enumerate(batch_sizes, start=1):
+        logger.info("  Warmup bs=%d (%d/%d) — running...", bs, i, len(batch_sizes))
         cm = policy.init_continuous_batching()
         obs = [
             create_synthetic_observation(prompt, seed=i, policy_config=policy_config)
@@ -248,14 +262,22 @@ def run_grid_search(
     from experiments.continuous_batching.runner import _parse_arrival_pattern
     arrival_fn = _parse_arrival_pattern(arrival_pattern)
 
+    torch_compile_text_decode = (
+        getattr(policy, "_is_pytorch_model", False)
+        and _env_flag("OPENPI_TORCH_COMPILE")
+        and _env_flag("OPENPI_TORCH_COMPILE_TEXT_DECODE", default=True)
+    )
+
     for spf in search_space.get("steps_per_frame", [5]):
         frames_to_finish = max_decode // spf
         # Run multiple simulations to account for stochastic patterns (poisson)
         peak_bs = 0
+        peak_new_requests = 0
         for _ in range(5):
             active_remaining: list[int] = []
             for frame_idx in range(total_frames):
                 new_arrivals = arrival_fn(frame_idx)
+                peak_new_requests = max(peak_new_requests, len(new_arrivals))
                 for _ in new_arrivals:
                     active_remaining.append(frames_to_finish)
                 peak_bs = max(peak_bs, len(active_remaining))
@@ -265,6 +287,17 @@ def run_grid_search(
             "Estimated peak batch size for spf=%d: %d (from %d-frame simulation)",
             spf, peak_bs, total_frames,
         )
+        new_request_batch_sizes = None
+        if getattr(policy, "_is_pytorch_model", False) and not torch_compile_text_decode:
+            # In this Jetson-stable mode, resumed text decode is eager. The
+            # compiled prefill/denoise path only sees the new-request batch,
+            # so avoid compiling unreachable all-new batch sizes up to peak_bs.
+            new_request_batch_sizes = [peak_new_requests or 1]
+            logger.info(
+                "PyTorch text decode is eager; warming new-request batch sizes %s "
+                "instead of active batch sizes 1..%d.",
+                new_request_batch_sizes, peak_bs,
+            )
         warmup_batch_sizes(
             policy,
             policy_config=first_policy,
@@ -273,6 +306,7 @@ def run_grid_search(
             num_denoise_steps=first_denoise,
             max_decoding_steps=max_decode,
             steps_per_frame=spf,
+            new_request_batch_sizes=new_request_batch_sizes,
         )
 
     for i, params in enumerate(combos):
