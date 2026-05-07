@@ -189,6 +189,12 @@ def setup_style():
         "savefig.dpi": 300,
         "savefig.bbox": "tight",
         "savefig.pad_inches": 0.05,
+        # Avoid Type 3 fonts in PDF/PS output (ScholarOne, IEEE PDF eXpress,
+        # and many publisher pipelines reject Type 3). Type 42 = TrueType.
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
+        "svg.fonttype": "none",
+        "ps.useafm": False,
+        "pdf.use14corefonts": False,
+        "text.usetex": False,
     })
