@@ -95,6 +95,7 @@ class PaliGemmaWithExpertModel(nn.Module):
         past_key_values: list[torch.FloatTensor] | pytest.Cache | None = None,
         inputs_embeds: list[torch.FloatTensor] | None = None,
         use_cache: bool | None = None,
+        cache_position: torch.LongTensor | None = None,
         adarms_cond: list[torch.Tensor] | None = None,
     ):
         if adarms_cond is None:
@@ -106,6 +107,7 @@ class PaliGemmaWithExpertModel(nn.Module):
                 position_ids=position_ids,
                 past_key_values=past_key_values,
                 use_cache=use_cache,
+                cache_position=cache_position,
                 adarms_cond=adarms_cond[0] if adarms_cond is not None else None,
             )
             prefix_past_key_values = prefix_output.past_key_values
@@ -118,6 +120,7 @@ class PaliGemmaWithExpertModel(nn.Module):
                 position_ids=position_ids,
                 past_key_values=past_key_values,
                 use_cache=use_cache,
+                cache_position=cache_position,
                 adarms_cond=adarms_cond[1] if adarms_cond is not None else None,
             )
             suffix_output = suffix_output.last_hidden_state

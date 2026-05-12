@@ -6,6 +6,24 @@ import matplotlib.pyplot as plt
 
 ACTION_HORIZON = 10
 
+DEVICE_LABELS_BY_RESULT_DIR = {
+    "results_4090_jax": "GeForce RTX 4090",
+    "results_a100_pytorch": "NVIDIA A100",
+    "results_a100_pytorch_smoke": "NVIDIA A100",
+    "results_thor_pytorch": "Jetson AGX Thor",
+}
+
+
+def device_label_from_results_dir(results_root: Path | str) -> str:
+    """Return a readable device label for a result directory.
+
+    Known result directory names use stable paper labels. Unknown names fall
+    back to the directory name so ad-hoc result roots still plot without code
+    changes.
+    """
+    name = Path(results_root).name
+    return DEVICE_LABELS_BY_RESULT_DIR.get(name, name)
+
 
 class PlotColors:
     """Unified color palette matching design figures."""
@@ -189,6 +207,12 @@ def setup_style():
         "savefig.dpi": 300,
         "savefig.bbox": "tight",
         "savefig.pad_inches": 0.05,
+        # Avoid Type 3 fonts in PDF/PS output (ScholarOne, IEEE PDF eXpress,
+        # and many publisher pipelines reject Type 3). Type 42 = TrueType.
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
+        "svg.fonttype": "none",
+        "ps.useafm": False,
+        "pdf.use14corefonts": False,
+        "text.usetex": False,
     })

@@ -81,8 +81,18 @@ def stop_mps() -> None:
                               f"/tmp/nvidia-mps-log-{user}")
 
     logger.info("Stopping MPS daemon...")
-    subprocess.run("echo quit | nvidia-cuda-mps-control", shell=True,
-                    capture_output=True, timeout=5)
+    try:
+        subprocess.run("echo quit | nvidia-cuda-mps-control", shell=True,
+                        capture_output=True, timeout=5)
+    except subprocess.TimeoutExpired:
+        logger.warning(
+            "Timed out waiting for nvidia-cuda-mps-control to quit; "
+            "falling back to pkill."
+        )
+    subprocess.run(f"pkill -u {user} -f nvidia-cuda-mps-control",
+                    shell=True, capture_output=True)
+    subprocess.run(f"pkill -u {user} -f nvidia-cuda-mps-server",
+                    shell=True, capture_output=True)
     time.sleep(1)
     for d in (pipe_dir, log_dir):
         subprocess.run(["rm", "-rf", d], capture_output=True)
@@ -110,7 +120,7 @@ def _run_single_grid_point(
     """Run warmup + measured iterations for a single grid point.
 
     Returns:
-        Result dict matching the JSON format in experiments/README.md.
+        Result dict matching the JSON format in experiments/Experiments.md.
     """
     num_denoise_steps = params["num_denoise_steps"]
     max_decoding_steps = params["max_decoding_steps"]
@@ -169,6 +179,15 @@ def _save_result(result: dict, results_dir: Path) -> Path:
     return path
 
 
+def _result_path(params: dict, results_dir: Path) -> Path:
+    return (
+        results_dir
+        / "parallel_mps"
+        / params["policy_config"]
+        / f"denoise{params['num_denoise_steps']}_decode{params['max_decoding_steps']}.json"
+    )
+
+
 def run_grid_search(
     policy,
     search_space: dict,
@@ -176,6 +195,8 @@ def run_grid_search(
     results_dir: Path,
     num_measured_runs: int = 3,
     warmup_runs: int = 1,
+    checkpoint_dir: Path | str | None = None,
+    pytorch_device: str | None = None,
 ) -> list[dict]:
     """Run cartesian product of search_space for the parallel_mps setting.
 
@@ -188,6 +209,11 @@ def run_grid_search(
         results_dir: Where to save raw JSON results.
         num_measured_runs: Repeated measurements per grid point.
         warmup_runs: Discarded warmup runs per grid point.
+        checkpoint_dir: Optional checkpoint directory override. When it
+            contains ``model.safetensors`` the workers use the PyTorch
+            backend; otherwise they fall back to the default JAX checkpoint.
+        pytorch_device: Optional PyTorch device override (e.g. ``"cuda:0"``).
+            Only meaningful for PyTorch checkpoints.
 
     Returns:
         List of result dicts (one per grid point).
@@ -214,9 +240,20 @@ def run_grid_search(
 
     for policy_cfg, policy_combos in by_policy.items():
         logger.info("Starting MPSWorkerPool for policy '%s'...", policy_cfg)
-        with MPSWorkerPool(policy_cfg, prompt) as pool:
+        with MPSWorkerPool(
+            policy_cfg,
+            prompt,
+            checkpoint_dir=checkpoint_dir,
+            pytorch_device=pytorch_device,
+        ) as pool:
             for params in policy_combos:
                 idx += 1
+                if _result_path(params, results_dir).exists():
+                    logger.info(
+                        "Skipping existing result: %s",
+                        _result_path(params, results_dir),
+                    )
+                    continue
                 logger.info("Grid point %d/%d: %s", idx, total, params)
                 result = _run_single_grid_point(
                     pool, params, fixed_params,

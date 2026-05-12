@@ -43,16 +43,47 @@ def create_trained_policy(
         presence of "model.safensors" in the checkpoint directory.
     """
     repack_transforms = repack_transforms or transforms.Group()
-    checkpoint_dir = download.maybe_download(str(checkpoint_dir))
+    requested_checkpoint = str(checkpoint_dir)
+    # If the caller passed a path that doesn't exist locally AND isn't a
+    # remote URI that maybe_download knows how to fetch, fall back to random
+    # weights. This is only meant for quick benchmarking / plumbing tests
+    # where actual model outputs don't matter.
+    is_remote_uri = "://" in requested_checkpoint
+    use_random_init = (not is_remote_uri) and (not os.path.exists(requested_checkpoint))
 
-    # Check if this is a PyTorch model by looking for model.safetensors
-    weight_path = os.path.join(checkpoint_dir, "model.safetensors")
-    is_pytorch = os.path.exists(weight_path)
+    if use_random_init:
+        banner = "*" * 72
+        logging.warning(
+            "\n%s\n"
+            "DUMMY MODE: checkpoint path %r does not exist.\n"
+            "Initializing the model with RANDOM WEIGHTS — outputs are garbage\n"
+            "and only shapes / latency / memory behavior are meaningful.\n"
+            "%s",
+            banner, requested_checkpoint, banner,
+        )
+        # Pick the backend: explicit pytorch_device wins, otherwise look for
+        # a "pytorch" hint in the requested path (so existing conventions like
+        # .../pi05_base_pytorch keep working), otherwise default to JAX.
+        is_pytorch = (pytorch_device is not None) or ("pytorch" in requested_checkpoint.lower())
+        checkpoint_dir = pathlib.Path(requested_checkpoint)
+        logging.warning(
+            "DUMMY MODE: using %s backend.", "pytorch" if is_pytorch else "jax",
+        )
+    else:
+        checkpoint_dir = download.maybe_download(requested_checkpoint)
+        weight_path = os.path.join(checkpoint_dir, "model.safetensors")
+        is_pytorch = os.path.exists(weight_path)
 
     logging.info("Loading model...")
-    if is_pytorch:
+    if use_random_init:
+        if is_pytorch:
+            model = _init_random_pytorch_model(train_config)
+        else:
+            import jax
+            model = train_config.model.create(jax.random.key(0))
+    elif is_pytorch:
         model = train_config.model.load_pytorch(train_config, weight_path)
-        model.paligemma_with_expert.to_bfloat16_for_selected_params("bfloat16")
+        model.paligemma_with_expert.to_bfloat16_for_selected_params(train_config.pytorch_training_precision)
     else:
         model = train_config.model.load(_model.restore_params(checkpoint_dir / "params", dtype=jnp.bfloat16))
     data_config = train_config.data.create(train_config.assets_dirs, train_config.model)
@@ -92,3 +123,28 @@ def create_trained_policy(
         is_pytorch=is_pytorch,
         pytorch_device=pytorch_device if is_pytorch else None,
     )
+
+
+def _init_random_pytorch_model(train_config: _config.TrainConfig):
+    """Build the PyTorch model with its default (random) parameter init.
+
+    Mirrors ``BaseModelConfig.load_pytorch`` but skips the safetensors load,
+    so no checkpoint file is required. Intended for dummy / smoke-test runs.
+    """
+    import torch
+
+    from openpi.models import model as _model_mod
+    from openpi.models_pytorch import pi0_pytorch
+    from openpi.models_pytorch import pi05_pytorch
+
+    if train_config.model.model_type is _model_mod.ModelType.PI05_O2:
+        model = pi05_pytorch.PI05Pytorch(config=train_config.model)
+    else:
+        model = pi0_pytorch.PI0Pytorch(config=train_config.model)
+    if train_config.pytorch_training_precision == "bfloat16":
+        model = model.to(torch.bfloat16)
+    elif train_config.pytorch_training_precision == "float32":
+        model = model.to(torch.float32)
+    else:
+        raise ValueError(f"Unsupported PyTorch precision: {train_config.pytorch_training_precision}")
+    return model

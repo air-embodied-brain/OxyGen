@@ -41,7 +41,7 @@ def _run_single_grid_point(
     """Run warmup + measured iterations for a single grid point.
 
     Returns:
-        Result dict matching the JSON format in experiments/README.md.
+        Result dict matching the JSON format in experiments/Experiments.md.
     """
     num_denoise_steps = params["num_denoise_steps"]
     max_decoding_steps = params["max_decoding_steps"]
@@ -113,6 +113,15 @@ def _save_result(result: dict, results_dir: Path) -> Path:
     return path
 
 
+def _result_path(params: dict, results_dir: Path) -> Path:
+    return (
+        results_dir
+        / "baseline"
+        / params["policy_config"]
+        / f"denoise{params['num_denoise_steps']}_decode{params['max_decoding_steps']}.json"
+    )
+
+
 def run_grid_search(
     policy,
     search_space: dict,
@@ -140,6 +149,9 @@ def run_grid_search(
     for i, params in enumerate(combos):
         if not _is_valid_combo(params):
             logger.info("Skipping invalid combo: %s", params)
+            continue
+        if _result_path(params, results_dir).exists():
+            logger.info("Skipping existing result: %s", _result_path(params, results_dir))
             continue
 
         logger.info(

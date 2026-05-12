@@ -25,7 +25,7 @@ def main():
     parser.add_argument(
         "--results-root-dir",
         type=Path,
-        default=Path("experiments/results_0226"),
+        default=Path("experiments/results"),
         help="Root directory for experiment results",
     )
     parser.add_argument(

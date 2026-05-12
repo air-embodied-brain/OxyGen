@@ -182,6 +182,9 @@ def main():
     setup_style()
 
     csv_path = analysis_root / "compute_workload_sweep" / "workload_sweep.csv"
+    if not csv_path.exists():
+        print(f"Skipping workload sweep plot: missing {csv_path}")
+        return
     df = pd.read_csv(csv_path)
 
     if df.empty:
@@ -193,4 +196,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

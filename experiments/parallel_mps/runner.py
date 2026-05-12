@@ -15,13 +15,41 @@ logger = logging.getLogger(__name__)
 PALIGEMMA_EOS_TOKEN = -1  # No early stop for latency profiling
 
 
-def _worker_fn(task_type, policy_config, prompt, input_queue, output_queue):
+def _is_pytorch_checkpoint(checkpoint_dir, pytorch_device) -> bool:
+    """Decide if the worker should follow the PyTorch backend path.
+
+    Three cases:
+      1. Checkpoint dir exists and contains model.safetensors -> pytorch.
+      2. Checkpoint dir exists without safetensors -> jax (existing behavior).
+      3. Checkpoint dir does NOT exist -> dummy/random-init path; defer to
+         `pytorch_device` if set, otherwise fall back to the "pytorch" hint
+         in the path name. Matches create_trained_policy's dummy-mode logic.
+    """
+    if checkpoint_dir is None:
+        return False
+    path = str(checkpoint_dir)
+    try:
+        if os.path.exists(path):
+            return os.path.exists(os.path.join(path, "model.safetensors"))
+    except OSError:
+        pass
+    # Dummy / non-existent path.
+    if pytorch_device:
+        return True
+    return "pytorch" in path.lower()
+
+
+def _worker_fn(task_type, policy_config, prompt, checkpoint_dir, pytorch_device,
+               input_queue, output_queue):
     """Worker process: initializes its own policy and serves inference requests.
 
     Args:
         task_type: "action" or "text".
         policy_config: Policy config name for policy creation.
         prompt: Prompt string (used to create synthetic observation once).
+        checkpoint_dir: Optional checkpoint directory override. Presence of
+            ``model.safetensors`` inside selects the PyTorch backend.
+        pytorch_device: Optional PyTorch device override.
         input_queue: Receives RUN/STOP commands from parent.
         output_queue: Sends ready/done/error signals back to parent.
     """
@@ -29,17 +57,44 @@ def _worker_fn(task_type, policy_config, prompt, input_queue, output_queue):
     # the daemon virtualizes that GPU as a single device at index 0. Child
     # processes must address it as device 0, otherwise JAX/CUDA won't find it.
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    # Set memory fraction so two workers fit on one GPU
-    os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.45"
+
+    is_pytorch = _is_pytorch_checkpoint(checkpoint_dir, pytorch_device)
+
+    if not is_pytorch:
+        # JAX path: cap per-process memory so two workers fit on one GPU.
+        os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = "0.45"
+    else:
+        # PyTorch path: leave JAX env vars alone; cap torch per-process
+        # memory instead so both workers coexist under MPS.
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
     try:
-        # Late imports — each worker initializes its own JAX context
-        import jax
         from experiments.common.setup import create_policy
         from experiments.common.workload import create_synthetic_observation
 
-        logger.info("[%s] Initializing policy '%s'...", task_type, policy_config)
-        policy = create_policy(policy_config)
+        logger.info(
+            "[%s] Initializing policy '%s' (backend=%s)...",
+            task_type, policy_config, "pytorch" if is_pytorch else "jax",
+        )
+        policy = create_policy(
+            policy_config,
+            checkpoint_dir=checkpoint_dir,
+            pytorch_device=pytorch_device,
+        )
+
+        if is_pytorch:
+            import torch
+
+            torch_device_str = (
+                getattr(policy, "_pytorch_device", None)
+                or pytorch_device
+                or ("cuda" if torch.cuda.is_available() else "cpu")
+            )
+            torch_device = torch.device(torch_device_str)
+            jax_module = None
+        else:
+            import jax as jax_module
+            torch_device = None
 
         obs = create_synthetic_observation(
             prompt, seed=42, policy_config=policy_config,
@@ -47,6 +102,20 @@ def _worker_fn(task_type, policy_config, prompt, input_queue, output_queue):
 
         logger.info("[%s] Ready.", task_type)
         output_queue.put({"status": "ready", "task_type": task_type})
+
+        def _sync_and_mem():
+            """Block until inference finishes and return current memory usage."""
+            if is_pytorch:
+                if torch_device is not None and torch_device.type == "cuda":
+                    torch.cuda.synchronize(torch_device)
+                    try:
+                        return int(torch.cuda.memory_allocated(torch_device))
+                    except RuntimeError:
+                        return 0
+                return 0
+            device = jax_module.local_devices()[0]
+            mem_stats = device.memory_stats()
+            return mem_stats["bytes_in_use"] if mem_stats else 0
 
         while True:
             try:
@@ -65,7 +134,10 @@ def _worker_fn(task_type, policy_config, prompt, input_queue, output_queue):
                     out = policy.infer_actions(
                         obs, num_steps=params["num_denoise_steps"],
                     )
-                    jax.block_until_ready(out["actions"])
+                    # Policy.infer_actions already syncs in the PyTorch path
+                    # and converts to numpy; on JAX we still need to block.
+                    if not is_pytorch and hasattr(out["actions"], "block_until_ready"):
+                        out["actions"].block_until_ready()
                     policy_timing = out["policy_timing"]
                 elif task_type == "text":
                     out = policy.infer_text(
@@ -73,17 +145,14 @@ def _worker_fn(task_type, policy_config, prompt, input_queue, output_queue):
                         max_decoding_steps=params["max_decoding_steps"],
                         PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
                     )
-                    jax.block_until_ready(out["tokens"])
+                    if not is_pytorch and hasattr(out["tokens"], "block_until_ready"):
+                        out["tokens"].block_until_ready()
                     policy_timing = out["policy_timing"]
                 else:
                     raise ValueError(f"Unknown task_type: {task_type}")
 
+                mem_bytes = _sync_and_mem()
                 t1 = time.monotonic()
-
-                # Report actual JAX memory usage
-                device = jax.local_devices()[0]
-                mem_stats = device.memory_stats()
-                mem_bytes = mem_stats["bytes_in_use"] if mem_stats else 0
 
                 output_queue.put({
                     "status": "done",
@@ -108,9 +177,19 @@ class MPSWorkerPool:
             result = pool.run_frame(num_denoise_steps=10, max_decoding_steps=5)
     """
 
-    def __init__(self, policy_config: str, prompt: str):
+    def __init__(
+        self,
+        policy_config: str,
+        prompt: str,
+        *,
+        checkpoint_dir=None,
+        pytorch_device: str | None = None,
+    ):
         self.policy_config = policy_config
         self.prompt = prompt
+        # Keep checkpoint_dir serializable across the multiprocessing boundary.
+        self.checkpoint_dir = str(checkpoint_dir) if checkpoint_dir is not None else None
+        self.pytorch_device = pytorch_device
         self._action_proc = None
         self._text_proc = None
         self._q_in_action = None
@@ -134,12 +213,14 @@ class MPSWorkerPool:
             target=_worker_fn,
             name="ActionWorker",
             args=("action", self.policy_config, self.prompt,
+                  self.checkpoint_dir, self.pytorch_device,
                   self._q_in_action, self._q_out_action),
         )
         self._text_proc = multiprocessing.Process(
             target=_worker_fn,
             name="TextWorker",
             args=("text", self.policy_config, self.prompt,
+                  self.checkpoint_dir, self.pytorch_device,
                   self._q_in_text, self._q_out_text),
         )
 

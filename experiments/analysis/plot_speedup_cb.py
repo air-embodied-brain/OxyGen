@@ -28,6 +28,8 @@ def load_data(analysis_root_dir: Path) -> pd.DataFrame:
 
 def _get_policies(df: pd.DataFrame) -> list[str]:
     """Return policies present in df, in canonical order."""
+    if df.empty or "policy" not in df.columns:
+        return []
     return [p for p in POLICY_ORDER if p in df["policy"].values]
 
 
@@ -51,8 +53,15 @@ def plot_heatmap(df: pd.DataFrame, plot_dir: Path, comparison: str = "same"):
         # Filter to baseline with 30 total decoding steps and specific steps per frame
         df = df[(df["max_decoding_steps"] == 30) & (df["steps_per_frame"].isin([1,2,3,5,10]))].copy()
 
+    if df.empty:
+        print(f"No data for {comparison} heatmap")
+        return
+
     policies = _get_policies(df)
     ncols = len(policies)
+    if ncols == 0:
+        print(f"No policies to plot for {comparison} heatmap")
+        return
 
     if comparison == "same":
         # Iterate over steps_per_frame for "same" comparison
@@ -69,6 +78,10 @@ def plot_heatmap(df: pd.DataFrame, plot_dir: Path, comparison: str = "same"):
         else:
             sub = df
             suffix = ""
+
+        if sub.empty:
+            print(f"No data for {comparison} heatmap{suffix}")
+            continue
 
         fig, axes = plt.subplots(1, ncols, figsize=(2.5 * ncols + 1, 2.5), squeeze=False, constrained_layout=True)
 
@@ -149,6 +162,10 @@ def _plot_dual_axis(
     1×N subplots (N = policies). Left y = action frequency bars, right y = throughput lines.
     Includes baseline, MPS, and CB (ours).
     """
+    if df.empty or not policies:
+        print(f"No data for {out_path.name}")
+        return
+
     bar_width = 0.28  # increased bar width
 
     ncols = max(len(policies), 1)
@@ -309,11 +326,18 @@ def _plot_dual_axis(
 
 def plot_line(df: pd.DataFrame, plot_dir: Path, use_hatch: bool = False):
     """Line plot: CB vs same-config baseline by max_decoding_steps."""
+    if df.empty:
+        print("No data for line plot")
+        return
+
     spf = df["steps_per_frame"].max()
     sub = df[df["steps_per_frame"] == spf].copy()
 
     # Filter to [10, 20, 30] decoding steps
     sub = sub[sub["max_decoding_steps"].isin([5, 10, 15, 20, 30])]
+    if sub.empty:
+        print("No data for line plot after filtering")
+        return
 
     # Load MPS data for comparison
     analysis_root_dir = plot_dir.parent.parent / "analysis"

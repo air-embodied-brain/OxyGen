@@ -79,13 +79,19 @@ def run_sweep(
     results_dir: Path,
     gpu_id: int = 0,
     category: str | None = None,
+    checkpoint_dir: str | Path | None = None,
+    pytorch_device: str | None = None,
 ) -> None:
     """Run workload sweep for a single policy."""
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     setup_jax_cache()
 
     logger.info("Creating policy '%s'...", policy_config)
-    policy = create_policy(policy_config)
+    policy = create_policy(
+        policy_config,
+        checkpoint_dir=checkpoint_dir,
+        pytorch_device=pytorch_device,
+    )
 
     patterns = _build_arrival_patterns()
 
@@ -164,6 +170,14 @@ def main():
         choices=["uniform", "poisson", "random_length"],
         help="Only run patterns of this category (default: all).",
     )
+    parser.add_argument(
+        "--checkpoint-dir", type=Path, default=None,
+        help="Override checkpoint directory. A nonexistent path uses random weights.",
+    )
+    parser.add_argument(
+        "--pytorch-device", default=None,
+        help='PyTorch device override, e.g. "cuda", "cuda:0", or "cpu".',
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -186,6 +200,8 @@ def main():
         results_dir=args.results_dir,
         gpu_id=args.gpu,
         category=args.category,
+        checkpoint_dir=args.checkpoint_dir,
+        pytorch_device=args.pytorch_device,
     )
 
 

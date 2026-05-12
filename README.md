@@ -2,18 +2,22 @@
 
 This repository contains code for paper [*OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism*](https://arxiv.org/abs/2603.14371). It is built atop [openpi](https://github.com/Physical-Intelligence/openpi).
 
-OxyGen optimizes multi-task inference for Mixture-of-Transformers (MoT) Vision-Language-Action (VLA) models through a unified KV cache management, with cross-task KV sharing and cross-frame continuous batching.
+OxyGen optimizes multi-task inference for Mixture-of-Transformers (MoT) Vision-Language-Action (VLA) models (e.g., pi0.5) through unified KV cache management, with cross-task KV sharing and cross-frame continuous batching.
+
+## News
+
+- **2026-05:** Added PyTorch inference support with primary `torch.compile` optimization, verified on NVIDIA A100 and Jetson AGX Thor.
 
 ## Requirements
 
-- Ubuntu 22.04 LTS (or later)
+- Ubuntu 22.04 LTS or later
 - NVIDIA GPU (>8 GB VRAM for inference; >16 GB recommended for full experiments)
 - Python 3.11, managed by [uv](https://docs.astral.sh/uv/)
 
-Tested environment:
+Tested environment for the JAX backend:
 
 | Component | Version |
-|-----------|---------|
+| --- | --- |
 | CPU | Intel i9-13900K |
 | RAM | 64 GB |
 | GPU | NVIDIA GeForce RTX 4090 (24 GB) |
@@ -21,7 +25,7 @@ Tested environment:
 | NVIDIA driver | 580.126.09 |
 | CUDA | 13.0 |
 
-Official checkpoints from openpi (downloaded automatically to `~/.cache/openpi`):
+Official checkpoints from openpi are downloaded automatically to `~/.cache/openpi` when needed:
 
 - pi05-DROID: `gs://openpi-assets/checkpoints/pi05_droid`
 - pi05-LIBERO: `gs://openpi-assets/checkpoints/pi05_libero`
@@ -34,82 +38,25 @@ GIT_LFS_SKIP_SMUDGE=1 uv sync
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
 ```
 
-`GIT_LFS_SKIP_SMUDGE=1` is needed to pull the [LeRobot](https://github.com/huggingface/lerobot) dependency without downloading large LFS payloads.
+`GIT_LFS_SKIP_SMUDGE=1` is needed to pull the [LeRobot](https://github.com/huggingface/lerobot) dependency without downloading large LFS payloads. An optional Docker workflow is documented in [`docs/docker.md`](docs/docker.md).
 
-An optional Docker workflow is documented in [`docs/docker.md`](docs/docker.md).
+## Quick Test
 
-## Experiments
-
-### Running experiments
-
-Run the full set of experiments from the paper (results saved to `experiments/results_eccv`):
+The command below loads the pi0.5 base checkpoint through the `pi05_o2_arx` config, creates one synthetic observation, and prints the generated language. The first run downloads `pi05_base` to `~/.cache/openpi`.
 
 ```bash
-# Main experiments: all settings and benchmarks
-uv run python -m experiments.run_experiments \
-    --settings baseline shared_kv continuous_batching parallel_mps \
-    --policies pi05_o2_aloha pi05_o2_droid pi05_o2_libero \
-    --results-dir experiments/results_eccv --gpu 0
+uv run python - <<'PY'
+from experiments.common.setup import create_policy
+from experiments.common.workload import create_synthetic_observation
 
-# Memory and energy measurements (LIBERO only)
-uv run python -m experiments.run_overhead \
-    --gpu 0 --results-dir experiments/results_eccv --policy pi05_o2_libero
-
-# Workload sweep (LIBERO only)
-uv run python -m experiments.run_workload_sweep \
-    --gpu 0 --results-dir experiments/results_eccv --policy pi05_o2_libero
+policy = create_policy("pi05_o2_arx")
+obs = create_synthetic_observation("pick up the red cup", seed=0, policy_config="pi05_o2_arx")
+out = policy.infer_text(obs, max_decoding_steps=20)
+print(out["text"])
+PY
 ```
 
-The first run takes roughly 3+ hours (checkpoint download + JAX compilation). Subsequent runs are faster. Experiments require exclusive GPU access.
-
-To run a smaller subset, specify settings or policies via CLI args. For example:
-
-```bash
-# Baseline on LIBERO
-uv run python -m experiments.run_experiments \
-    --settings baseline --policies pi05_o2_libero --gpu 0
-
-# Continuous batching ("Ours") on LIBERO
-uv run python -m experiments.run_experiments \
-    --settings continuous_batching --policies pi05_o2_libero --gpu 0
-```
-
-Other settings: `shared_kv` ("Ours w/o Batching" in the ablation) and `parallel_mps` ("Parallel").
-
-### Analysis and plotting
-
-Generate all paper figures and tables (no GPU needed):
-
-```bash
-uv run python -m experiments.analysis.aggregate_metrics \
-    --results-root-dir experiments/results_eccv
-uv run python -m experiments.analysis.compute_speedup_cb \
-    --results-root-dir experiments/results_eccv
-uv run python -m experiments.analysis.compute_speedup_ablation \
-    --results-root-dir experiments/results_eccv
-uv run python -m experiments.analysis.compute_workload_sweep \
-    --results-root-dir experiments/results_eccv \
-    --policy pi05_o2_libero --num-denoise-steps 10 --max-decoding-steps 30
-uv run python -m experiments.analysis.plot_all \
-    --results-root-dir experiments/results_eccv \
-    --steps-per-frame 5 --num-denoise-steps 10 --policy all
-```
-
-Outputs:
-- `experiments/results_eccv/plot/` — paper figures (PDF) and summary tables (CSV)
-- `experiments/analysis/overhead/overhead.csv` — memory and energy measurements
-
-### CLI reference
-
-`experiments.run_experiments` supports:
-
-| Flag | Description |
-|------|-------------|
-| `--settings` | Subset of `baseline shared_kv continuous_batching parallel_mps` |
-| `--policies` | One or more policy config names |
-| `--results-dir` | Output root (default: `experiments/results`) |
-| `--gpu` | GPU id (default: `0`) |
-| `--prompt` | Text prompt for synthetic observations |
+For full benchmark commands, random-initialized latency runs, PyTorch support, Jetson AGX Thor setup, analysis, and plotting, see [`experiments/Experiments.md`](experiments/Experiments.md).
 
 ## Acknowledgments
 

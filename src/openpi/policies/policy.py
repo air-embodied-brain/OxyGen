@@ -100,6 +100,65 @@ def _split_incremental_state(state: IncrementalTextState, batch_size: int) -> li
     return states
 
 
+def _split_pytorch_incremental_state(state, batch_size: int) -> list:
+    """Split a batched PyTorch incremental text state into per-request states."""
+    cache_splits = state.past_key_values.batch_split(batch_size, 1)
+    cls = type(state)
+    return [
+        cls(
+            past_key_values=_clone_pytorch_cache(cache_splits[i]),
+            last_logits=state.last_logits[i:i + 1],
+            output_tokens=state.output_tokens[i:i + 1].clone(),
+            current_step=state.current_step[i:i + 1].clone(),
+            is_finished=state.is_finished[i:i + 1].clone(),
+            prefix_mask=state.prefix_mask[i:i + 1].clone(),
+            prefill_len=state.prefill_len[i:i + 1].clone(),
+            max_decoding_steps=state.max_decoding_steps,
+            prefill_size=state.prefill_size,
+            cache_size=state.cache_size,
+        )
+        for i in range(batch_size)
+    ]
+
+
+def _stack_pytorch_incremental_states(states: list):
+    """Stack per-request PyTorch incremental states for batched text decoding."""
+    if not states:
+        raise ValueError("Cannot stack empty list of PyTorch incremental states.")
+    ref = states[0]
+    for state in states[1:]:
+        if state.prefill_size != ref.prefill_size:
+            raise ValueError(f"Incompatible prefill_size: {state.prefill_size} vs {ref.prefill_size}")
+        if state.max_decoding_steps != ref.max_decoding_steps:
+            raise ValueError(
+                f"Incompatible max_decoding_steps: {state.max_decoding_steps} vs {ref.max_decoding_steps}"
+            )
+        if state.cache_size != ref.cache_size:
+            raise ValueError(f"Incompatible cache_size: {state.cache_size} vs {ref.cache_size}")
+
+    cache_cls = type(ref.past_key_values)
+    if hasattr(cache_cls, "from_batch_splits"):
+        past_key_values = cache_cls.from_batch_splits([state.past_key_values for state in states])
+    else:
+        from transformers.cache_utils import DynamicCache
+
+        past_key_values = DynamicCache.from_batch_splits([state.past_key_values for state in states])
+
+    cls = type(ref)
+    return cls(
+        past_key_values=past_key_values,
+        last_logits=torch.cat([state.last_logits for state in states], dim=0),
+        output_tokens=torch.cat([state.output_tokens for state in states], dim=0),
+        current_step=torch.cat([state.current_step for state in states], dim=0),
+        is_finished=torch.cat([state.is_finished for state in states], dim=0),
+        prefix_mask=torch.cat([state.prefix_mask for state in states], dim=0),
+        prefill_len=torch.cat([state.prefill_len for state in states], dim=0),
+        max_decoding_steps=ref.max_decoding_steps,
+        prefill_size=ref.prefill_size,
+        cache_size=ref.cache_size,
+    )
+
+
 def _to_jax_batch(x, add_batch_dim: bool = True):
     """Convert observation to JAX array, optionally adding batch dimension."""
     if isinstance(x, (str, bytes)):
@@ -108,6 +167,32 @@ def _to_jax_batch(x, add_batch_dim: bool = True):
     if add_batch_dim:
         return arr[np.newaxis, ...]
     return arr
+
+
+def _torch_to_numpy(x):
+    if isinstance(x, torch.Tensor):
+        return x.detach().cpu().numpy()
+    return x
+
+
+def _clone_pytorch_cache(cache):
+    """Clone a Hugging Face DynamicCache without sharing tensor storage."""
+    if hasattr(type(cache), "from_tensors") and hasattr(cache, "key_cache") and hasattr(cache, "value_cache"):
+        return type(cache).from_tensors(
+            [tensor.clone() for tensor in cache.key_cache],
+            [tensor.clone() for tensor in cache.value_cache],
+            max_decoding_steps=cache.max_decoding_steps,
+            prefix_mask=cache.prefix_mask.clone(),
+        )
+    if not hasattr(cache, "key_cache") or not hasattr(cache, "value_cache"):
+        return cache
+    cloned = type(cache)()
+    if hasattr(cache, "_seen_tokens"):
+        cloned._seen_tokens = cache._seen_tokens
+    cloned.key_cache = [tensor.clone() for tensor in cache.key_cache]
+    cloned.value_cache = [tensor.clone() for tensor in cache.value_cache]
+    return cloned
+
 
 class Policy(BasePolicy):
     def __init__(
@@ -147,6 +232,20 @@ class Policy(BasePolicy):
             self._model = self._model.to(pytorch_device)
             self._model.eval()
             self._sample_actions = model.sample_actions
+            if hasattr(model, "sample_text"):
+                self._sample_text = model.sample_text
+            if hasattr(model, "prefill"):
+                self._prefill = model.prefill
+            if hasattr(model, "init_incremental_state"):
+                self._init_incremental_state = model.init_incremental_state
+            if hasattr(model, "init_static_incremental_state"):
+                self._init_static_incremental_state = model.init_static_incremental_state
+            elif hasattr(model, "init_incremental_state"):
+                self._init_static_incremental_state = model.init_incremental_state
+            if hasattr(model, "generate_n_tokens"):
+                self._generate_n_tokens = model.generate_n_tokens
+            if hasattr(model, "sample_actions_with_kv"):
+                self._sample_actions_with_kv = model.sample_actions_with_kv
         else:
             # JAX model setup
             self._sample_actions = nnx_utils.module_jit(model.sample_actions)
@@ -188,6 +287,30 @@ class Policy(BasePolicy):
 
         # Cache the tokenizer to avoid repeated initialization
         self._tokenizer = _tokenizer.PaligemmaTokenizer()
+
+    def _to_torch_tree(self, inputs: dict, *, add_batch_dim: bool = False) -> dict:
+        """Convert transformed inputs to torch tensors on the configured device."""
+
+        def _to_torch(x):
+            if isinstance(x, (str, bytes)):
+                return x
+            if isinstance(x, list):
+                return x
+            if isinstance(x, torch.Tensor):
+                tensor = x.to(self._pytorch_device)
+            else:
+                tensor = torch.as_tensor(np.array(x, copy=True), device=self._pytorch_device)
+            if tensor.dtype in (torch.int8, torch.int16, torch.int32):
+                tensor = tensor.to(torch.long)
+            if add_batch_dim:
+                tensor = tensor[None, ...]
+            return tensor
+
+        return jax.tree.map(_to_torch, inputs)
+
+    def _sync_torch(self):
+        if str(self._pytorch_device).startswith("cuda"):
+            torch.cuda.synchronize(torch.device(self._pytorch_device))
 
     @override
     def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
@@ -354,19 +477,20 @@ class Policy(BasePolicy):
             raise NotImplementedError("Model does not have sample_text method")
 
         t0 = time.monotonic()
-        # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)
         inputs = self._input_transform(inputs)
-        # Make a batch and convert to jax.Array.
-        inputs = jax.tree.map(_to_jax_batch, inputs)
-
-        self._rng, sample_rng = jax.random.split(self._rng)
+        if self._is_pytorch_model:
+            inputs = self._to_torch_tree(inputs, add_batch_dim=True)
+            sample_rng_or_device = self._pytorch_device
+        else:
+            inputs = jax.tree.map(_to_jax_batch, inputs)
+            self._rng, sample_rng_or_device = jax.random.split(self._rng)
 
         observation = _model.Observation.from_dict(inputs)
         t1 = time.monotonic()
         
         predicted_tokens, kv_cache, mask, ar_mask = self._sample_text(
-            sample_rng, 
+            sample_rng_or_device,
             observation, 
             max_decoding_steps=max_decoding_steps, 
             PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, 
@@ -377,10 +501,13 @@ class Policy(BasePolicy):
             "tokens": predicted_tokens,
         }
         # Unbatch and convert to np.ndarray.
-        outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
-        # Ensure computation is finished for accurate timing
-        if hasattr(outputs["tokens"], "block_until_ready"):
-            outputs["tokens"].block_until_ready()
+        if self._is_pytorch_model:
+            self._sync_torch()
+            outputs = jax.tree.map(lambda x: _torch_to_numpy(x[0, ...]), outputs)
+        else:
+            outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
+            if hasattr(outputs["tokens"], "block_until_ready"):
+                outputs["tokens"].block_until_ready()
         t2 = time.monotonic()
 
         # Detokenize
@@ -418,6 +545,58 @@ class Policy(BasePolicy):
         t0 = time.monotonic()
         inputs = jax.tree.map(lambda x: x, obs)
         inputs = self._input_transform(inputs)
+
+        if self._is_pytorch_model:
+            inputs = self._to_torch_tree(inputs, add_batch_dim=True)
+            observation = _model.Observation.from_dict(inputs)
+            if noise is not None:
+                noise = torch.as_tensor(noise, device=self._pytorch_device)
+                if noise.ndim == 2:
+                    noise = noise[None, ...]
+
+            t1 = time.monotonic()
+            prefill_result = self._prefill(observation, max_decoding_steps=max_decoding_steps)
+            actions = self._sample_actions_with_kv(
+                self._pytorch_device,
+                observation,
+                prefill_result,
+                num_steps=num_steps,
+                noise=noise,
+            )
+            state = self._init_incremental_state(prefill_result)
+            predicted_tokens, state, _ = self._generate_n_tokens(
+                state,
+                tokens_to_generate=max_decoding_steps,
+                PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                temperature=temperature,
+            )
+            self._sync_torch()
+            outputs = {
+                "state": _torch_to_numpy(inputs["state"][0]),
+                "actions": _torch_to_numpy(actions[0]),
+                "tokens": _torch_to_numpy(predicted_tokens[0]),
+            }
+            action_outputs = {k: v for k, v in outputs.items() if k in ["state", "actions"]}
+            action_outputs = self._output_transform(action_outputs)
+            outputs.update(action_outputs)
+            t2 = time.monotonic()
+
+            outputs["text"] = self._tokenizer.detokenize(outputs["tokens"].astype(np.int32))
+            t3 = time.monotonic()
+            outputs["policy_timing"] = {
+                "pre_proc_ms": (t1 - t0) * 1000,
+                "infer_ms": (t2 - t1) * 1000,
+                "post_proc_ms": (t3 - t2) * 1000,
+                "total_ms": (t3 - t0) * 1000,
+                "backend": "pytorch",
+            }
+            outputs["policy_shapes"] = {
+                "observation": jax.tree.map(lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs),
+                "actions": tuple(outputs["actions"].shape),
+                "tokens": tuple(outputs["tokens"].shape),
+            }
+            return outputs
+
         inputs = jax.tree.map(_to_jax_batch, inputs)
 
         self._rng, sample_rng = jax.random.split(self._rng)
@@ -623,7 +802,8 @@ class Policy(BasePolicy):
     def _prepare_batched_inputs(
         self,
         obs_list: list[dict],
-        allow_variable_length: bool = False
+        allow_variable_length: bool = False,
+        use_numpy_stack: bool = False,
     ) -> tuple[dict, dict]:
         """Prepare a batch of observations for inference.
 
@@ -653,7 +833,7 @@ class Policy(BasePolicy):
                 for nested_key in sample_obs[key]:
                     arrays = [obs[key][nested_key] for obs in transformed_obs]
                     batched_arr, arr_meta = self._batch_arrays(
-                        arrays, f"{key}.{nested_key}", allow_variable_length
+                        arrays, f"{key}.{nested_key}", allow_variable_length, use_numpy_stack
                     )
                     batched_inputs[key][nested_key] = batched_arr
                     if "original_lengths" in arr_meta:
@@ -662,7 +842,7 @@ class Policy(BasePolicy):
                 batched_inputs[key] = [obs[key] for obs in transformed_obs]
             else:
                 arrays = [obs[key] for obs in transformed_obs]
-                batched_arr, arr_meta = self._batch_arrays(arrays, key, allow_variable_length)
+                batched_arr, arr_meta = self._batch_arrays(arrays, key, allow_variable_length, use_numpy_stack)
                 batched_inputs[key] = batched_arr
                 if "original_lengths" in arr_meta:
                     metadata["original_lengths"][key] = arr_meta["original_lengths"]
@@ -673,7 +853,8 @@ class Policy(BasePolicy):
         self,
         arrays: list,
         key: str,
-        allow_variable_length: bool
+        allow_variable_length: bool,
+        use_numpy_stack: bool = False,
     ) -> tuple[jnp.ndarray | np.ndarray, dict]:
         """Batch arrays with optional padding.
 
@@ -694,6 +875,8 @@ class Policy(BasePolicy):
         # Check if shapes match
         if all(s == shapes[0] for s in shapes):
             # Uniform shape - simple stack
+            if use_numpy_stack:
+                return np.stack(arrays, axis=0), {}
             return jnp.stack(arrays, axis=0), {}
 
         if not allow_variable_length:
@@ -714,7 +897,7 @@ class Policy(BasePolicy):
             padded.append(padded_arr)
             original_lengths.append(arr.shape[0] if arr.ndim > 0 else 1)
 
-        batched = jnp.stack(padded, axis=0)
+        batched = np.stack(padded, axis=0) if use_numpy_stack else jnp.stack(padded, axis=0)
         metadata = {"original_lengths": original_lengths}
 
         return batched, metadata
@@ -795,7 +978,13 @@ class Policy(BasePolicy):
         batch_size = len(obs_list)
         t0 = time.monotonic()
 
-        inputs, metadata = self._prepare_batched_inputs(obs_list, allow_variable_length)
+        inputs, metadata = self._prepare_batched_inputs(
+            obs_list, allow_variable_length, use_numpy_stack=self._is_pytorch_model
+        )
+        if self._is_pytorch_model:
+            inputs_for_model = self._to_torch_tree(inputs)
+        else:
+            inputs_for_model = inputs
         
         t1 = time.monotonic()
         
@@ -804,22 +993,30 @@ class Policy(BasePolicy):
             sample_kwargs["num_steps"] = num_steps
         
         if noise is not None:
-            noise = jnp.asarray(noise)
-            if noise.ndim == 2:
-                noise = jnp.broadcast_to(noise[None, ...], (batch_size,) + noise.shape)
+            if self._is_pytorch_model:
+                noise = torch.as_tensor(noise, device=self._pytorch_device)
+                if noise.ndim == 2:
+                    noise = noise[None, ...].expand(batch_size, *noise.shape)
+            else:
+                noise = jnp.asarray(noise)
+                if noise.ndim == 2:
+                    noise = jnp.broadcast_to(noise[None, ...], (batch_size,) + noise.shape)
             sample_kwargs["noise"] = noise
-        
-        self._rng, sample_rng = jax.random.split(self._rng)
-        observation = _model.Observation.from_dict(inputs)
-        actions = self._sample_actions(sample_rng, observation, **sample_kwargs)
-        
-        if hasattr(actions, "block_until_ready"):
-            actions.block_until_ready()
+
+        observation = _model.Observation.from_dict(inputs_for_model)
+        if self._is_pytorch_model:
+            actions = self._sample_actions(self._pytorch_device, observation, **sample_kwargs)
+            self._sync_torch()
+        else:
+            self._rng, sample_rng = jax.random.split(self._rng)
+            actions = self._sample_actions(sample_rng, observation, **sample_kwargs)
+            if hasattr(actions, "block_until_ready"):
+                actions.block_until_ready()
         
         t2 = time.monotonic()
         
-        outputs = {"state": inputs["state"], "actions": actions}
-        outputs = jax.tree.map(lambda x: np.asarray(x) if hasattr(x, 'shape') else x, outputs)
+        outputs = {"state": inputs_for_model["state"], "actions": actions}
+        outputs = jax.tree.map(lambda x: _torch_to_numpy(x) if self._is_pytorch_model else (np.asarray(x) if hasattr(x, 'shape') else x), outputs)
 
         output_list = self._unbatch_outputs(outputs, metadata)
         
@@ -880,29 +1077,41 @@ class Policy(BasePolicy):
         batch_size = len(obs_list)
         t0 = time.monotonic()
 
-        inputs, metadata = self._prepare_batched_inputs(obs_list, allow_variable_length)
+        inputs, metadata = self._prepare_batched_inputs(
+            obs_list, allow_variable_length, use_numpy_stack=self._is_pytorch_model
+        )
+        if self._is_pytorch_model:
+            inputs_for_model = self._to_torch_tree(inputs)
+        else:
+            inputs_for_model = inputs
 
-        self._rng, sample_rng = jax.random.split(self._rng)
-        observation = _model.Observation.from_dict(inputs)
+        observation = _model.Observation.from_dict(inputs_for_model)
 
         t1 = time.monotonic()
 
+        if self._is_pytorch_model:
+            sample_rng_or_device = self._pytorch_device
+        else:
+            self._rng, sample_rng_or_device = jax.random.split(self._rng)
+
         predicted_tokens, kv_cache, mask, ar_mask = self._sample_text(
-            sample_rng,
+            sample_rng_or_device,
             observation,
             max_decoding_steps=max_decoding_steps,
             PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
             temperature=temperature,
         )
 
-        if hasattr(predicted_tokens, "block_until_ready"):
+        if self._is_pytorch_model:
+            self._sync_torch()
+        elif hasattr(predicted_tokens, "block_until_ready"):
             predicted_tokens.block_until_ready()
 
         t2 = time.monotonic()
 
         # Detokenize each sample
         tokenizer = self._tokenizer
-        tokens_np = np.asarray(predicted_tokens)
+        tokens_np = _torch_to_numpy(predicted_tokens) if self._is_pytorch_model else np.asarray(predicted_tokens)
         
         output_list = []
         for i in range(batch_size):
@@ -978,7 +1187,9 @@ class Policy(BasePolicy):
         batch_size = len(obs_list)
         t0 = time.monotonic()
 
-        inputs, metadata = self._prepare_batched_inputs(obs_list, allow_variable_length)
+        inputs, metadata = self._prepare_batched_inputs(
+            obs_list, allow_variable_length, use_numpy_stack=self._is_pytorch_model
+        )
 
         self._rng, sample_rng = jax.random.split(self._rng)
 
@@ -1199,6 +1410,21 @@ class Policy(BasePolicy):
         if not obs_list:
             return []
 
+        if self._is_pytorch_model:
+            with torch.inference_mode():
+                return self._infer_text_actions_continuous_batch_pytorch(
+                    obs_list,
+                    cache_manager,
+                    request_ids=request_ids,
+                    steps_per_frame=steps_per_frame,
+                    num_action_steps=num_action_steps,
+                    max_decoding_steps=max_decoding_steps,
+                    temperature=temperature,
+                    PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                    noise=noise,
+                    generate_actions_for_resumed=generate_actions_for_resumed,
+                )
+
         batch_size = len(obs_list)
         t0 = time.monotonic()
 
@@ -1372,6 +1598,151 @@ class Policy(BasePolicy):
             "resumed_requests": len(resumed_indices),
         }
 
+        for output in output_list:
+            output["policy_timing"] = timing
+
+        return output_list
+
+    def _infer_text_actions_continuous_batch_pytorch(
+        self,
+        obs_list: list[dict],
+        cache_manager,
+        request_ids: Optional[list[str]] = None,
+        steps_per_frame: int = 5,
+        num_action_steps: int = 10,
+        max_decoding_steps: int = 20,
+        temperature: float = 0.1,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        noise: np.ndarray | None = None,
+        generate_actions_for_resumed: bool = False,
+    ) -> list[dict]:
+        """PyTorch backend for continuous batching.
+
+        New requests are batched for prefill and action denoising. Text states
+        use a fixed-size cache so all active requests can be advanced in one
+        batched generation call, matching the JAX scheduling path.
+        """
+        batch_size = len(obs_list)
+        t0 = time.monotonic()
+        if request_ids is None:
+            request_ids = [None] * batch_size
+
+        new_indices: list[int] = []
+        resumed_indices: list[int] = []
+        resumed_states = {}
+        for i, rid in enumerate(request_ids):
+            if rid is None or rid not in cache_manager.active_states:
+                new_indices.append(i)
+            else:
+                resumed_indices.append(i)
+                resumed_states[i] = cache_manager.get_state(rid)
+
+        t1 = time.monotonic()
+
+        new_states = {}
+        new_actions = {}
+        new_state_inputs = {}
+        if new_indices:
+            new_obs_list = [obs_list[i] for i in new_indices]
+            new_inputs, _ = self._prepare_batched_inputs(
+                new_obs_list, allow_variable_length=False, use_numpy_stack=True
+            )
+            new_inputs_torch = self._to_torch_tree(new_inputs)
+            new_observation = _model.Observation.from_dict(new_inputs_torch)
+
+            prefill_result = self._prefill(new_observation, max_decoding_steps=max_decoding_steps)
+            if noise is not None:
+                noise_new = torch.as_tensor(noise, device=self._pytorch_device)
+                if noise_new.ndim == 2:
+                    noise_new = noise_new[None, ...].expand(len(new_indices), *noise_new.shape)
+            else:
+                noise_new = None
+            actions_batched = self._sample_actions_with_kv(
+                self._pytorch_device,
+                new_observation,
+                prefill_result,
+                num_steps=num_action_steps,
+                noise=noise_new,
+            )
+
+            batched_state = self._init_static_incremental_state(prefill_result)
+            split_states = _split_pytorch_incremental_state(batched_state, len(new_indices))
+            for j, idx in enumerate(new_indices):
+                new_states[idx] = split_states[j]
+                new_state_inputs[idx] = _torch_to_numpy(new_inputs_torch["state"][j])
+                new_actions[idx] = _torch_to_numpy(actions_batched[j])
+
+        t_prefill = time.monotonic()
+
+        resumed_actions = {}
+        if resumed_indices and generate_actions_for_resumed:
+            resumed_obs_list = [obs_list[i] for i in resumed_indices]
+            resumed_outputs = self.infer_actions_batch(resumed_obs_list, num_steps=num_action_steps)
+            for j, idx in enumerate(resumed_indices):
+                resumed_actions[idx] = resumed_outputs[j]["actions"]
+
+        all_states = {}
+        all_states.update(new_states)
+        all_states.update(resumed_states)
+
+        ordered_states = [all_states[i] for i in range(batch_size)]
+        batched_text_state = _stack_pytorch_incremental_states(ordered_states)
+        tokens_batched, updated_batched_state, _ = self._generate_n_tokens(
+            batched_text_state,
+            tokens_to_generate=steps_per_frame,
+            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+            temperature=temperature,
+        )
+        split_updated_states = _split_pytorch_incremental_state(updated_batched_state, batch_size)
+        updated_states = {i: split_updated_states[i] for i in range(batch_size)}
+        tokens_frame = {i: _torch_to_numpy(tokens_batched[i]) for i in range(batch_size)}
+
+        self._sync_torch()
+        t2 = time.monotonic()
+
+        output_list = []
+        for i in range(batch_size):
+            state_i = updated_states[i]
+            current_step = int(state_i.current_step[0].detach().cpu().item())
+            full_tokens_i = _torch_to_numpy(state_i.output_tokens[0, :current_step])
+            is_finished_i = bool(state_i.is_finished[0].detach().cpu().item()) or current_step >= state_i.max_decoding_steps
+            text_i = self._tokenizer.detokenize(full_tokens_i.astype(np.int32)) if len(full_tokens_i) > 0 else ""
+
+            actions_i = new_actions.get(i, resumed_actions.get(i, None))
+            outputs_i = {
+                "tokens_this_frame": tokens_frame[i],
+                "tokens_full": full_tokens_i,
+                "text": text_i,
+                "is_finished": is_finished_i,
+                "actions": actions_i,
+            }
+
+            if actions_i is not None and i in new_state_inputs:
+                outputs_i.update(self._output_transform({"state": new_state_inputs[i], "actions": actions_i}))
+
+            if request_ids[i] is None:
+                request_ids[i] = f"req_{cache_manager.next_request_id}"
+                cache_manager.next_request_id += 1
+            outputs_i["request_id"] = request_ids[i]
+
+            if not is_finished_i:
+                cache_manager.store_state(request_ids[i], state_i)
+            else:
+                cache_manager.remove_state(request_ids[i])
+            output_list.append(outputs_i)
+
+        t3 = time.monotonic()
+        timing = {
+            "pre_proc_ms": (t1 - t0) * 1000,
+            "prefill_actions_ms": (t_prefill - t1) * 1000,
+            "text_gen_ms": (t2 - t_prefill) * 1000,
+            "post_proc_ms": (t3 - t2) * 1000,
+            "total_ms": (t3 - t0) * 1000,
+            "batch_size": batch_size,
+            "new_requests": len(new_indices),
+            "resumed_requests": len(resumed_indices),
+            "backend": "pytorch",
+        }
         for output in output_list:
             output["policy_timing"] = timing
 

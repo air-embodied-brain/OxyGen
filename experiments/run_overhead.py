@@ -5,7 +5,7 @@ for representative settings (baseline + continuous batching with different batch
 Results are saved to a CSV file that can be used to populate LaTeX tables.
 
 Usage:
-    uv run python -m experiments.run_overhead --gpu 0 --results-dir experiments/results_eccv
+    uv run python -m experiments.run_overhead --gpu 0 --results-dir experiments/results_4090_jax
 """
 
 import argparse
@@ -270,7 +270,8 @@ def measure_baseline(policy, policy_config: str, prompt: str, num_denoise_steps:
 
 
 def measure_parallel_mps(policy_config: str, prompt: str, num_denoise_steps: int,
-                         max_decoding_steps: int, gpu_id: int, gpu_monitor: GpuMonitor) -> dict:
+                         max_decoding_steps: int, gpu_id: int, gpu_monitor: GpuMonitor,
+                         checkpoint_dir=None, pytorch_device: str | None = None) -> dict:
     """Measure parallel_mps (naive parallelization via CUDA MPS) overhead.
 
     Args:
@@ -300,7 +301,12 @@ def measure_parallel_mps(policy_config: str, prompt: str, num_denoise_steps: int
 
     try:
         # Create worker pool
-        with MPSWorkerPool(policy_config, prompt) as pool:
+        with MPSWorkerPool(
+            policy_config,
+            prompt,
+            checkpoint_dir=checkpoint_dir,
+            pytorch_device=pytorch_device,
+        ) as pool:
             # Extended warmup: 5 frames to stabilize GPU temperature
             logger.info("Warmup (5 frames)...")
             for i in range(5):
@@ -446,6 +452,14 @@ def main():
     parser.add_argument("--gpu", type=int, required=True, help="GPU device ID")
     parser.add_argument("--results-dir", type=str, required=True, help="Results directory")
     parser.add_argument("--policy", type=str, default="pi05_o2_libero", help="Policy config name")
+    parser.add_argument(
+        "--checkpoint-dir", type=Path, default=None,
+        help="Override checkpoint directory. A nonexistent path uses random weights.",
+    )
+    parser.add_argument(
+        "--pytorch-device", default=None,
+        help='PyTorch device override, e.g. "cuda", "cuda:0", or "cpu".',
+    )
     args = parser.parse_args()
 
     # Set GPU
@@ -466,7 +480,14 @@ def main():
     #    MPS workers each need 45% GPU memory for their own model copies and
     #    the parent policy alone occupies ~60 GB.
     parallel_mps_result = measure_parallel_mps(
-        policy_config, prompt, num_denoise_steps, max_decoding_steps, args.gpu, power_only_monitor
+        policy_config,
+        prompt,
+        num_denoise_steps,
+        max_decoding_steps,
+        args.gpu,
+        power_only_monitor,
+        checkpoint_dir=args.checkpoint_dir,
+        pytorch_device=args.pytorch_device,
     )
 
     # Now set up JAX and load the parent policy for remaining measurements
@@ -475,7 +496,11 @@ def main():
     logger.info(f"GPU: {metadata['gpu']}, JAX: {metadata['jax_version']}")
 
     logger.info(f"Creating policy: {args.policy}")
-    policy = create_policy(args.policy)
+    policy = create_policy(
+        args.policy,
+        checkpoint_dir=args.checkpoint_dir,
+        pytorch_device=args.pytorch_device,
+    )
 
     # GPU monitor with JAX memory polling (for non-MPS measurements)
     jax_device = jax.local_devices()[0]

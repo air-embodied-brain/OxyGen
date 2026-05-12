@@ -3,16 +3,25 @@
 import itertools
 import json
 import logging
+import os
 import re
 from pathlib import Path
 
 import jax
+import torch
 
 from experiments.continuous_batching.runner import run_continuous_batching
 from experiments.common.setup import collect_metadata
 from experiments.common.workload import create_synthetic_observation
 
 logger = logging.getLogger(__name__)
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def warmup_batch_sizes(
@@ -24,15 +33,17 @@ def warmup_batch_sizes(
     num_denoise_steps: int,
     max_decoding_steps: int,
     steps_per_frame: int,
+    new_request_batch_sizes: list[int] | None = None,
 ) -> None:
-    """Pre-compile continuous batching for batch sizes 1..max_batch.
+    """Warm up continuous batching for batch sizes 1..max_batch."""
+    if new_request_batch_sizes is None:
+        batch_sizes = list(range(1, max_batch + 1))
+    else:
+        batch_sizes = sorted(set(max(1, bs) for bs in new_request_batch_sizes))
 
-    This ensures JAX traces all needed batch sizes ahead of time,
-    so the actual measured frames don't include compilation overhead.
-    """
-    logger.info("Warmup: continuous batching batch sizes 1..%d", max_batch)
-    for bs in range(1, max_batch + 1):
-        logger.info("  Warmup bs=%d/%d — compiling...", bs, max_batch)
+    logger.info("Warmup: continuous batching batch sizes %s", batch_sizes)
+    for i, bs in enumerate(batch_sizes, start=1):
+        logger.info("  Warmup bs=%d (%d/%d) — running...", bs, i, len(batch_sizes))
         cm = policy.init_continuous_batching()
         obs = [
             create_synthetic_observation(prompt, seed=i, policy_config=policy_config)
@@ -46,7 +57,11 @@ def warmup_batch_sizes(
             num_action_steps=num_denoise_steps,
         )
         val = res[0]["actions"] if res[0].get("actions") is not None else res[0]["tokens_this_frame"]
-        jax.block_until_ready(val)
+        if isinstance(val, torch.Tensor):
+            if val.is_cuda:
+                torch.cuda.synchronize(val.device)
+        else:
+            jax.block_until_ready(val)
         logger.info("  bs=%d done", bs)
     logger.info("Warmup complete.")
 
@@ -130,7 +145,7 @@ def _run_single_grid_point(
     (max_decoding_steps // steps_per_frame).
 
     Returns:
-        Result dict matching the JSON format in experiments/README.md.
+        Result dict matching the JSON format in experiments/Experiments.md.
     """
     policy_config = params["policy_config"]
     num_denoise_steps = params["num_denoise_steps"]
@@ -212,6 +227,17 @@ def _save_result(result: dict, results_dir: Path) -> Path:
     return path
 
 
+def _result_path(params: dict, results_dir: Path) -> Path:
+    slug = _arrival_slug(params["arrival_pattern"])
+    filename = (
+        f"denoise{params['num_denoise_steps']}"
+        f"_decode{params['max_decoding_steps']}"
+        f"_step{params['steps_per_frame']}"
+        f"_{slug}.json"
+    )
+    return results_dir / "continuous_batching" / params["policy_config"] / filename
+
+
 def run_grid_search(
     policy,
     search_space: dict,
@@ -247,14 +273,22 @@ def run_grid_search(
     from experiments.continuous_batching.runner import _parse_arrival_pattern
     arrival_fn = _parse_arrival_pattern(arrival_pattern)
 
+    torch_compile_text_decode = (
+        getattr(policy, "_is_pytorch_model", False)
+        and _env_flag("OPENPI_TORCH_COMPILE")
+        and _env_flag("OPENPI_TORCH_COMPILE_TEXT_DECODE", default=True)
+    )
+
     for spf in search_space.get("steps_per_frame", [5]):
         frames_to_finish = max_decode // spf
         # Run multiple simulations to account for stochastic patterns (poisson)
         peak_bs = 0
+        peak_new_requests = 0
         for _ in range(5):
             active_remaining: list[int] = []
             for frame_idx in range(total_frames):
                 new_arrivals = arrival_fn(frame_idx)
+                peak_new_requests = max(peak_new_requests, len(new_arrivals))
                 for _ in new_arrivals:
                     active_remaining.append(frames_to_finish)
                 peak_bs = max(peak_bs, len(active_remaining))
@@ -264,6 +298,17 @@ def run_grid_search(
             "Estimated peak batch size for spf=%d: %d (from %d-frame simulation)",
             spf, peak_bs, total_frames,
         )
+        new_request_batch_sizes = None
+        if getattr(policy, "_is_pytorch_model", False) and not torch_compile_text_decode:
+            # In this Jetson-stable mode, resumed text decode is eager. The
+            # compiled prefill/denoise path only sees the new-request batch,
+            # so avoid compiling unreachable all-new batch sizes up to peak_bs.
+            new_request_batch_sizes = [peak_new_requests or 1]
+            logger.info(
+                "PyTorch text decode is eager; warming new-request batch sizes %s "
+                "instead of active batch sizes 1..%d.",
+                new_request_batch_sizes, peak_bs,
+            )
         warmup_batch_sizes(
             policy,
             policy_config=first_policy,
@@ -272,11 +317,19 @@ def run_grid_search(
             num_denoise_steps=first_denoise,
             max_decoding_steps=max_decode,
             steps_per_frame=spf,
+            new_request_batch_sizes=new_request_batch_sizes,
         )
 
     for i, params in enumerate(combos):
         if not _is_valid_combo(params):
             logger.info("Skipping invalid combo: %s", params)
+            continue
+        params_with_fixed = {**params, "arrival_pattern": arrival_pattern}
+        if _result_path(params_with_fixed, results_dir).exists():
+            logger.info(
+                "Skipping existing result: %s",
+                _result_path(params_with_fixed, results_dir),
+            )
             continue
 
         logger.info(
