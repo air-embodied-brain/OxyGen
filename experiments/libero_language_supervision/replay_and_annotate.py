@@ -59,6 +59,21 @@ def _goal_and_auxiliary_states(env: Any) -> Tuple[List[Sequence[str]], List[Sequ
         if len(state) > 1 and state[1] in movable_objects and state[1] not in goal_objects:
             goal_objects.append(state[1])
     auxiliary_states = [["up", object_name] for object_name in goal_objects]
+    # Container tasks omit opening from the terminal goal, although opening is
+    # an observable prerequisite in the demonstration.
+    for state in goal_states:
+        if len(state) < 3 or str(state[0]).lower() != "in":
+            continue
+        target = str(state[2])
+        if "cabinet" in target and target.endswith("_region"):
+            auxiliary_states.append(["open", target])
+        elif target.endswith("_heating_region"):
+            auxiliary_states.append(["open", target[: -len("_heating_region")]])
+
+    goal_keys = {tuple(str(value).lower() for value in state) for state in goal_states}
+    auxiliary_states = [
+        state for state in auxiliary_states if tuple(str(value).lower() for value in state) not in goal_keys
+    ]
     return goal_states, auxiliary_states
 
 
