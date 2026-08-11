@@ -11,22 +11,22 @@ import json
 import logging
 import math
 from pathlib import Path
+import shutil
 import subprocess
 import textwrap
 import time
 
-from libero.libero import benchmark
-from libero.libero import get_libero_path
-from libero.libero.envs import OffScreenRenderEnv
 import numpy as np
-from openpi_client import image_tools
-from openpi_client import websocket_client_policy
 from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
 LIBERO_DUMMY_ACTION = [0.0] * 6 + [-1.0]
 LIBERO_ENV_RESOLUTION = 256
+LIBERO_CONTROL_HZ = 20
+REVIEW_WIDTH = 640
+REVIEW_HEIGHT = 860
+REVIEW_ASSET_VERSION = "request-buffer-v2"
 MAX_STEPS = {
     "libero_spatial": 220,
     "libero_object": 280,
@@ -56,6 +56,10 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", size)
 
 
+def _bold_font(size: int) -> ImageFont.FreeTypeFont:
+    return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
+
+
 def _wrapped_lines(text: str, *, width: int, font_size: int, max_lines: int) -> list[str]:
     characters = max(12, int(width / (font_size * 0.56)))
     lines = textwrap.wrap(text, width=characters, break_long_words=False) or [""]
@@ -65,35 +69,94 @@ def _wrapped_lines(text: str, *, width: int, font_size: int, max_lines: int) -> 
     return lines
 
 
-def _render_frame(image: np.ndarray, caption: dict, *, success: bool | None) -> Image.Image:
-    canvas = Image.new("RGB", (640, 704), "#f5f7f9")
-    view = Image.fromarray(image).resize((512, 512), Image.Resampling.LANCZOS)
-    canvas.paste(view, (64, 0))
+def _fit_text(draw: ImageDraw.ImageDraw, text: str, *, font: ImageFont.FreeTypeFont, width: int) -> str:
+    if draw.textlength(text, font=font) <= width:
+        return text
+    suffix = "..."
+    while text and draw.textlength(text + suffix, font=font) > width:
+        text = text[:-1]
+    return text.rstrip() + suffix
+
+
+def _render_request_buffer(
+    canvas: Image.Image,
+    caption: dict,
+    *,
+    success: bool | None,
+    playback_fps: int,
+    source_control_hz: int,
+) -> Image.Image:
     draw = ImageDraw.Draw(canvas)
-    label_font = _font(18)
-    body_font = _font(17)
-    small_font = _font(14)
+    label_font = _bold_font(15)
+    body_font = _font(15)
+    small_font = _font(13)
 
-    draw.text((18, 528), "Task", font=label_font, fill="#5a6470")
-    y = 527
-    for line in _wrapped_lines(caption["task"], width=500, font_size=17, max_lines=2):
-        draw.text((112, y), line, font=body_font, fill="#15191e")
-        y += 22
+    draw.text((18, 526), "Task", font=label_font, fill="#5a6470")
+    y = 526
+    for line in _wrapped_lines(caption["task"], width=525, font_size=15, max_lines=2):
+        draw.text((88, y), line, font=body_font, fill="#15191e")
+        y += 20
 
-    y = max(y + 8, 582)
-    draw.text((18, y), "Model", font=label_font, fill="#1769aa")
-    model_text = caption["text"].strip() or "(generating...)"
-    for line in _wrapped_lines(model_text, width=500, font_size=17, max_lines=2):
-        draw.text((112, y), line, font=body_font, fill="#15191e")
-        y += 22
+    draw.line((18, 580, 622, 580), fill="#d5dbe1", width=1)
+    draw.text((18, 592), "Language request buffer", font=_bold_font(14), fill="#1769aa")
+    draw.text((477, 592), "newest first", font=small_font, fill="#68717c")
 
-    status = "complete" if caption["is_finished"] else "partial"
+    requests = caption.get("requests", [])
+    row_labels = ["t", "t-1", "t-2"]
+    for index in range(3):
+        row_y = 618 + index * 61
+        request = requests[index] if index < len(requests) else None
+        is_current = index == 0 and request is not None
+        fill = "#e8f2fa" if is_current else "#edf0f3"
+        outline = "#8db8d8" if is_current else "#d5dbe1"
+        draw.rounded_rectangle((18, row_y, 622, row_y + 52), radius=4, fill=fill, outline=outline, width=1)
+        draw.text((28, row_y + 16), row_labels[index], font=_bold_font(15), fill="#1769aa" if is_current else "#68717c")
+        if request is None:
+            draw.text((78, row_y + 16), "-", font=body_font, fill="#9aa2aa")
+            continue
+
+        complete = bool(request["is_finished"])
+        status = "COMPLETE" if complete else "GENERATING"
+        status_color = "#217346" if complete else "#1769aa"
+        draw.text((78, row_y + 7), status, font=_bold_font(11), fill=status_color)
+        metadata = f"{request['request_id']}  |  {request['token_count']} tokens"
+        draw.text((180, row_y + 7), metadata, font=small_font, fill="#68717c")
+        text = request["text"].strip() or "(waiting for first tokens)"
+        draw.text(
+            (78, row_y + 27),
+            _fit_text(draw, text, font=body_font, width=526),
+            font=body_font,
+            fill="#15191e",
+        )
+
+    speed = playback_fps / source_control_hz
     outcome = "running" if success is None else ("success" if success else "failure")
     footer = (
-        f"step {caption['step']}  |  request {caption['request_id'] or '-'}  |  text {status}  |  rollout {outcome}"
+        f"sim frame {caption['step']}  |  playback {speed:.1f}x real time "
+        f"({playback_fps} FPS / {source_control_hz} Hz)  |  rollout {outcome}"
     )
-    draw.text((18, 676), footer, font=small_font, fill="#68717c")
+    draw.text((18, 836), footer, font=small_font, fill="#68717c")
     return canvas
+
+
+def _render_frame(
+    image: np.ndarray,
+    caption: dict,
+    *,
+    success: bool | None,
+    playback_fps: int,
+    source_control_hz: int,
+) -> Image.Image:
+    canvas = Image.new("RGB", (REVIEW_WIDTH, REVIEW_HEIGHT), "#f5f7f9")
+    view = Image.fromarray(image).resize((512, 512), Image.Resampling.LANCZOS)
+    canvas.paste(view, (64, 0))
+    return _render_request_buffer(
+        canvas,
+        caption,
+        success=success,
+        playback_fps=playback_fps,
+        source_control_hz=source_control_hz,
+    )
 
 
 def _render_video(
@@ -102,6 +165,7 @@ def _render_video(
     output_path: Path,
     *,
     fps: int,
+    source_control_hz: int,
     success: bool,
 ) -> tuple[int, str]:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,7 +182,7 @@ def _render_video(
         "-pix_fmt",
         "rgb24",
         "-s",
-        "640x704",
+        f"{REVIEW_WIDTH}x{REVIEW_HEIGHT}",
         "-r",
         str(fps),
         "-i",
@@ -141,7 +205,13 @@ def _render_video(
     if len(frames) != len(captions):
         raise ValueError(f"Frame/caption count mismatch: {len(frames)} vs {len(captions)}")
     for index, (frame, caption) in enumerate(zip(frames, captions)):  # noqa: B905 - Python 3.8 client env
-        rendered = _render_frame(frame, caption, success=success if index == len(frames) - 1 else None)
+        rendered = _render_frame(
+            frame,
+            caption,
+            success=success if index == len(frames) - 1 else None,
+            playback_fps=fps,
+            source_control_hz=source_control_hz,
+        )
         if index == len(frames) // 2:
             rendered.save(poster_path, quality=82, optimize=True)
         process.stdin.write(rendered.tobytes())
@@ -156,6 +226,9 @@ def _render_video(
 
 
 def _get_env(task, *, seed: int):
+    from libero.libero import get_libero_path  # noqa: PLC0415 - optional rollout dependency
+    from libero.libero.envs import OffScreenRenderEnv  # noqa: PLC0415 - optional rollout dependency
+
     bddl_file = Path(get_libero_path("bddl_files")) / task.problem_folder / task.bddl_file
     env = OffScreenRenderEnv(
         bddl_file_name=bddl_file,
@@ -176,6 +249,8 @@ def _quat2axisangle(quat: np.ndarray) -> np.ndarray:
 
 
 def _observation(obs: dict, task_description: str, *, resize_size: int) -> tuple[dict, np.ndarray]:
+    from openpi_client import image_tools  # noqa: PLC0415 - optional rollout dependency
+
     image = np.ascontiguousarray(obs["agentview_image"][::-1, ::-1])
     wrist_image = np.ascontiguousarray(obs["robot0_eye_in_hand_image"][::-1, ::-1])
     model_image = image_tools.convert_to_uint8(image_tools.resize_with_pad(image, resize_size, resize_size))
@@ -213,6 +288,9 @@ def _run_episode(
     replan_steps: int,
     num_steps_wait: int,
 ) -> tuple[dict, list[np.ndarray], list[dict], list[dict]]:
+    from libero.libero import benchmark  # noqa: PLC0415 - optional rollout dependency
+    from openpi_client import websocket_client_policy  # noqa: PLC0415 - optional rollout dependency
+
     suite = benchmark.get_benchmark_dict()[suite_name]()
     task = suite.get_task(task_id)
     task_description = str(task.language)
@@ -227,7 +305,7 @@ def _run_episode(
     captions: list[dict] = []
     inference_events: list[dict] = []
     action_plan: collections.deque = collections.deque()
-    latest = {"text": "", "request_id": None, "is_finished": False}
+    request_buffer: list[dict] = []
     done = False
     exception = None
     started = time.monotonic()
@@ -252,7 +330,13 @@ def _run_episode(
                     "text": str(response.get("text", "")),
                     "request_id": response.get("request_id"),
                     "is_finished": bool(response.get("is_finished", False)),
+                    "token_count": len(response.get("tokens_full", [])),
                 }
+                if request_buffer and request_buffer[0]["request_id"] == latest["request_id"]:
+                    request_buffer[0] = latest
+                else:
+                    request_buffer.insert(0, latest)
+                    request_buffer = request_buffer[:3]
                 inference_events.append(
                     {
                         "step": step,
@@ -264,7 +348,13 @@ def _run_episode(
                 )
 
             frames.append(review_image)
-            captions.append({"task": task_description, "step": step, **latest})
+            captions.append(
+                {
+                    "task": task_description,
+                    "step": step,
+                    "requests": [dict(request) for request in request_buffer],
+                }
+            )
             action = action_plan.popleft()
             obs, _, done, _ = env.step(np.asarray(action).tolist())
             if done:
@@ -300,19 +390,239 @@ def _run_episode(
     return record, frames, captions, inference_events
 
 
+def _load_jsonl(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def _buffer_captions(record: dict, events: list[dict], *, frame_count: int) -> list[dict]:
+    events = sorted(events, key=lambda event: event["step"])
+    request_buffer: list[dict] = []
+    captions = []
+    event_index = 0
+    first_step = int(record["num_steps_wait"])
+    for step in range(first_step, first_step + frame_count):
+        while event_index < len(events) and int(events[event_index]["step"]) <= step:
+            event = events[event_index]
+            current = {
+                "request_id": event.get("request_id"),
+                "text": str(event.get("text", "")),
+                "is_finished": bool(event.get("is_finished", False)),
+                "token_count": len(event.get("tokens_full", [])),
+            }
+            if request_buffer and request_buffer[0]["request_id"] == current["request_id"]:
+                request_buffer[0] = current
+            else:
+                request_buffer.insert(0, current)
+                request_buffer = request_buffer[:3]
+            event_index += 1
+        captions.append(
+            {
+                "task": record["task_description"],
+                "step": step,
+                "requests": [dict(request) for request in request_buffer],
+            }
+        )
+    return captions
+
+
+def _read_exact(stream, size: int) -> bytes:
+    chunks = []
+    remaining = size
+    while remaining:
+        chunk = stream.read(remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _rerender_video(
+    source_path: Path,
+    captions: list[dict],
+    output_path: Path,
+    *,
+    fps: int,
+    source_control_hz: int,
+    success: bool,
+) -> tuple[int, str]:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    poster_path = output_path.parent.parent / "posters" / f"{output_path.stem}.jpg"
+    poster_path.parent.mkdir(parents=True, exist_ok=True)
+    decoder_command = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        str(source_path),
+        "-vf",
+        "crop=640:512:0:0",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-",
+    ]
+    encoder_command = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-s",
+        f"{REVIEW_WIDTH}x{REVIEW_HEIGHT}",
+        "-r",
+        str(fps),
+        "-i",
+        "-",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        "29",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        str(output_path),
+    ]
+    decoder = subprocess.Popen(decoder_command, stdout=subprocess.PIPE)
+    encoder = subprocess.Popen(encoder_command, stdin=subprocess.PIPE)
+    assert decoder.stdout is not None
+    assert encoder.stdin is not None
+    frame_bytes = REVIEW_WIDTH * 512 * 3
+    for index, caption in enumerate(captions):
+        frame = _read_exact(decoder.stdout, frame_bytes)
+        if len(frame) != frame_bytes:
+            raise ValueError(f"Source video ended at frame {index}: {source_path}")
+        source_view = Image.frombytes("RGB", (REVIEW_WIDTH, 512), frame)
+        canvas = Image.new("RGB", (REVIEW_WIDTH, REVIEW_HEIGHT), "#f5f7f9")
+        canvas.paste(source_view, (0, 0))
+        rendered = _render_request_buffer(
+            canvas,
+            caption,
+            success=success if index == len(captions) - 1 else None,
+            playback_fps=fps,
+            source_control_hz=source_control_hz,
+        )
+        if index == len(captions) // 2:
+            rendered.save(poster_path, quality=82, optimize=True)
+        encoder.stdin.write(rendered.tobytes())
+
+    trailing = decoder.stdout.read()
+    decoder_return_code = decoder.wait()
+    encoder.stdin.close()
+    encoder_return_code = encoder.wait()
+    if decoder_return_code:
+        raise subprocess.CalledProcessError(decoder_return_code, decoder_command)
+    if encoder_return_code:
+        raise subprocess.CalledProcessError(encoder_return_code, encoder_command)
+    if trailing:
+        extra_frames = len(trailing) / frame_bytes
+        raise ValueError(f"Source video has {extra_frames:.2f} unexpected trailing frames: {source_path}")
+    size = output_path.stat().st_size
+    if size > 5_000_000:
+        raise ValueError(f"Rendered video exceeds 5 MB: {output_path} ({size} bytes)")
+    return size, f"posters/{poster_path.name}"
+
+
+def _rerender_existing(
+    source_root: Path,
+    output_root: Path,
+    *,
+    fps: int,
+    source_control_hz: int,
+) -> None:
+    source_root = source_root.resolve()
+    output_root = output_root.resolve()
+    if source_root == output_root:
+        raise ValueError("Rerender into a separate output directory")
+    output_root.mkdir(parents=True, exist_ok=True)
+    if any(output_root.iterdir()):
+        raise FileExistsError(f"Use an empty output directory: {output_root}")
+
+    manifest = json.loads((source_root / "manifest.json").read_text(encoding="utf-8"))
+    records = _load_jsonl(source_root / "rollouts.jsonl")
+    events = _load_jsonl(source_root / "inference_events.jsonl")
+    record_by_key = {
+        (record["task_suite"], int(record["task_id"]), int(record["episode_idx"])): record for record in records
+    }
+    events_by_key: dict[tuple[str, int, int], list[dict]] = collections.defaultdict(list)
+    for event in events:
+        key = (event["task_suite"], int(event["task_id"]), int(event["episode_idx"]))
+        events_by_key[key].append(event)
+
+    output_items = []
+    output_records = []
+    for item in manifest:
+        key = (item["suite"], int(item["task_id"]), int(item["episode_idx"]))
+        record = dict(record_by_key[key])
+        captions = _buffer_captions(record, events_by_key[key], frame_count=int(item["frames"]))
+        video_path = output_root / item["video"]
+        size, poster = _rerender_video(
+            source_root / item["video"],
+            captions,
+            video_path,
+            fps=fps,
+            source_control_hz=source_control_hz,
+            success=bool(item["success"]),
+        )
+        output_item = {
+            **item,
+            "bytes": size,
+            "poster": poster,
+            "playback_fps": fps,
+            "source_control_hz": source_control_hz,
+            "playback_speed": fps / source_control_hz,
+            "request_buffer_rows": 3,
+        }
+        output_items.append(output_item)
+        record.update(
+            {
+                "video_bytes": size,
+                "render_playback_fps": fps,
+                "source_control_hz": source_control_hz,
+                "render_playback_speed": fps / source_control_hz,
+                "request_buffer_rows": 3,
+            }
+        )
+        output_records.append(record)
+        print(json.dumps({"video": item["video"], "bytes": size}, sort_keys=True), flush=True)
+
+    with (output_root / "rollouts.jsonl").open("w", encoding="utf-8") as stream:
+        for record in output_records:
+            stream.write(json.dumps(record, sort_keys=True) + "\n")
+    shutil.copy2(source_root / "inference_events.jsonl", output_root / "inference_events.jsonl")
+    (output_root / "manifest.json").write_text(
+        json.dumps(output_items, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    _build_html(output_items, output_root / "index.html")
+
+
 def _build_html(items: list[dict], output_path: Path) -> None:
+    playback_speed = float(items[0].get("playback_speed", 1.0)) if items else 1.0
     buttons = ['<button class="active" data-filter="all">All</button>'] + [
         f'<button data-filter="{suite}">{label}</button>' for suite, label in SUITE_LABELS.items()
     ]
     cards = []
     for item in items:
         outcome = "Success" if item["success"] else "Failure"
+        video_url = f"{item['video']}?v={REVIEW_ASSET_VERSION}"
+        poster_url = f"{item['poster']}?v={REVIEW_ASSET_VERSION}"
         cards.append(
             f"""<article class="item" data-suite="{html.escape(item["suite"])}">
-  <div class="video-shell"><video controls muted playsinline preload="none" data-src="{html.escape(item["video"])}" data-poster="{html.escape(item["poster"])}"></video></div>
+  <div class="video-shell"><video controls muted playsinline preload="none" data-src="{html.escape(video_url)}" data-poster="{html.escape(poster_url)}"></video></div>
   <div class="body"><div class="outcome {"ok" if item["success"] else "bad"}">{outcome}</div>
   <h2>{html.escape(item["task"])}</h2>
-  <p>{html.escape(SUITE_LABELS[item["suite"]])} · task {item["task_id"]} · initial state {item["episode_idx"]} · {item["frames"]} frames · {item["bytes"] / 1_000_000:.2f} MB</p></div>
+  <p>{html.escape(SUITE_LABELS[item["suite"]])} · task {item["task_id"]} · initial state {item["episode_idx"]} · {item["frames"]} frames · {item.get("playback_speed", 1.0):.1f}x real time · {item["bytes"] / 1_000_000:.2f} MB</p></div>
 </article>"""
         )
     document = f"""<!doctype html>
@@ -321,15 +631,15 @@ def _build_html(items: list[dict], output_path: Path) -> None:
 :root{{--bg:#f3f5f7;--surface:#fff;--text:#171a1e;--muted:#69727d;--line:#d9dee4;--accent:#1769aa;--ok:#217346;--bad:#a23d35}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}}
 header{{position:sticky;top:0;z-index:2;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);padding:14px 24px}}
-.bar{{max-width:1480px;margin:auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap}}h1{{font-size:18px;margin:0}}
+.bar{{max-width:1480px;margin:auto;display:flex;align-items:center;gap:18px;flex-wrap:wrap}}h1{{font-size:18px;margin:0}}.playback{{font-size:12px;color:var(--muted)}}
 .filters{{display:flex;gap:6px;flex-wrap:wrap}}button{{border:1px solid var(--line);background:#fff;padding:7px 11px;border-radius:5px;cursor:pointer}}button.active{{background:var(--accent);border-color:var(--accent);color:#fff}}
 main{{max-width:1480px;margin:20px auto;padding:0 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:18px}}
 .item{{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}}.item[hidden]{{display:none}}
-.video-shell{{aspect-ratio:640/704;background:#111}}video{{display:block;width:100%;height:100%;object-fit:contain}}
+.video-shell{{aspect-ratio:640/860;background:#111}}video{{display:block;width:100%;height:100%;object-fit:contain}}
 .body{{padding:12px 14px 14px}}h2{{font-size:14px;margin:5px 0;font-weight:600}}p{{margin:0;color:var(--muted);font-size:12px}}
 .outcome{{font-size:12px;font-weight:700}}.ok{{color:var(--ok)}}.bad{{color:var(--bad)}}
 @media(max-width:520px){{header{{padding:12px}}main{{padding:0 10px;grid-template-columns:1fr}}}}
-</style></head><body><header><div class="bar"><h1>LIBERO suffix-LoRA rollouts</h1><div class="filters">{"".join(buttons)}</div></div></header>
+</style></head><body><header><div class="bar"><h1>LIBERO suffix-LoRA rollouts</h1><div class="playback">{playback_speed:.1f}x simulator real time · newest request first</div><div class="filters">{"".join(buttons)}</div></div></header>
 <main>{"".join(cards)}</main><script>
 const videos=[...document.querySelectorAll('video[data-src]')];
 const load=v=>{{if(!v.src){{v.poster=v.dataset.poster;v.src=v.dataset.src;v.load()}}}};
@@ -344,6 +654,7 @@ def main() -> None:
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8011)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument("--rerender-from", type=Path)
     parser.add_argument("--suites", default=",".join(SUITE_LABELS))
     parser.add_argument("--task-id", type=int, default=0)
     parser.add_argument("--episodes", default="0,1,2,3,4")
@@ -351,8 +662,29 @@ def main() -> None:
     parser.add_argument("--replan-steps", type=int, default=5)
     parser.add_argument("--num-steps-wait", type=int, default=10)
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--video-fps", type=int, default=30)
+    parser.add_argument("--video-fps", type=int, default=10)
+    parser.add_argument("--source-control-hz", type=int, default=LIBERO_CONTROL_HZ)
     args = parser.parse_args()
+
+    if args.video_fps <= 0 or args.source_control_hz <= 0:
+        raise ValueError("Video FPS and source control frequency must be positive")
+    if args.rerender_from is not None:
+        _rerender_existing(
+            args.rerender_from,
+            args.output_root,
+            fps=args.video_fps,
+            source_control_hz=args.source_control_hz,
+        )
+        print(
+            json.dumps(
+                {
+                    "review_page": str(args.output_root / "index.html"),
+                    "playback_speed": args.video_fps / args.source_control_hz,
+                },
+                indent=2,
+            )
+        )
+        return
 
     suites = [value.strip() for value in args.suites.split(",") if value.strip()]
     episodes = [int(value) for value in args.episodes.split(",") if value.strip()]
@@ -386,9 +718,19 @@ def main() -> None:
                 captions,
                 video_path,
                 fps=args.video_fps,
+                source_control_hz=args.source_control_hz,
                 success=record["success"],
             )
-            record.update({"video": f"videos/{video_path.name}", "video_bytes": size})
+            record.update(
+                {
+                    "video": f"videos/{video_path.name}",
+                    "video_bytes": size,
+                    "render_playback_fps": args.video_fps,
+                    "source_control_hz": args.source_control_hz,
+                    "render_playback_speed": args.video_fps / args.source_control_hz,
+                    "request_buffer_rows": 3,
+                }
+            )
             _append_jsonl(rollout_path, record)
             for event in events:
                 _append_jsonl(
@@ -411,6 +753,10 @@ def main() -> None:
                     "bytes": size,
                     "video": record["video"],
                     "poster": poster,
+                    "playback_fps": args.video_fps,
+                    "source_control_hz": args.source_control_hz,
+                    "playback_speed": args.video_fps / args.source_control_hz,
+                    "request_buffer_rows": 3,
                 }
             )
             print(json.dumps(record, sort_keys=True), flush=True)

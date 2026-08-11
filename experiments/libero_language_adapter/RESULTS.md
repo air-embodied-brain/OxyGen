@@ -203,7 +203,7 @@ private cache、seed block 和 token append，而不是只估算 LoRA GEMM。首
 - [Checkpoint 扫描结果](results/2026-08-11/balanced_incremental_v2/checkpoint_scan.json)
 - [20 个 rollout 汇总](results/2026-08-11/balanced_incremental_v2/rollout/manifest.json)
 - [Rollout 原始记录](results/2026-08-11/balanced_incremental_v2/rollout/rollouts.jsonl)
-- [本地视频审查页](outputs/balanced_incremental_v2_review/index.html)
+- [本地视频审查页](outputs/balanced_incremental_v2_review_v2/index.html)
 - [机器可读汇总](results/2026-08-11/three_way_accuracy/aggregate_summary.json)
 - [最佳 suffix-LoRA 正式评测](results/2026-08-11/three_way_accuracy/evaluation_incremental_continuation/best_suffix_lora_lr1e4_step400/summary.json)
 - [最佳模型 80 条生成明细](results/2026-08-11/three_way_accuracy/evaluation_incremental_continuation/best_suffix_lora_lr1e4_step400/predictions.jsonl)

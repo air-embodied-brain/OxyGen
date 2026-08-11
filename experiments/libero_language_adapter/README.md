@@ -97,7 +97,9 @@ and adapter latency relative to the duplicate prefix forward it replaces.
 one request returns both actions and adapter-generated language.
 `rollout_review.py` runs deterministic LIBERO rollouts, records every raw policy
 response, and builds a lazy-loading review page with the generated text overlaid
-on the corresponding action chunk.
+on the corresponding action chunk. Videos default to 10 FPS, or 0.5x the
+20 Hz simulator control rate. The latest three language requests are shown as a
+rolling buffer; incremental updates replace the current row in place.
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_ALLOCATOR=platform \
@@ -123,7 +125,17 @@ CUDA_VISIBLE_DEVICES=0 python -m experiments.libero_language_adapter.serve_adapt
 
 python -m experiments.libero_language_adapter.rollout_review \
   --host 0.0.0.0 --port 8011 --task-id 0 --episodes 0,1,2,3,4 \
-  --replan-steps 5 --seed 7 --output-root /path/to/review
+  --replan-steps 5 --seed 7 --video-fps 10 --source-control-hz 20 \
+  --output-root /path/to/review
+```
+
+An existing review can be rerendered from its saved videos and response logs
+without rerunning the policy or simulator:
+
+```bash
+python -m experiments.libero_language_adapter.rollout_review \
+  --rerender-from /path/to/old_review --output-root /path/to/new_review \
+  --video-fps 10 --source-control-hz 20
 ```
 
 See [RESULTS.md](RESULTS.md) for the findings and the
