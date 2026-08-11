@@ -45,6 +45,9 @@ class Args:
     warmup_steps: int = 100
     suffix_len: int = 20
     seed: int = 7
+    sampling_mode: Literal["uniform_frames", "task_target_balanced"] = "uniform_frames"
+    validation_sampling_mode: Literal["uniform_frames", "task_target_balanced"] = "uniform_frames"
+    validation_samples_per_task: int = 10
     eval_every: int = 100
     validation_batches: int = 20
     log_every: int = 10
@@ -204,13 +207,27 @@ def make_eval_step(model_def, *, loss_mode: str = "full", seed_len: int = 0):
     return eval_step
 
 
-def _evaluate(state, eval_step, dataset, *, batch_size: int, batches: int, seed: int) -> dict[str, float]:
+def _evaluate(
+    state,
+    eval_step,
+    dataset,
+    *,
+    batch_size: int,
+    batches: int,
+    seed: int,
+    fixed_indices: list[int] | None = None,
+) -> dict[str, float]:
     rng = np.random.default_rng(seed)
     losses = []
     correct = 0
     tokens = 0
-    for _ in range(batches):
-        indices = rng.integers(0, len(dataset), size=batch_size)
+    if fixed_indices is None:
+        index_batches = [rng.integers(0, len(dataset), size=batch_size) for _ in range(batches)]
+    else:
+        index_batches = [
+            fixed_indices[start : start + batch_size] for start in range(0, len(fixed_indices), batch_size)
+        ]
+    for indices in index_batches:
         batch = data.collate([dataset[int(index)] for index in indices])
         loss, batch_correct, batch_tokens = eval_step(state, batch)
         loss, batch_correct, batch_tokens = jax.device_get((loss, batch_correct, batch_tokens))
@@ -241,7 +258,19 @@ def main(args: Args) -> None:
     }
     train_dataset = data.LiberoLanguageDataset(train_refs, **dataset_kwargs)
     validation_dataset = data.LiberoLanguageDataset(validation_refs, **dataset_kwargs)
-    train_batches = data.batches(train_dataset, batch_size=args.batch_size, seed=args.seed)
+    train_batches = data.batches(
+        train_dataset,
+        batch_size=args.batch_size,
+        seed=args.seed,
+        sampling_mode=args.sampling_mode,
+    )
+    validation_indices = None
+    if args.validation_sampling_mode == "task_target_balanced":
+        validation_indices = data.stratified_indices(
+            validation_refs,
+            samples_per_task=args.validation_samples_per_task,
+            seed=args.seed,
+        )
 
     started = time.time()
     config, model = load_model(args)
@@ -321,6 +350,7 @@ def main(args: Args) -> None:
                 # Keep the monitor set fixed so checkpoint-to-checkpoint changes
                 # reflect training rather than validation resampling noise.
                 seed=args.seed,
+                fixed_indices=validation_indices,
             )
             record = {"step": step, **evaluation, "wall_seconds": time.time() - started}
             print(json.dumps(record, sort_keys=True), flush=True)

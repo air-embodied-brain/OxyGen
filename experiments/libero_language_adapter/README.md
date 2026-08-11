@@ -53,9 +53,40 @@ python -m experiments.libero_language_adapter.train \
 ```
 
 Standard teacher forcing exposes a BF16 shape-sensitive gap between full-suffix
-training and block-plus-token incremental inference. The selected suffix model
-therefore receives a short 500-step continuation through the exact deployed
-incremental path; no LoRA targets are removed.
+training and block-plus-token incremental inference. The current selected model
+therefore uses the exact deployed incremental path for both training and
+evaluation. Training samples a task uniformly, then a target/predicate within
+that task, so long episodes and frequent completion labels do not dominate.
+
+Starting from the first-round suffix-LoRA checkpoint, run the balanced sweep:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=0.99 \
+python -m experiments.libero_language_adapter.train \
+  --split /path/to/split.json \
+  --checkpoint /path/to/pi05_libero \
+  --norm-stats /path/to/norm_stats.json \
+  --adapter-type suffix_lora --rank 16 --alpha 16 \
+  --init-adapter /path/to/first_round_adapter_step_2000.npz \
+  --loss-mode incremental --sampling-mode task_target_balanced \
+  --validation-sampling-mode task_target_balanced \
+  --validation-samples-per-task 10 \
+  --learning-rate 1e-4 --steps 2000 --warmup-steps 100 \
+  --eval-every 250 --output-dir /path/to/run
+```
+
+Run `1e-4`, `3e-5`, and `1e-5` as independent jobs. Scan their saved
+checkpoints on the same 400-sample, task/target-stratified incremental greedy
+set before choosing the final checkpoint:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m experiments.libero_language_adapter.scan_checkpoints \
+  --split /path/to/split.json \
+  --checkpoint /path/to/pi05_libero \
+  --norm-stats /path/to/norm_stats.json \
+  --adapters '/path/to/run/adapter_step_*.npz' \
+  --samples-per-task 10 --output-dir /path/to/checkpoint_scan
+```
 
 ## Evaluation
 
@@ -64,6 +95,9 @@ generation across 80 samples, root/action isolation with fixed diffusion noise,
 and adapter latency relative to the duplicate prefix forward it replaces.
 `verify_serving.py` calls the actual continuous-batching policy and checks that
 one request returns both actions and adapter-generated language.
+`rollout_review.py` runs deterministic LIBERO rollouts, records every raw policy
+response, and builds a lazy-loading review page with the generated text overlaid
+on the corresponding action chunk.
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_ALLOCATOR=platform \
@@ -71,13 +105,28 @@ python -m experiments.libero_language_adapter.evaluate \
   --split /path/to/split.json \
   --checkpoint /path/to/pi05_libero \
   --norm-stats /path/to/norm_stats.json \
-  --adapter /path/to/adapter_step_400.npz \
+  --adapter /path/to/adapter_step_1500.npz \
   --adapter-type suffix_lora --rank 16 --alpha 16 \
-  --teacher-forced-samples 5075 --action-invariance-samples 20 \
+  --teacher-forced-samples 5075 --teacher-forced-loss-mode incremental \
+  --samples-per-task 10 --action-invariance-samples 20 \
   --output-dir /path/to/evaluation
 ```
 
-See [RESULTS.md](RESULTS.md) for the findings and
-[`aggregate_summary.json`](results/2026-08-11/three_way_accuracy/aggregate_summary.json)
-for machine-readable metrics. Large checkpoints and datasets remain local and
-are not tracked by Git.
+For qualitative review, start `serve_adapter.py` with the selected adapter, then
+run the real simulator client. The server stops text on tokenizer EOS; the
+fixed-length decoding used by the paper's performance sweeps is unchanged.
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python -m experiments.libero_language_adapter.serve_adapter \
+  --checkpoint /path/to/pi05_libero --norm-stats /path/to/norm_stats.json \
+  --rank 16 --adapter /path/to/adapter_step_1500.npz --port 8011
+
+python -m experiments.libero_language_adapter.rollout_review \
+  --host 0.0.0.0 --port 8011 --task-id 0 --episodes 0,1,2,3,4 \
+  --replan-steps 5 --seed 7 --output-root /path/to/review
+```
+
+See [RESULTS.md](RESULTS.md) for the findings and the
+[current aggregate summary](results/2026-08-11/balanced_incremental_v2/aggregate_summary.json)
+for machine-readable metrics. Large checkpoints, datasets, and review videos
+remain local and are not tracked by Git.

@@ -35,6 +35,7 @@ class Args:
     timing_warmups: int = 5
     timing_repeats: int = 50
     teacher_forced_samples: int = 0
+    teacher_forced_loss_mode: Literal["full", "incremental"] = "full"
     action_invariance_samples: int = 20
 
 
@@ -326,12 +327,14 @@ def _teacher_forced_evaluation(
     dataset,
     *,
     samples: int,
+    loss_mode: str,
+    seed_len: int,
     batch_size: int = 2,
-) -> dict[str, float | int]:
+) -> dict[str, float | int | str]:
     if samples <= 0:
         raise ValueError("teacher-forced sample count must be positive")
     sample_count = min(samples, len(dataset))
-    eval_step = train.make_eval_step(model_def)
+    eval_step = train.make_eval_step(model_def, loss_mode=loss_mode, seed_len=seed_len)
     loss_sum = 0.0
     correct = 0
     token_count = 0
@@ -345,6 +348,7 @@ def _teacher_forced_evaluation(
         if stop % 500 == 0 or stop == sample_count:
             print(f"teacher-forced validation: {stop}/{sample_count}", flush=True)
     return {
+        "loss_mode": loss_mode,
         "samples": sample_count,
         "mean_sample_loss": loss_sum / sample_count,
         "perplexity": float(np.exp(min(loss_sum / sample_count, 20.0))),
@@ -404,6 +408,8 @@ def main(args: Args) -> None:
             model_def,
             dataset,
             samples=args.teacher_forced_samples,
+            loss_mode=args.teacher_forced_loss_mode,
+            seed_len=len(language_seed_tokens),
         )
         (args.output_dir / "teacher_forced.json").write_text(
             json.dumps(teacher_forced, indent=2, sort_keys=True) + "\n"

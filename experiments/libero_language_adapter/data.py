@@ -215,11 +215,68 @@ def batches(
     *,
     batch_size: int,
     seed: int,
+    sampling_mode: str = "uniform_frames",
 ) -> Iterator:
     rng = np.random.default_rng(seed)
+    if sampling_mode == "task_target_balanced":
+        grouped = _group_indices_by_task_and_target(dataset.samples)
+        task_keys = sorted(grouped)
+        target_keys = {task: sorted(grouped[task]) for task in task_keys}
+    elif sampling_mode != "uniform_frames":
+        raise ValueError(f"Unknown sampling mode: {sampling_mode}")
+
     while True:
-        indices = rng.integers(0, len(dataset), size=batch_size)
+        if sampling_mode == "uniform_frames":
+            indices = rng.integers(0, len(dataset), size=batch_size)
+        else:
+            indices = []
+            for _ in range(batch_size):
+                task = task_keys[int(rng.integers(0, len(task_keys)))]
+                targets = target_keys[task]
+                target = targets[int(rng.integers(0, len(targets)))]
+                candidates = grouped[task][target]
+                indices.append(candidates[int(rng.integers(0, len(candidates)))])
         yield collate([dataset[int(index)] for index in indices])
+
+
+def _group_indices_by_task_and_target(
+    samples: Sequence[SampleRef],
+) -> dict[tuple[str, str], dict[str, list[int]]]:
+    grouped: dict[tuple[str, str], dict[str, list[int]]] = {}
+    for index, sample in enumerate(samples):
+        task = (sample.suite, sample.task)
+        grouped.setdefault(task, {}).setdefault(sample.target, []).append(index)
+    return grouped
+
+
+def stratified_indices(
+    samples: Sequence[SampleRef],
+    *,
+    samples_per_task: int,
+    seed: int,
+) -> list[int]:
+    """Select a fixed task-balanced monitor while cycling through each task's targets."""
+    grouped = _group_indices_by_task_and_target(samples)
+    rng = random.Random(seed)
+    selected: list[int] = []
+    for task in sorted(grouped):
+        target_groups = grouped[task]
+        targets = sorted(target_groups)
+        rng.shuffle(targets)
+        shuffled_groups: dict[str, list[int]] = {}
+        for target in targets:
+            candidates = list(target_groups[target])
+            rng.shuffle(candidates)
+            shuffled_groups[target] = candidates
+
+        target_offsets = dict.fromkeys(targets, 0)
+        for slot in range(samples_per_task):
+            target = targets[slot % len(targets)]
+            candidates = shuffled_groups[target]
+            offset = target_offsets[target]
+            selected.append(candidates[offset % len(candidates)])
+            target_offsets[target] = offset + 1
+    return selected
 
 
 def save_split(

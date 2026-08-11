@@ -30,6 +30,7 @@ class Args:
     adapter: Path | None = None
     port: int = 8011
     seed: int = 7
+    stop_on_eos: bool = True
 
 
 def main(args: Args) -> None:
@@ -74,6 +75,7 @@ def main(args: Args) -> None:
             "adapter": None if args.adapter is None else str(args.adapter.resolve()),
             "adapter_rank": args.rank,
             "effective_infer_api": "continuous_batching",
+            "text_stop_condition": "eos" if args.stop_on_eos else "fixed_length",
         },
     )
     server = websocket_policy_server.WebsocketPolicyServer(
@@ -82,6 +84,7 @@ def main(args: Args) -> None:
         port=args.port,
         metadata=policy.metadata,
         infer_api="continuous_batching",
+        continuous_batching_kwargs=({"PALIGEMMA_EOS_TOKEN": tokenizer.eos_token_id} if args.stop_on_eos else None),
     )
     server.serve_forever()
 

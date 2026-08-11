@@ -6,7 +6,6 @@ import traceback
 from typing import Any
 
 import numpy as np
-
 from openpi_client import base_policy as _base_policy
 from openpi_client import msgpack_numpy
 import websockets.asyncio.server as _server
@@ -32,6 +31,7 @@ class WebsocketPolicyServer:
         port: int | None = None,
         metadata: dict | None = None,
         infer_api: str = "infer",
+        continuous_batching_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self._policy = policy
         self._host = host
@@ -39,6 +39,7 @@ class WebsocketPolicyServer:
         self._metadata = metadata or {}
         self._requested_infer_api = infer_api
         self._infer_api = infer_api
+        self._continuous_batching_kwargs = continuous_batching_kwargs or {}
         logging.getLogger("websockets.server").setLevel(logging.INFO)
 
         supports_shared_kv = _has_attrs(
@@ -93,6 +94,7 @@ class WebsocketPolicyServer:
                 cache_manager=self._cache_manager,
                 request_ids=[request_id],
                 generate_actions_for_resumed=True,
+                **self._continuous_batching_kwargs,
             )
             action = results[0]
             next_request_id = action.get("request_id")
@@ -147,9 +149,13 @@ class WebsocketPolicyServer:
                 prev_total_time = time.monotonic() - start_time
 
             except websockets.ConnectionClosed:
+                if self._cache_manager is not None and request_id is not None:
+                    self._cache_manager.remove_state(request_id)
                 logger.info(f"Connection from {websocket.remote_address} closed")
                 break
             except Exception:
+                if self._cache_manager is not None and request_id is not None:
+                    self._cache_manager.remove_state(request_id)
                 await websocket.send(traceback.format_exc())
                 await websocket.close(
                     code=websockets.frames.CloseCode.INTERNAL_ERROR,
