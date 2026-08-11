@@ -43,13 +43,14 @@ block-plus-token 增量路径生成。
 | 配置 | LR | Token acc. | Greedy exact | Word F1 | Root / action exact | Median adapter overhead |
 |---|---:|---:|---:|---:|---|---:|
 | Suffix LoRA | `3e-4` | 98.57% | 51.25% | 0.814 | yes / yes | 5.98 ms |
-| Full-sequence LoRA | `3e-4` | 98.33% | 40.00% | 0.654 | no / no | 6.14 ms |
+| Full-sequence LoRA | `3e-4` | 98.66% | 51.25% | 0.774 | no / no | 6.41 ms |
 | Final MLP | `3e-4` | 66.80% | 3.75% | 0.283 | yes / yes | below timing noise |
 | Base LIBERO checkpoint | - | 0.75% | 0.00% | 0.000 | - | - |
 
 这组结果给出两个直接判断。第一，外挂 final MLP 很便宜，但容量明显不足。第二，
-full-sequence LoRA 提供了更大的修改自由度，却没有在固定预算下优于 suffix LoRA，
-并且会改变 action 所读取的 root KV。它是容量对照，不是性能一定更高的“oracle”。
+full-sequence 和 suffix-only LoRA 的文本准确率相当；前者的 token accuracy 略高，
+两者的 sequence exact 相同，但前者会改变 action 所读取的 root KV。因此它是表达能力
+更大的容量对照，不是验证准确率必然更高的“oracle”。
 
 ## 增量训推一致性
 
@@ -80,11 +81,11 @@ diffusion noise 时，10-step denoising 的 action tensors 也全部 bit-exact�
 为 0。最终 Policy 路径的单请求检查同时返回正确文本 `Turn on the stove.` 和
 `(10, 32)` actions，并在文本结束后正确释放 request state。
 
-Full-sequence LoRA 会改变 root KV（最大绝对差 69.5）和动作（最大绝对差 0.436）。
-因此额外做了小规模 simulator 回归：四个 suite 的第一个任务、每个任务前 5 个固定
-initial states、seed 7、`replan_steps=5`、10-step denoising。原 checkpoint 在这 20 个
-状态上为 19/20，full-LoRA 为 20/20。该结果只说明这批样本未观察到明显动作退化；
-样本太小，不能声称 full-LoRA 提升了整体成功率。
+Full-sequence LoRA step 2000 会改变 root KV（最大绝对差 71.0）和动作（最大绝对差
+0.418）。另用 step 1500 checkpoint 做了小规模 simulator 回归：四个 suite 的第一个
+任务、每个任务前 5 个固定 initial states、seed 7、`replan_steps=5`、10-step
+denoising。原 checkpoint 在这 20 个状态上为 19/20，full-LoRA 为 20/20。该结果只说明
+这批样本未观察到明显动作退化；样本太小，不能声称 full-LoRA 提升了整体成功率。
 
 最终 suffix-LoRA 也使用相同 20 个状态通过 action+language continuous-batching 路径
 复测，结果为 19/20，与 base reference 完全一致；四个 suite 分别为 5/5、5/5、4/5、
@@ -108,6 +109,26 @@ prefix saving / adapter overhead 为 8.94 倍。这个比较已经使用与部�
 private cache、seed block 和 token append，而不是只估算 LoRA GEMM。首次 JIT 编译
 不计入以上数字。
 
+## 收敛判断与后续训练
+
+当前 2,000 steps 还不能视为充分收敛。Batch size 为 2，训练按 45,935 个帧有放回
+采样，因此 2,000 steps 只产生 4,000 次样本抽取，期望覆盖约 3,830 个不同帧（8.3%）。
+从 step 1500 到 2000，suffix-LoRA 的完整 held-out token accuracy 仍由 98.16% 升到
+98.57%，greedy exact 由 47.50% 升到 51.25%；full-LoRA 也由 98.33% / 40.00% 升到
+98.66% / 51.25%。继续训练仍有增长空间。
+
+训练时的旧 quick validation 每次只抽 40 帧且随 step 更换样本，适合发现发散，不适合
+选择 checkpoint；这也是原先误选 full-LoRA step 1500 的原因。训练脚本现已固定 monitor
+set。后续建议使用固定且按 task/predicate 分层的 400-sample 增量生成集作为主要选点指标，
+每 500 steps 报告 greedy exact 和 Word F1，每 1,000 steps 额外评估全部 5,075 帧的
+token accuracy/NLL。连续三个评估点的 exact 提升低于 0.5 个百分点、Word F1 提升低于
+0.005，且完整验证 NLL 不再下降时，可认为部署路径基本收敛。
+
+`3e-4` 在本轮没有发散且前期收敛更快，但 `1e-4` 与 `3e-4` 在 step 2000 的差距已经很
+小。下一轮适合从现有 checkpoint 以 `1e-4` 或更低学习率训练到 5k–10k steps，而不是
+重新以 `3e-4` warmup。正式续训前还应保存并恢复 optimizer/scheduler state，并将训练
+采样改为 task/predicate-balanced，避免长 episode 和高频 `Task complete` 标签主导梯度。
+
 ## 结果出处
 
 - [机器可读汇总](results/2026-08-11/three_way_accuracy/aggregate_summary.json)
@@ -116,7 +137,7 @@ private cache、seed block 和 token append，而不是只估算 LoRA GEMM。首
 - [标准三组增量评测](results/2026-08-11/three_way_accuracy/evaluation_incremental/)
 - [标准训练配置与日志](results/2026-08-11/three_way_accuracy/training/)
 - [增量 continuation 配置与日志](results/2026-08-11/three_way_accuracy/training_incremental_continuation/)
-- [Full-LoRA rollout](results/2026-08-11/three_way_accuracy/rollout/full_lora_lr3e4.jsonl)
+- [Full-LoRA step-1500 rollout](results/2026-08-11/three_way_accuracy/rollout/full_lora_lr3e4_step1500.jsonl)
 - [Suffix-LoRA rollout](results/2026-08-11/three_way_accuracy/rollout/suffix_lora_incremental_step400.jsonl)
 - [最终 serving 检查](results/2026-08-11/three_way_accuracy/serving_verification/best_suffix_lora_sample0.json)
 

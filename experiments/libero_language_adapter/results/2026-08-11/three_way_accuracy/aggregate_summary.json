@@ -30,16 +30,17 @@
       "action_exact": true,
       "source": "evaluation_incremental/final_mlp_lr3e4_step1800/summary.json"
     },
-    "full_lora_lr3e4_step1500": {
+    "full_lora_lr3e4_step2000": {
       "adapter_parameters": 27869184,
-      "teacher_forced_token_accuracy": 0.9832785411887136,
-      "greedy_exact": 0.4,
-      "word_f1": 0.6538987891847462,
+      "teacher_forced_token_accuracy": 0.9865660698658972,
+      "greedy_exact": 0.5125,
+      "word_f1": 0.7736122391540349,
       "root_cache_exact": false,
-      "root_cache_max_abs_diff": 69.5,
+      "root_cache_max_abs_diff": 71.0,
       "action_exact": false,
-      "action_max_abs_diff": 0.43585205078125,
-      "source": "evaluation_incremental/full_lora_lr3e4_step1500/summary.json"
+      "action_max_abs_diff": 0.4178466796875,
+      "median_adapter_overhead_ms": 6.409459747374058,
+      "source": "evaluation_incremental/full_lora_lr3e4_step2000/summary.json"
     },
     "suffix_lora_lr3e4_step2000": {
       "adapter_parameters": 27869184,
@@ -73,11 +74,11 @@
   "rollout": {
     "baseline_reference": "19/20",
     "suffix_lora_incremental_step400": "19/20",
-    "full_lora_lr3e4": "20/20",
+    "full_lora_lr3e4_step1500": "20/20",
     "protocol": "four suites, task 0, first five initial states, seed 7, replan_steps 5, 10 denoising steps",
     "baseline_source": "baseline_rollout_reference.json",
     "suffix_lora_source": "rollout/suffix_lora_incremental_step400.jsonl",
-    "full_lora_source": "rollout/full_lora_lr3e4.jsonl"
+    "full_lora_source": "rollout/full_lora_lr3e4_step1500.jsonl"
   },
   "serving_verification": {
     "prediction": "Turn on the stove.",

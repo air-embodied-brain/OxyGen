@@ -318,7 +318,9 @@ def main(args: Args) -> None:
                 validation_dataset,
                 batch_size=args.batch_size,
                 batches=args.validation_batches,
-                seed=args.seed + step,
+                # Keep the monitor set fixed so checkpoint-to-checkpoint changes
+                # reflect training rather than validation resampling noise.
+                seed=args.seed,
             )
             record = {"step": step, **evaluation, "wall_seconds": time.time() - started}
             print(json.dumps(record, sort_keys=True), flush=True)
