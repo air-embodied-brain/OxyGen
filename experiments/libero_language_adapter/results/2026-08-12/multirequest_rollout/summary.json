@@ -1,0 +1,77 @@
+{
+  "action": {
+    "denoising_steps": 10,
+    "replan_steps": 5
+  },
+  "adapter": {
+    "checkpoint": "balanced_incremental_v2/lr1e4/adapter_step_1500.npz",
+    "rank": 16,
+    "type": "suffix_lora"
+  },
+  "continuous_batching": {
+    "batch_size_counts": {
+      "1": 25,
+      "2": 611
+    },
+    "calls_with_one_new_request": 636,
+    "calls_with_one_resumed_request": 611,
+    "max_observed_batch_size": 2,
+    "request_mode": "new_each_call"
+  },
+  "language": {
+    "completed_nonempty_requests": 621,
+    "max_decoding_steps": 20,
+    "requests_created": 636,
+    "requests_unfinished_at_episode_end": 15,
+    "steps_per_frame": 5,
+    "stop_condition": "tokenizer_eos",
+    "temperature": 0.1
+  },
+  "raw_output": {
+    "directory": "experiments/libero_language_adapter/outputs/balanced_incremental_multirequest_review",
+    "inference_events_sha256": "a80b970946f06874f36f7531585b6b389460e44867d5b225408c3e1d63210a62",
+    "manifest_sha256": "90644f63634bf7c245dfdd1804b6b8bcf3ea7c240d71a16456084f103f18616a",
+    "rollouts_sha256": "85b3b71a840447ee50a439d86ec3ee7f45b23d3ee5e5614bf06440c0be7fe1fb"
+  },
+  "review_output": {
+    "directory": "experiments/libero_language_adapter/outputs/balanced_incremental_multirequest_review_v2",
+    "manifest_sha256": "3c82260b6d568cd82b3b5e1a6d6899d32083c29b45f173c39a3ba9243c0b4dd3"
+  },
+  "rollout": {
+    "control_hz": 20,
+    "episodes": 20,
+    "exceptions": 0,
+    "replan_interval_steps": 5,
+    "replan_intervals_all_exact": true,
+    "successes": 20,
+    "suites": {
+      "libero_10": {
+        "episodes": 5,
+        "inference_calls": 271,
+        "successes": 5
+      },
+      "libero_goal": {
+        "episodes": 5,
+        "inference_calls": 120,
+        "successes": 5
+      },
+      "libero_object": {
+        "episodes": 5,
+        "inference_calls": 154,
+        "successes": 5
+      },
+      "libero_spatial": {
+        "episodes": 5,
+        "inference_calls": 91,
+        "successes": 5
+      }
+    }
+  },
+  "video": {
+    "count": 20,
+    "max_bytes": 281339,
+    "min_bytes": 90559,
+    "playback_fps": 10,
+    "playback_speed_vs_simulator": 0.5
+  }
+}

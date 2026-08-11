@@ -121,13 +121,21 @@ fixed-length decoding used by the paper's performance sweeps is unchanged.
 ```bash
 CUDA_VISIBLE_DEVICES=0 python -m experiments.libero_language_adapter.serve_adapter \
   --checkpoint /path/to/pi05_libero --norm-stats /path/to/norm_stats.json \
-  --rank 16 --adapter /path/to/adapter_step_1500.npz --port 8011
+  --rank 16 --adapter /path/to/adapter_step_1500.npz --port 8011 \
+  --request-mode new_each_call --steps-per-frame 5 --max-decoding-steps 20
 
 python -m experiments.libero_language_adapter.rollout_review \
   --host 0.0.0.0 --port 8011 --task-id 0 --episodes 0,1,2,3,4 \
   --replan-steps 5 --seed 7 --video-fps 10 --source-control-hz 20 \
   --output-root /path/to/review
 ```
+
+With `new_each_call`, every action replan creates one language request from the
+same current observation. The server advances that request and every unfinished
+older request in one continuous batch, while generating actions only for the
+new observation. Thus `replan_steps=5` at LIBERO's 20 Hz control rate produces
+both action replans and language-request arrivals at 4 Hz. The saved inference
+events contain every request's incremental text and the actual batch size.
 
 An existing review can be rerendered from its saved videos and response logs
 without rerunning the policy or simulator:

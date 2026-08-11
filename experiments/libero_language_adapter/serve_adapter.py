@@ -31,6 +31,10 @@ class Args:
     port: int = 8011
     seed: int = 7
     stop_on_eos: bool = True
+    request_mode: Literal["resume_until_finished", "new_each_call"] = "resume_until_finished"
+    steps_per_frame: int = 5
+    max_decoding_steps: int = 20
+    temperature: float = 0.1
 
 
 def main(args: Args) -> None:
@@ -76,6 +80,9 @@ def main(args: Args) -> None:
             "adapter_rank": args.rank,
             "effective_infer_api": "continuous_batching",
             "text_stop_condition": "eos" if args.stop_on_eos else "fixed_length",
+            "language_steps_per_frame": args.steps_per_frame,
+            "language_max_decoding_steps": args.max_decoding_steps,
+            "language_temperature": args.temperature,
         },
     )
     server = websocket_policy_server.WebsocketPolicyServer(
@@ -84,7 +91,13 @@ def main(args: Args) -> None:
         port=args.port,
         metadata=policy.metadata,
         infer_api="continuous_batching",
-        continuous_batching_kwargs=({"PALIGEMMA_EOS_TOKEN": tokenizer.eos_token_id} if args.stop_on_eos else None),
+        continuous_batching_kwargs={
+            "steps_per_frame": args.steps_per_frame,
+            "max_decoding_steps": args.max_decoding_steps,
+            "temperature": args.temperature,
+            "PALIGEMMA_EOS_TOKEN": tokenizer.eos_token_id if args.stop_on_eos else -1,
+        },
+        continuous_batching_request_mode=args.request_mode,
     )
     server.serve_forever()
 

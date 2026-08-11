@@ -64,9 +64,18 @@ adapter 已经学会了标注语言和大部分任务阶段，但阶段边界仍
 
 我们通过真实 OxyGen continuous-batching serving 路径运行了 20 个可视化 episode：
 四个标准 suite 各选 task 0，每个任务使用 initial state 0--4，`replan_steps=5`，
-10-step action denoising，seed 7。文本按 tokenizer EOS 结束，视频上的字幕直接来自
-当次 policy response，不是事后填入的标签。20 个 episode 均成功，712 次
-inference response 中有 357 个完整文本请求，没有重复句子、乱码或异常。
+10-step action denoising，seed 7。每次 action replan 都基于当前 observation 新建一个
+language request，同时将所有未完成 request 各推进 5 tokens；动作只为最新 observation
+生成。LIBERO 以 20 Hz 运行，因此 action replan 与 language request arrival 均为 4 Hz。
+
+20 个 episode 均成功且无异常。636 次 replan 全部创建了一个新 request，其中 611 次
+还恢复了上一 request，即实际 batch size 为 2；其余 25 次 batch size 为 1，出现在
+episode 的第一次 replan，或上一 request 已在 5 tokens 内遇到 EOS 时。621 个 request
+在 episode 内输出了完整非空文本；15 个尚未完成的末尾 request 在 episode 成功后随
+连接关闭而清理。模型的句子通常在 10 tokens 内遇到 EOS，因此本次自然文本 rollout
+没有形成大于 2 的 active batch。视频字幕直接来自对应 simulator frame 的 batched
+policy response，并显示当前及前两个 request 的增量状态；所有视频均以 0.5x 实时速度
+渲染，大小为 0.091--0.281 MB。
 
 这个 20/20 是覆盖四个 suite 的 serving 回归和定性检查，不是完整 LIBERO
 benchmark success rate；adapter 不改变动作的直接证据仍是上述 bit-exact 检查。
@@ -203,7 +212,8 @@ private cache、seed block 和 token append，而不是只估算 LoRA GEMM。首
 - [Checkpoint 扫描结果](results/2026-08-11/balanced_incremental_v2/checkpoint_scan.json)
 - [20 个 rollout 汇总](results/2026-08-11/balanced_incremental_v2/rollout/manifest.json)
 - [Rollout 原始记录](results/2026-08-11/balanced_incremental_v2/rollout/rollouts.jsonl)
-- [本地视频审查页](outputs/balanced_incremental_v2_review_v2/index.html)
+- [多请求 continuous-batching 汇总](results/2026-08-12/multirequest_rollout/summary.json)
+- [本地多请求视频审查页](outputs/balanced_incremental_multirequest_review_v2/index.html)
 - [机器可读汇总](results/2026-08-11/three_way_accuracy/aggregate_summary.json)
 - [最佳 suffix-LoRA 正式评测](results/2026-08-11/three_way_accuracy/evaluation_incremental_continuation/best_suffix_lora_lr1e4_step400/summary.json)
 - [最佳模型 80 条生成明细](results/2026-08-11/three_way_accuracy/evaluation_incremental_continuation/best_suffix_lora_lr1e4_step400/predictions.jsonl)

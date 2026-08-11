@@ -26,7 +26,7 @@ LIBERO_ENV_RESOLUTION = 256
 LIBERO_CONTROL_HZ = 20
 REVIEW_WIDTH = 640
 REVIEW_HEIGHT = 860
-REVIEW_ASSET_VERSION = "request-buffer-v2"
+REVIEW_ASSET_VERSION = "request-buffer-v3"
 MAX_STEPS = {
     "libero_spatial": 220,
     "libero_object": 280,
@@ -119,7 +119,9 @@ def _render_request_buffer(
         status = "COMPLETE" if complete else "GENERATING"
         status_color = "#217346" if complete else "#1769aa"
         draw.text((78, row_y + 7), status, font=_bold_font(11), fill=status_color)
-        metadata = f"{request['request_id']}  |  {request['token_count']} tokens"
+        metadata = (
+            f"{request['request_id']}  |  start frame {request['start_step']}  |  {request['token_count']} tokens"
+        )
         draw.text((180, row_y + 7), metadata, font=small_font, fill="#68717c")
         text = request["text"].strip() or "(waiting for first tokens)"
         draw.text(
@@ -276,6 +278,53 @@ def _close_client(client) -> None:
         websocket.close()
 
 
+def _language_updates(response: dict) -> list[dict]:
+    updates = response.get("language_updates")
+    if updates is None:
+        updates = [
+            {
+                "request_id": response.get("request_id"),
+                "text": response.get("text", ""),
+                "is_finished": response.get("is_finished", False),
+                "tokens_full": response.get("tokens_full", []),
+                "tokens_this_frame": response.get("tokens_this_frame", []),
+                "created_this_call": False,
+            }
+        ]
+    return [
+        {
+            "request_id": update.get("request_id"),
+            "text": str(update.get("text", "")),
+            "is_finished": bool(update.get("is_finished", False)),
+            "tokens_full": np.asarray(update.get("tokens_full", [])).astype(int).tolist(),
+            "tokens_this_frame": np.asarray(update.get("tokens_this_frame", [])).astype(int).tolist(),
+            "created_this_call": bool(update.get("created_this_call", False)),
+        }
+        for update in updates
+    ]
+
+
+def _apply_request_updates(request_buffer: list[dict], updates: list[dict], *, step: int) -> None:
+    index_by_id = {request["request_id"]: index for index, request in enumerate(request_buffer)}
+    for update in updates:
+        request_id = update["request_id"]
+        current = {
+            "request_id": request_id,
+            "text": update["text"],
+            "is_finished": update["is_finished"],
+            "token_count": len(update["tokens_full"]),
+            "start_step": step,
+        }
+        if request_id in index_by_id:
+            index = index_by_id[request_id]
+            current["start_step"] = request_buffer[index]["start_step"]
+            request_buffer[index] = current
+        else:
+            request_buffer.append(current)
+        index_by_id = {request["request_id"]: index for index, request in enumerate(request_buffer)}
+    request_buffer.sort(key=lambda request: request["start_step"], reverse=True)
+
+
 def _run_episode(
     *,
     host: str,
@@ -326,22 +375,17 @@ def _run_episode(
                 if len(actions) < replan_steps:
                     raise ValueError(f"Policy returned {len(actions)} actions; need {replan_steps}")
                 action_plan.extend(actions[:replan_steps])
-                latest = {
-                    "text": str(response.get("text", "")),
-                    "request_id": response.get("request_id"),
-                    "is_finished": bool(response.get("is_finished", False)),
-                    "token_count": len(response.get("tokens_full", [])),
-                }
-                if request_buffer and request_buffer[0]["request_id"] == latest["request_id"]:
-                    request_buffer[0] = latest
-                else:
-                    request_buffer.insert(0, latest)
-                    request_buffer = request_buffer[:3]
+                updates = _language_updates(response)
+                _apply_request_updates(request_buffer, updates, step=step)
                 inference_events.append(
                     {
                         "step": step,
-                        **latest,
+                        "request_id": response.get("request_id"),
+                        "text": str(response.get("text", "")),
+                        "is_finished": bool(response.get("is_finished", False)),
                         "tokens_full": np.asarray(response.get("tokens_full", [])).astype(int).tolist(),
+                        "language_updates": updates,
+                        "active_language_requests": response.get("active_language_requests"),
                         "server_timing": response.get("server_timing"),
                         "policy_timing": response.get("policy_timing"),
                     }
@@ -352,7 +396,7 @@ def _run_episode(
                 {
                     "task": task_description,
                     "step": step,
-                    "requests": [dict(request) for request in request_buffer],
+                    "requests": [dict(request) for request in request_buffer[:3]],
                 }
             )
             action = action_plan.popleft()
@@ -403,23 +447,14 @@ def _buffer_captions(record: dict, events: list[dict], *, frame_count: int) -> l
     for step in range(first_step, first_step + frame_count):
         while event_index < len(events) and int(events[event_index]["step"]) <= step:
             event = events[event_index]
-            current = {
-                "request_id": event.get("request_id"),
-                "text": str(event.get("text", "")),
-                "is_finished": bool(event.get("is_finished", False)),
-                "token_count": len(event.get("tokens_full", [])),
-            }
-            if request_buffer and request_buffer[0]["request_id"] == current["request_id"]:
-                request_buffer[0] = current
-            else:
-                request_buffer.insert(0, current)
-                request_buffer = request_buffer[:3]
+            updates = _language_updates(event)
+            _apply_request_updates(request_buffer, updates, step=int(event["step"]))
             event_index += 1
         captions.append(
             {
                 "task": record["task_description"],
                 "step": step,
-                "requests": [dict(request) for request in request_buffer],
+                "requests": [dict(request) for request in request_buffer[:3]],
             }
         )
     return captions

@@ -32,6 +32,7 @@ class WebsocketPolicyServer:
         metadata: dict | None = None,
         infer_api: str = "infer",
         continuous_batching_kwargs: dict[str, Any] | None = None,
+        continuous_batching_request_mode: str = "resume_until_finished",
     ) -> None:
         self._policy = policy
         self._host = host
@@ -40,6 +41,9 @@ class WebsocketPolicyServer:
         self._requested_infer_api = infer_api
         self._infer_api = infer_api
         self._continuous_batching_kwargs = continuous_batching_kwargs or {}
+        if continuous_batching_request_mode not in ("resume_until_finished", "new_each_call"):
+            raise ValueError(f"Unknown continuous batching request mode: {continuous_batching_request_mode}")
+        self._continuous_batching_request_mode = continuous_batching_request_mode
         logging.getLogger("websockets.server").setLevel(logging.INFO)
 
         supports_shared_kv = _has_attrs(
@@ -71,6 +75,8 @@ class WebsocketPolicyServer:
 
         self._metadata["requested_infer_api"] = self._requested_infer_api
         self._metadata["effective_infer_api"] = self._infer_api
+        if self._infer_api == "continuous_batching":
+            self._metadata["continuous_batching_request_mode"] = self._continuous_batching_request_mode
         logger.info("Websocket infer api: %s", self._infer_api)
 
     @staticmethod
@@ -81,14 +87,50 @@ class WebsocketPolicyServer:
         action["actions"] = actions
         return action
 
-    def _infer_once(self, obs: dict[str, Any], request_id: str | None) -> tuple[dict[str, Any], str | None]:
+    @staticmethod
+    def _language_update(result: dict[str, Any], *, created_this_call: bool) -> dict[str, Any]:
+        return {
+            "request_id": result.get("request_id"),
+            "tokens_this_frame": result.get("tokens_this_frame"),
+            "tokens_full": result.get("tokens_full"),
+            "text": result.get("text", ""),
+            "is_finished": bool(result.get("is_finished", False)),
+            "created_this_call": created_this_call,
+        }
+
+    def _infer_once(
+        self,
+        obs: dict[str, Any],
+        request_state: str | list[str] | None,
+    ) -> tuple[dict[str, Any], str | list[str] | None]:
         if self._infer_api == "infer":
-            return self._policy.infer(obs), request_id
+            return self._policy.infer(obs), request_state
 
         if self._infer_api == "shared_kv":
-            return self._policy.infer_text_actions_shared_kv(obs), request_id
+            return self._policy.infer_text_actions_shared_kv(obs), request_state
 
         if self._infer_api == "continuous_batching":
+            if self._continuous_batching_request_mode == "new_each_call":
+                active_request_ids = list(request_state or [])
+                request_ids = [None, *active_request_ids]
+                results = self._policy.infer_text_actions_continuous_batch(
+                    [obs] * len(request_ids),
+                    cache_manager=self._cache_manager,
+                    request_ids=request_ids,
+                    generate_actions_for_resumed=False,
+                    **self._continuous_batching_kwargs,
+                )
+                action = results[0]
+                action["language_updates"] = [
+                    self._language_update(result, created_this_call=index == 0) for index, result in enumerate(results)
+                ]
+                next_active_request_ids = [
+                    result["request_id"] for result in results if not result.get("is_finished", False)
+                ]
+                action["active_language_requests"] = len(next_active_request_ids)
+                return action, next_active_request_ids
+
+            request_id = request_state if isinstance(request_state, str) else None
             results = self._policy.infer_text_actions_continuous_batch(
                 [obs],
                 cache_manager=self._cache_manager,
@@ -103,6 +145,13 @@ class WebsocketPolicyServer:
             return action, next_request_id
 
         raise ValueError(f"Unsupported infer_api: {self._infer_api}")
+
+    def _remove_request_state(self, request_state: str | list[str] | None) -> None:
+        if self._cache_manager is None or request_state is None:
+            return
+        request_ids = [request_state] if isinstance(request_state, str) else request_state
+        for request_id in request_ids:
+            self._cache_manager.remove_state(request_id)
 
     def serve_forever(self) -> None:
         asyncio.run(self.run())
@@ -121,7 +170,11 @@ class WebsocketPolicyServer:
     async def _handler(self, websocket: _server.ServerConnection):
         logger.info(f"Connection from {websocket.remote_address} opened")
         packer = msgpack_numpy.Packer()
-        request_id = None
+        request_state: str | list[str] | None = (
+            []
+            if self._infer_api == "continuous_batching" and self._continuous_batching_request_mode == "new_each_call"
+            else None
+        )
 
         await websocket.send(packer.pack(self._metadata))
 
@@ -132,7 +185,7 @@ class WebsocketPolicyServer:
                 obs = msgpack_numpy.unpackb(await websocket.recv())
 
                 infer_time = time.monotonic()
-                action, request_id = self._infer_once(obs, request_id)
+                action, request_state = self._infer_once(obs, request_state)
                 action = self._normalize_actions(action)
                 infer_time = time.monotonic() - infer_time
 
@@ -149,13 +202,11 @@ class WebsocketPolicyServer:
                 prev_total_time = time.monotonic() - start_time
 
             except websockets.ConnectionClosed:
-                if self._cache_manager is not None and request_id is not None:
-                    self._cache_manager.remove_state(request_id)
+                self._remove_request_state(request_state)
                 logger.info(f"Connection from {websocket.remote_address} closed")
                 break
             except Exception:
-                if self._cache_manager is not None and request_id is not None:
-                    self._cache_manager.remove_state(request_id)
+                self._remove_request_state(request_state)
                 await websocket.send(traceback.format_exc())
                 await websocket.close(
                     code=websockets.frames.CloseCode.INTERNAL_ERROR,
