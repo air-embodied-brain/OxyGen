@@ -1,0 +1,36 @@
+{
+  "action_exact_with_adapter_disabled_path": true,
+  "action_invariance_samples": 1,
+  "action_max_abs_diff": 0.0,
+  "adapter": "/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/official_textonly_r16_lr1e4_steps2000/adapter_step_2000.npz",
+  "adapter_only_one_token": {
+    "max_ms": 0.5087400786578655,
+    "mean_ms": 0.4248018376529217,
+    "median_ms": 0.40044193156063557,
+    "min_ms": 0.3961531911045313
+  },
+  "estimated_adapter_overhead_per_median_request_ms": 2.803093520924449,
+  "generated_samples": 80,
+  "mean_word_f1": 0.92229752155739,
+  "median_target_tokens": 7.0,
+  "normalized_exact": 0.875,
+  "one_token_suffix_adapter_disabled": {
+    "max_ms": 16.92223409190774,
+    "mean_ms": 16.53548339381814,
+    "median_ms": 16.44812896847725,
+    "min_ms": 16.33839006535709
+  },
+  "one_token_suffix_adapter_enabled": {
+    "max_ms": 16.99169701896608,
+    "mean_ms": 16.667543724179268,
+    "median_ms": 16.601305920630693,
+    "min_ms": 16.494686948135495
+  },
+  "prefix_prefill": {
+    "max_ms": 51.052320981398225,
+    "mean_ms": 50.004417449235916,
+    "median_ms": 49.7977661434561,
+    "min_ms": 49.31607097387314
+  },
+  "prefix_saving_to_adapter_overhead_ratio": 17.76528887521134
+}

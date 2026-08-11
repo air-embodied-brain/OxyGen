@@ -1,0 +1,327 @@
+{
+  "adapter_parameters": 589824,
+  "args": {
+    "batch_size": 2,
+    "checkpoint": "/home/lixiangyu/oxygen_ws/libero_exp/checkpoints/pi05_libero_modelscope",
+    "eval_every": 200,
+    "learning_rate": 0.0003,
+    "log_every": 20,
+    "norm_stats": "/home/lixiangyu/oxygen_ws/libero_exp/checkpoints/pi05_libero_modelscope/assets/physical-intelligence/libero/norm_stats.json",
+    "output_dir": "/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/official_textonly_r8_lr3e4_steps2000",
+    "rank": 8,
+    "seed": 7,
+    "split": "/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/split_seed7_stride8.json",
+    "steps": 2000,
+    "suffix_len": 20,
+    "validation_batches": 20,
+    "warmup_steps": 100
+  },
+  "checkpoint": "/home/lixiangyu/oxygen_ws/libero_exp/checkpoints/pi05_libero_modelscope",
+  "checkpoint_git_commit": "c27c8531f6748ee8814db1dc55cd62c6b9e862ea",
+  "input_protocol": {
+    "discrete_state_input": false,
+    "raw_hdf5_image_transform": "rotate_180"
+  },
+  "model": {
+    "action_dim": 32,
+    "action_expert_variant": "gemma_300m",
+    "action_horizon": 10,
+    "discrete_state_input": false,
+    "dtype": "bfloat16",
+    "language_suffix_adapter_rank": 8,
+    "max_token_len": 200,
+    "paligemma_variant": "gemma_2b",
+    "pi05": true
+  },
+  "split_manifest": {
+    "seed": 7,
+    "train_episodes": 1800,
+    "train_samples": 45935,
+    "uniform_stride": 8,
+    "validation_demos": {
+      "libero_10/KITCHEN_SCENE3_turn_on_the_stove_and_put_the_moka_pot_on_it": [
+        "demo_16",
+        "demo_22",
+        "demo_33",
+        "demo_39",
+        "demo_7"
+      ],
+      "libero_10/KITCHEN_SCENE4_put_the_black_bowl_in_the_bottom_drawer_of_the_cabinet_and_close_it": [
+        "demo_19",
+        "demo_24",
+        "demo_4",
+        "demo_40",
+        "demo_9"
+      ],
+      "libero_10/KITCHEN_SCENE6_put_the_yellow_and_white_mug_in_the_microwave_and_close_it": [
+        "demo_11",
+        "demo_16",
+        "demo_3",
+        "demo_34",
+        "demo_43"
+      ],
+      "libero_10/KITCHEN_SCENE8_put_both_moka_pots_on_the_stove": [
+        "demo_0",
+        "demo_20",
+        "demo_39",
+        "demo_48",
+        "demo_5"
+      ],
+      "libero_10/LIVING_ROOM_SCENE1_put_both_the_alphabet_soup_and_the_cream_cheese_box_in_the_basket": [
+        "demo_0",
+        "demo_36",
+        "demo_39",
+        "demo_44",
+        "demo_6"
+      ],
+      "libero_10/LIVING_ROOM_SCENE2_put_both_the_alphabet_soup_and_the_tomato_sauce_in_the_basket": [
+        "demo_14",
+        "demo_22",
+        "demo_24",
+        "demo_31",
+        "demo_36"
+      ],
+      "libero_10/LIVING_ROOM_SCENE2_put_both_the_cream_cheese_box_and_the_butter_in_the_basket": [
+        "demo_22",
+        "demo_23",
+        "demo_28",
+        "demo_30",
+        "demo_33"
+      ],
+      "libero_10/LIVING_ROOM_SCENE5_put_the_white_mug_on_the_left_plate_and_put_the_yellow_and_white_mug_on_the_right_plate": [
+        "demo_1",
+        "demo_23",
+        "demo_29",
+        "demo_42",
+        "demo_9"
+      ],
+      "libero_10/LIVING_ROOM_SCENE6_put_the_white_mug_on_the_plate_and_put_the_chocolate_pudding_to_the_right_of_the_plate": [
+        "demo_19",
+        "demo_4",
+        "demo_45",
+        "demo_49",
+        "demo_7"
+      ],
+      "libero_10/STUDY_SCENE1_pick_up_the_book_and_place_it_in_the_back_compartment_of_the_caddy": [
+        "demo_10",
+        "demo_22",
+        "demo_32",
+        "demo_45",
+        "demo_47"
+      ],
+      "libero_goal/open_the_middle_drawer_of_the_cabinet": [
+        "demo_13",
+        "demo_14",
+        "demo_40",
+        "demo_43",
+        "demo_48"
+      ],
+      "libero_goal/open_the_top_drawer_and_put_the_bowl_inside": [
+        "demo_13",
+        "demo_18",
+        "demo_23",
+        "demo_34",
+        "demo_43"
+      ],
+      "libero_goal/push_the_plate_to_the_front_of_the_stove": [
+        "demo_18",
+        "demo_23",
+        "demo_29",
+        "demo_42",
+        "demo_49"
+      ],
+      "libero_goal/put_the_bowl_on_the_plate": [
+        "demo_0",
+        "demo_22",
+        "demo_23",
+        "demo_35",
+        "demo_44"
+      ],
+      "libero_goal/put_the_bowl_on_the_stove": [
+        "demo_13",
+        "demo_19",
+        "demo_35",
+        "demo_48",
+        "demo_5"
+      ],
+      "libero_goal/put_the_bowl_on_top_of_the_cabinet": [
+        "demo_16",
+        "demo_18",
+        "demo_41",
+        "demo_45",
+        "demo_9"
+      ],
+      "libero_goal/put_the_cream_cheese_in_the_bowl": [
+        "demo_18",
+        "demo_22",
+        "demo_31",
+        "demo_48",
+        "demo_49"
+      ],
+      "libero_goal/put_the_wine_bottle_on_the_rack": [
+        "demo_21",
+        "demo_25",
+        "demo_29",
+        "demo_30",
+        "demo_46"
+      ],
+      "libero_goal/put_the_wine_bottle_on_top_of_the_cabinet": [
+        "demo_0",
+        "demo_29",
+        "demo_31",
+        "demo_39",
+        "demo_5"
+      ],
+      "libero_goal/turn_on_the_stove": [
+        "demo_20",
+        "demo_4",
+        "demo_45",
+        "demo_47",
+        "demo_7"
+      ],
+      "libero_object/pick_up_the_alphabet_soup_and_place_it_in_the_basket": [
+        "demo_17",
+        "demo_3",
+        "demo_32",
+        "demo_4",
+        "demo_47"
+      ],
+      "libero_object/pick_up_the_bbq_sauce_and_place_it_in_the_basket": [
+        "demo_14",
+        "demo_30",
+        "demo_32",
+        "demo_43",
+        "demo_47"
+      ],
+      "libero_object/pick_up_the_butter_and_place_it_in_the_basket": [
+        "demo_12",
+        "demo_14",
+        "demo_16",
+        "demo_41",
+        "demo_6"
+      ],
+      "libero_object/pick_up_the_chocolate_pudding_and_place_it_in_the_basket": [
+        "demo_11",
+        "demo_14",
+        "demo_29",
+        "demo_32",
+        "demo_47"
+      ],
+      "libero_object/pick_up_the_cream_cheese_and_place_it_in_the_basket": [
+        "demo_15",
+        "demo_16",
+        "demo_21",
+        "demo_24",
+        "demo_42"
+      ],
+      "libero_object/pick_up_the_ketchup_and_place_it_in_the_basket": [
+        "demo_3",
+        "demo_38",
+        "demo_46",
+        "demo_48",
+        "demo_5"
+      ],
+      "libero_object/pick_up_the_milk_and_place_it_in_the_basket": [
+        "demo_1",
+        "demo_16",
+        "demo_42",
+        "demo_46",
+        "demo_47"
+      ],
+      "libero_object/pick_up_the_orange_juice_and_place_it_in_the_basket": [
+        "demo_10",
+        "demo_12",
+        "demo_18",
+        "demo_2",
+        "demo_6"
+      ],
+      "libero_object/pick_up_the_salad_dressing_and_place_it_in_the_basket": [
+        "demo_16",
+        "demo_27",
+        "demo_36",
+        "demo_4",
+        "demo_9"
+      ],
+      "libero_object/pick_up_the_tomato_sauce_and_place_it_in_the_basket": [
+        "demo_1",
+        "demo_12",
+        "demo_28",
+        "demo_38",
+        "demo_6"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate": [
+        "demo_17",
+        "demo_19",
+        "demo_20",
+        "demo_28",
+        "demo_43"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_from_table_center_and_place_it_on_the_plate": [
+        "demo_16",
+        "demo_19",
+        "demo_36",
+        "demo_42",
+        "demo_9"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_in_the_top_drawer_of_the_wooden_cabinet_and_place_it_on_the_plate": [
+        "demo_14",
+        "demo_15",
+        "demo_18",
+        "demo_30",
+        "demo_43"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_next_to_the_cookie_box_and_place_it_on_the_plate": [
+        "demo_22",
+        "demo_23",
+        "demo_33",
+        "demo_36",
+        "demo_7"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_next_to_the_plate_and_place_it_on_the_plate": [
+        "demo_10",
+        "demo_2",
+        "demo_32",
+        "demo_48",
+        "demo_6"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_next_to_the_ramekin_and_place_it_on_the_plate": [
+        "demo_1",
+        "demo_22",
+        "demo_24",
+        "demo_27",
+        "demo_3"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_on_the_cookie_box_and_place_it_on_the_plate": [
+        "demo_1",
+        "demo_11",
+        "demo_16",
+        "demo_44",
+        "demo_47"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_on_the_ramekin_and_place_it_on_the_plate": [
+        "demo_13",
+        "demo_43",
+        "demo_49",
+        "demo_7",
+        "demo_9"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_on_the_stove_and_place_it_on_the_plate": [
+        "demo_1",
+        "demo_12",
+        "demo_2",
+        "demo_34",
+        "demo_6"
+      ],
+      "libero_spatial/pick_up_the_black_bowl_on_the_wooden_cabinet_and_place_it_on_the_plate": [
+        "demo_15",
+        "demo_20",
+        "demo_24",
+        "demo_25",
+        "demo_28"
+      ]
+    },
+    "validation_episodes": 200,
+    "validation_episodes_per_task": 5,
+    "validation_samples": 5075
+  }
+}

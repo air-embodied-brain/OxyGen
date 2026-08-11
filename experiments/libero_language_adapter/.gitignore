@@ -1,0 +1,3 @@
+outputs/
+*.npz
+!checkpoints/r8_lr3e4_step2000.npz

@@ -50,6 +50,7 @@ class Config:
     num_kv_heads: int
     head_dim: int
     lora_configs: dict[str, lora.LoRAConfig] = dataclasses.field(default_factory=dict)
+    suffix_adapter_rank: int = 0
 
 
 Variant = Literal["dummy", "gemma_300m", "gemma_300m_lora", "gemma_2b", "gemma_2b_lora"]
@@ -280,6 +281,32 @@ class FeedForward(nn.Module):
         return outputs
 
 
+class SuffixAdapter(nn.Module):
+    """Low-rank residual used only for autoregressive language suffix tokens."""
+
+    features: int
+    rank: int
+
+    @nn.compact
+    def __call__(self, x):
+        dtype = x.dtype
+        down = nn.Dense(
+            self.rank,
+            use_bias=False,
+            dtype=dtype,
+            kernel_init=nn.initializers.normal(stddev=0.02),
+            name="down",
+        )(x)
+        up = nn.Dense(
+            self.features,
+            use_bias=False,
+            dtype=dtype,
+            kernel_init=nn.initializers.zeros,
+            name="up",
+        )(nn.gelu(down))
+        return x + up
+
+
 @at.typecheck
 class Block(nn.Module):
     """Transformer block."""
@@ -290,7 +317,16 @@ class Block(nn.Module):
     dropout_bdims: tuple[int, ...] = ()
 
     @nn.compact
-    def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True):  # noqa: FBT002
+    def __call__(
+        self,
+        xs,
+        kv_cache,
+        positions,
+        attn_mask,
+        adarms_cond,
+        suffix_adapter_active=False,  # noqa: FBT002
+        deterministic=True,  # noqa: FBT002
+    ):
         xs = sharding.activation_sharding_constraint(xs)
         drop = nn.Dropout(self.dropout, self.dropout_bdims) if self.dropout else lambda x, _: x
 
@@ -330,6 +366,13 @@ class Block(nn.Module):
         xs = [_gated_residual(x, y, gate) for x, y, gate in zip(xs, out, gates, strict=True)]
         xs = sharding.activation_sharding_constraint(xs)
 
+        if suffix_adapter_active and xs[0] is not None and self.configs[0].suffix_adapter_rank > 0:
+            xs[0] = SuffixAdapter(
+                features=self.configs[0].width,
+                rank=self.configs[0].suffix_adapter_rank,
+                name="suffix_lora",
+            )(xs[0])
+
         return xs, kv_cache
 
 
@@ -359,7 +402,7 @@ class Module(nn.Module):
         block_cls = nn.remat(
             Block,
             prevent_cse=False,
-            static_argnums=(5,),  # 0=self, 6=deterministic
+            static_argnums=(5, 6),
             policy=jax.checkpoint_policies.nothing_saveable,
         )
         self.layers = nn.scan(
@@ -368,6 +411,7 @@ class Module(nn.Module):
             split_rngs={"params": True, "dropout": True},
             in_axes=(
                 0,
+                nn.broadcast,
                 nn.broadcast,
                 nn.broadcast,
                 nn.broadcast,
@@ -386,6 +430,10 @@ class Module(nn.Module):
         return self.embedder.encode(tokens).astype(self.embed_dtype)
 
     @at.typecheck
+    def deembed(self, embeddings: at.Float[at.Array, "b t d"]) -> at.Float[at.Array, "b t v"]:
+        return self.embedder.decode(embeddings)
+
+    @at.typecheck
     def __call__(
         self,
         # list of token arrays, one for each expert, or None if that expert should not be run
@@ -395,6 +443,7 @@ class Module(nn.Module):
         adarms_cond: Sequence[at.Float[at.Array, "b _d"] | None] | None = None,
         *,
         kv_cache: KVCache | None = None,
+        suffix_adapter_active: bool = False,
         deterministic: bool = True,
     ) -> tuple[Sequence[at.Float[at.Array, "b _t _d"] | None], KVCache]:
         embedded = jax.tree.map(lambda e: e.astype(self.embed_dtype), embedded)
@@ -402,7 +451,15 @@ class Module(nn.Module):
         if adarms_cond is None:
             adarms_cond = [None] * len(self.configs)
 
-        embedded, kv_cache = self.layers(embedded, kv_cache, positions, mask, adarms_cond, deterministic)
+        embedded, kv_cache = self.layers(
+            embedded,
+            kv_cache,
+            positions,
+            mask,
+            adarms_cond,
+            suffix_adapter_active,
+            deterministic,
+        )
 
         assert all(e.dtype == jnp.dtype(self.embed_dtype) for e in embedded if e is not None)
 
@@ -418,6 +475,7 @@ class Module(nn.Module):
             jnp.zeros((1, len(self.configs)), dtype=jnp.int32),
             jnp.zeros((1, len(self.configs), len(self.configs)), dtype=bool),
             adarms_cond=[jnp.zeros((1, c.width)) if u else None for u, c in zip(use_adarms, self.configs, strict=True)],
+            suffix_adapter_active=True,
         )
 
 

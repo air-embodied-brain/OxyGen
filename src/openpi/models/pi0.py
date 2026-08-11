@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import pickle
 
@@ -73,6 +74,10 @@ class Pi0(_model.BaseModel):
         super().__init__(config.action_dim, config.action_horizon, config.max_token_len)
         self.pi05 = config.pi05
         paligemma_config = _gemma.get_config(config.paligemma_variant)
+        paligemma_config = dataclasses.replace(
+            paligemma_config,
+            suffix_adapter_rank=config.language_suffix_adapter_rank,
+        )
         action_expert_config = _gemma.get_config(config.action_expert_variant)
         # TODO: rewrite gemma in NNX. For now, use bridge.
         llm = nnx_bridge.ToNNX(
@@ -106,6 +111,88 @@ class Pi0(_model.BaseModel):
 
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
+
+    @at.typecheck
+    def prefill_language_root(
+        self,
+        rng: at.KeyArrayLike | None,
+        observation: _model.Observation,
+        *,
+        train: bool = False,
+    ):
+        """Build the unchanged pi0.5 prefix and its reusable root KV cache."""
+        observation = _model.preprocess_observation(
+            rng,
+            observation,
+            train=train,
+            image_keys=list(observation.images.keys()),
+        )
+        prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
+        prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
+        prefix_positions = jnp.cumsum(prefix_mask, axis=1) - 1
+        _, root_kv_cache = self.PaliGemma.llm(
+            [prefix_tokens, None],
+            mask=prefix_attn_mask,
+            positions=prefix_positions,
+            suffix_adapter_active=False,
+        )
+        return root_kv_cache, prefix_mask
+
+    @at.typecheck
+    def forward_language_suffix(
+        self,
+        root_kv_cache,
+        prefix_mask: at.Bool[at.Array, "b p"],
+        suffix_input_tokens: at.Int[at.Array, "b l"],
+        suffix_mask: at.Bool[at.Array, "b l"],
+        *,
+        adapter_active: bool = True,
+    ):
+        """Run a causal language suffix from an existing root KV cache."""
+        suffix_tokens = self.PaliGemma.llm(suffix_input_tokens, method="embed")
+        suffix_ar_mask = jnp.ones(suffix_mask.shape[1], dtype=jnp.bool_)
+        suffix_attn_mask = make_attn_mask(suffix_mask, suffix_ar_mask)
+        prefix_to_suffix_mask = einops.repeat(prefix_mask, "b p -> b s p", s=suffix_mask.shape[1])
+        full_attn_mask = jnp.concatenate([prefix_to_suffix_mask, suffix_attn_mask], axis=-1)
+        positions = jnp.sum(prefix_mask, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
+        (suffix_out, _), _ = self.PaliGemma.llm(
+            [suffix_tokens, None],
+            mask=full_attn_mask,
+            positions=positions,
+            kv_cache=root_kv_cache,
+            suffix_adapter_active=adapter_active,
+        )
+        return self.PaliGemma.llm(suffix_out, method="deembed")
+
+    @at.typecheck
+    def compute_language_suffix_loss(
+        self,
+        rng: at.KeyArrayLike | None,
+        observation: _model.Observation,
+        suffix_input_tokens: at.Int[at.Array, "b l"],
+        suffix_target_tokens: at.Int[at.Array, "b l"],
+        suffix_mask: at.Bool[at.Array, "b l"],
+        suffix_loss_mask: at.Bool[at.Array, "b l"],
+        *,
+        train: bool = False,
+    ) -> at.Float[at.Array, " b"]:
+        """Teacher-forced language loss from an action-compatible root KV cache."""
+        root_kv_cache, prefix_mask = self.prefill_language_root(rng, observation, train=train)
+        root_kv_cache = jax.tree.map(jax.lax.stop_gradient, root_kv_cache)
+        logits = self.forward_language_suffix(
+            root_kv_cache,
+            prefix_mask,
+            suffix_input_tokens,
+            suffix_mask,
+            adapter_active=True,
+        )
+        token_loss = -jnp.take_along_axis(
+            jax.nn.log_softmax(logits, axis=-1),
+            suffix_target_tokens[..., None],
+            axis=-1,
+        )[..., 0]
+        loss_mask = suffix_loss_mask & suffix_mask
+        return jnp.sum(token_loss * loss_mask, axis=-1) / jnp.maximum(jnp.sum(loss_mask, axis=-1), 1)
 
     @at.typecheck
     def embed_prefix(

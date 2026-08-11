@@ -125,6 +125,58 @@ class PaligemmaTokenizer:
         non_padding_tokens = tokens[tokens != 0]
         return self._tokenizer.decode(non_padding_tokens.tolist())
 
+    def tokenize_language_suffix(
+        self,
+        seed: str,
+        target: str,
+        *,
+        max_len: int,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Tokenize a fixed suffix seed and its autoregressive target.
+
+        The returned inputs predict the returned targets one token ahead. Loss
+        starts at the final seed token, so the adapter participates in predicting
+        the first target token.
+        """
+        if max_len < 2:
+            raise ValueError("max_len must be at least 2")
+        cleaned_target = target.strip().replace("_", " ").replace("\n", " ")
+        seed_tokens = self._tokenizer.encode(seed)
+        target_tokens = self._tokenizer.encode(cleaned_target, add_eos=True)
+        if not seed_tokens:
+            raise ValueError("seed must produce at least one token")
+
+        combined = seed_tokens + target_tokens
+        if len(combined) > max_len + 1:
+            combined = combined[: max_len + 1]
+            combined[-1] = self._tokenizer.eos_id()
+
+        input_tokens = combined[:-1]
+        target_tokens = combined[1:]
+        token_mask = [True] * len(input_tokens)
+        loss_mask = [index >= len(seed_tokens) - 1 for index in range(len(input_tokens))]
+        padding = max_len - len(input_tokens)
+        input_tokens += [0] * padding
+        target_tokens += [0] * padding
+        token_mask += [False] * padding
+        loss_mask += [False] * padding
+        return (
+            np.asarray(input_tokens, dtype=np.int32),
+            np.asarray(target_tokens, dtype=np.int32),
+            np.asarray(token_mask, dtype=np.bool_),
+            np.asarray(loss_mask, dtype=np.bool_),
+        )
+
+    def tokenize_language_seed(self, seed: str) -> np.ndarray:
+        tokens = self._tokenizer.encode(seed)
+        if not tokens:
+            raise ValueError("seed must produce at least one token")
+        return np.asarray(tokens, dtype=np.int32)
+
+    @property
+    def eos_token_id(self) -> int:
+        return self._tokenizer.eos_id()
+
 
 class FASTTokenizer:
     def __init__(self, max_len: int = 256, fast_tokenizer_path: str = "physical-intelligence/fast"):
