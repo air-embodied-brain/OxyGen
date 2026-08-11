@@ -51,10 +51,7 @@ def _stack_incremental_states(states: list[IncrementalTextState]) -> Incremental
     # Stack array fields along batch dimension
     # KV cache has structure: (idx[layers, batch], k[layers, batch, ...], v[layers, batch, ...])
     # Batch dimension is axis=1 for KV cache arrays
-    kv_cache_stacked = tuple(
-        jnp.concatenate([s.kv_cache[i] for s in states], axis=1)
-        for i in range(len(ref.kv_cache))
-    )
+    kv_cache_stacked = tuple(jnp.concatenate([s.kv_cache[i] for s in states], axis=1) for i in range(len(ref.kv_cache)))
 
     return IncrementalTextState(
         rng=jnp.concatenate([s.rng for s in states], axis=0),
@@ -66,6 +63,7 @@ def _stack_incremental_states(states: list[IncrementalTextState]) -> Incremental
         prefill_len=jnp.concatenate([s.prefill_len for s in states], axis=0),
         # Metadata (static)
         prefill_size=ref.prefill_size,
+        suffix_offset=ref.suffix_offset,
         max_decoding_steps=ref.max_decoding_steps,
         cache_size=ref.cache_size,
     )
@@ -84,19 +82,22 @@ def _split_incremental_state(state: IncrementalTextState, batch_size: int) -> li
     states = []
     for i in range(batch_size):
         # KV cache has batch at axis=1: (layers, batch, ...)
-        kv_cache_i = tuple(kv[:, i:i+1] for kv in state.kv_cache)
-        states.append(IncrementalTextState(
-            rng=state.rng[i:i+1],
-            last_logits=state.last_logits[i:i+1],
-            output_tokens=state.output_tokens[i:i+1],
-            kv_cache=kv_cache_i,
-            current_step=state.current_step[i:i+1],
-            is_finished=state.is_finished[i:i+1],
-            prefill_len=state.prefill_len[i:i+1],
-            prefill_size=state.prefill_size,
-            max_decoding_steps=state.max_decoding_steps,
-            cache_size=state.cache_size,
-        ))
+        kv_cache_i = tuple(kv[:, i : i + 1] for kv in state.kv_cache)
+        states.append(
+            IncrementalTextState(
+                rng=state.rng[i : i + 1],
+                last_logits=state.last_logits[i : i + 1],
+                output_tokens=state.output_tokens[i : i + 1],
+                kv_cache=kv_cache_i,
+                current_step=state.current_step[i : i + 1],
+                is_finished=state.is_finished[i : i + 1],
+                prefill_len=state.prefill_len[i : i + 1],
+                prefill_size=state.prefill_size,
+                suffix_offset=state.suffix_offset,
+                max_decoding_steps=state.max_decoding_steps,
+                cache_size=state.cache_size,
+            )
+        )
     return states
 
 
@@ -107,12 +108,12 @@ def _split_pytorch_incremental_state(state, batch_size: int) -> list:
     return [
         cls(
             past_key_values=_clone_pytorch_cache(cache_splits[i]),
-            last_logits=state.last_logits[i:i + 1],
-            output_tokens=state.output_tokens[i:i + 1].clone(),
-            current_step=state.current_step[i:i + 1].clone(),
-            is_finished=state.is_finished[i:i + 1].clone(),
-            prefix_mask=state.prefix_mask[i:i + 1].clone(),
-            prefill_len=state.prefill_len[i:i + 1].clone(),
+            last_logits=state.last_logits[i : i + 1],
+            output_tokens=state.output_tokens[i : i + 1].clone(),
+            current_step=state.current_step[i : i + 1].clone(),
+            is_finished=state.is_finished[i : i + 1].clone(),
+            prefix_mask=state.prefix_mask[i : i + 1].clone(),
+            prefill_len=state.prefill_len[i : i + 1].clone(),
             max_decoding_steps=state.max_decoding_steps,
             prefill_size=state.prefill_size,
             cache_size=state.cache_size,
@@ -130,9 +131,7 @@ def _stack_pytorch_incremental_states(states: list):
         if state.prefill_size != ref.prefill_size:
             raise ValueError(f"Incompatible prefill_size: {state.prefill_size} vs {ref.prefill_size}")
         if state.max_decoding_steps != ref.max_decoding_steps:
-            raise ValueError(
-                f"Incompatible max_decoding_steps: {state.max_decoding_steps} vs {ref.max_decoding_steps}"
-            )
+            raise ValueError(f"Incompatible max_decoding_steps: {state.max_decoding_steps} vs {ref.max_decoding_steps}")
         if state.cache_size != ref.cache_size:
             raise ValueError(f"Incompatible cache_size: {state.cache_size} vs {ref.cache_size}")
 
@@ -251,27 +250,29 @@ class Policy(BasePolicy):
             self._sample_actions = nnx_utils.module_jit(model.sample_actions)
             if hasattr(model, "prefill"):
                 self._prefill = nnx_utils.module_jit(
-                    model.prefill,
-                    static_argnames=("align_right", "max_decoding_steps")
+                    model.prefill, static_argnames=("align_right", "max_decoding_steps")
                 )
             if hasattr(model, "sample_text_with_kv"):
                 self._sample_text_with_kv = nnx_utils.module_jit(
                     model.sample_text_with_kv,
-                    static_argnames=("max_decoding_steps", "PALIGEMMA_EOS_TOKEN", "temperature")
+                    static_argnames=("max_decoding_steps", "PALIGEMMA_EOS_TOKEN", "temperature"),
                 )
             if hasattr(model, "sample_text"):
                 self._sample_text = nnx_utils.module_jit(
-                    model.sample_text,
-                    static_argnames=("max_decoding_steps", "PALIGEMMA_EOS_TOKEN", "temperature")
+                    model.sample_text, static_argnames=("max_decoding_steps", "PALIGEMMA_EOS_TOKEN", "temperature")
                 )
             if hasattr(model, "sample_text_actions_shared_kv"):
                 self._sample_text_actions_shared_kv = nnx_utils.module_jit(
                     model.sample_text_actions_shared_kv,
-                    static_argnames=("num_steps", "max_decoding_steps", "PALIGEMMA_EOS_TOKEN", "temperature")
+                    static_argnames=("num_steps", "max_decoding_steps", "PALIGEMMA_EOS_TOKEN", "temperature"),
                 )
             if hasattr(model, "init_incremental_state"):
                 self._init_incremental_state = nnx_utils.module_jit(
                     model.init_incremental_state,
+                )
+            if hasattr(model, "init_language_adapter_incremental_state"):
+                self._init_language_adapter_incremental_state = nnx_utils.module_jit(
+                    model.init_language_adapter_incremental_state,
                 )
             if hasattr(model, "generate_n_tokens"):
                 self._generate_n_tokens = nnx_utils.module_jit(
@@ -283,10 +284,14 @@ class Policy(BasePolicy):
                     model.sample_actions_with_kv,
                     static_argnames=("num_steps",),
                 )
-            self._rng = rng or jax.random.key(0)
+            self._rng = jax.random.key(0) if rng is None else rng
 
         # Cache the tokenizer to avoid repeated initialization
         self._tokenizer = _tokenizer.PaligemmaTokenizer()
+        self._language_seed_tokens = np.asarray(
+            self._tokenizer.tokenize_language_seed("Subtask: "),
+            dtype=np.int32,
+        )
 
     def _to_torch_tree(self, inputs: dict, *, add_batch_dim: bool = False) -> dict:
         """Convert transformed inputs to torch tensors on the configured device."""
@@ -330,7 +335,14 @@ class Policy(BasePolicy):
         return self._metadata
 
     @override
-    def infer_rtc(self, obs: dict, prefix_actions: jax.Array, inference_delay: int, prefix_attention_horizon: int, max_guidance_weight: float) -> dict:  # type: ignore[misc]
+    def infer_rtc(
+        self,
+        obs: dict,
+        prefix_actions: jax.Array,
+        inference_delay: int,
+        prefix_attention_horizon: int,
+        max_guidance_weight: float,
+    ) -> dict:  # type: ignore[misc]
         """Infer actions with real-time control parameters.
 
         Args:
@@ -351,10 +363,17 @@ class Policy(BasePolicy):
         inputs = jax.tree.map(_to_jax_batch, inputs)
         t1 = time.monotonic()
 
-        self._rng, sample_rng = jax.random.split(self._rng) 
+        self._rng, sample_rng = jax.random.split(self._rng)
         outputs = {
             "state": inputs["state"],
-            "actions": self._sample_actions_rtc(sample_rng, _model.Observation.from_dict(inputs), prefix_actions, inference_delay, prefix_attention_horizon, max_guidance_weight),
+            "actions": self._sample_actions_rtc(
+                sample_rng,
+                _model.Observation.from_dict(inputs),
+                prefix_actions,
+                inference_delay,
+                prefix_attention_horizon,
+                max_guidance_weight,
+            ),
         }
         # Unbatch and convert to np.ndarray.
         outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
@@ -365,7 +384,7 @@ class Policy(BasePolicy):
 
         outputs = self._output_transform(outputs)
         t3 = time.monotonic()
-        
+
         outputs["policy_timing"] = {
             "pre_proc_ms": (t1 - t0) * 1000,
             "infer_ms": (t2 - t1) * 1000,
@@ -390,11 +409,11 @@ class Policy(BasePolicy):
             Dictionary with actions and metadata.
         """
         t0 = time.monotonic()
-        
+
         # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)
         inputs = self._input_transform(inputs)
-        
+
         if not self._is_pytorch_model:
             # Make a batch and convert to jax.Array.
             inputs = jax.tree.map(_to_jax_batch, inputs)
@@ -405,14 +424,15 @@ class Policy(BasePolicy):
                 if isinstance(x, (str, bytes)):
                     return x
                 return torch.from_numpy(np.array(x)).to(self._pytorch_device)[None, ...]
+
             inputs = jax.tree.map(_to_torch_batch, inputs)
             sample_rng_or_pytorch_device = self._pytorch_device
 
         # Prepare kwargs for sample_actions
         sample_kwargs = dict(self._sample_kwargs)
         if num_steps is not None:
-             sample_kwargs["num_steps"] = num_steps
-             
+            sample_kwargs["num_steps"] = num_steps
+
         if noise is not None:
             noise = torch.from_numpy(noise).to(self._pytorch_device) if self._is_pytorch_model else jnp.asarray(noise)
 
@@ -422,7 +442,7 @@ class Policy(BasePolicy):
 
         observation = _model.Observation.from_dict(inputs)
         t1 = time.monotonic()
-        
+
         action_output = self._sample_actions(sample_rng_or_pytorch_device, observation, **sample_kwargs)
         if isinstance(action_output, tuple):
             actions = action_output[0]
@@ -435,7 +455,7 @@ class Policy(BasePolicy):
             "state": inputs["state"],
             "actions": actions,
         }
-        
+
         if self._is_pytorch_model:
             outputs = jax.tree.map(lambda x: np.asarray(x[0, ...].detach().cpu()), outputs)
         else:
@@ -448,7 +468,7 @@ class Policy(BasePolicy):
 
         outputs = self._output_transform(outputs)
         t3 = time.monotonic()
-        
+
         outputs["policy_timing"] = {
             "pre_proc_ms": (t1 - t0) * 1000,
             "infer_ms": (t2 - t1) * 1000,
@@ -461,7 +481,9 @@ class Policy(BasePolicy):
         }
         return outputs
 
-    def infer_text(self, obs: dict, max_decoding_steps: int = 25, temperature: float = 0.1, PALIGEMMA_EOS_TOKEN: int = -1) -> dict:  # type: ignore[misc]
+    def infer_text(
+        self, obs: dict, max_decoding_steps: int = 25, temperature: float = 0.1, PALIGEMMA_EOS_TOKEN: int = -1
+    ) -> dict:  # type: ignore[misc]
         """Infer text from observation.
 
         Args:
@@ -488,13 +510,13 @@ class Policy(BasePolicy):
 
         observation = _model.Observation.from_dict(inputs)
         t1 = time.monotonic()
-        
+
         predicted_tokens, kv_cache, mask, ar_mask = self._sample_text(
             sample_rng_or_device,
-            observation, 
-            max_decoding_steps=max_decoding_steps, 
-            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, 
-            temperature=temperature
+            observation,
+            max_decoding_steps=max_decoding_steps,
+            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+            temperature=temperature,
         )
 
         outputs = {
@@ -528,7 +550,15 @@ class Policy(BasePolicy):
         }
         return outputs
 
-    def infer_text_actions_shared_kv(self, obs: dict, num_steps: int = 10, max_decoding_steps: int = 20, noise: np.ndarray | None = None, PALIGEMMA_EOS_TOKEN: int = -1, temperature: float = 0.0) -> dict:
+    def infer_text_actions_shared_kv(
+        self,
+        obs: dict,
+        num_steps: int = 10,
+        max_decoding_steps: int = 20,
+        noise: np.ndarray | None = None,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        temperature: float = 0.0,
+    ) -> dict:
         """Infer text and actions with shared KV cache.
 
         Args:
@@ -600,25 +630,28 @@ class Policy(BasePolicy):
         inputs = jax.tree.map(_to_jax_batch, inputs)
 
         self._rng, sample_rng = jax.random.split(self._rng)
-        
+
         if noise is not None:
-             noise = jnp.asarray(noise)
-             if noise.ndim == 2: noise = noise[None, ...]
-             
+            noise = jnp.asarray(noise)
+            if noise.ndim == 2:
+                noise = noise[None, ...]
+
         observation = _model.Observation.from_dict(inputs)
         t1 = time.monotonic()
-        
+
         actions, predicted_tokens = self._sample_text_actions_shared_kv(
-            sample_rng, observation, num_steps=num_steps, max_decoding_steps=max_decoding_steps, noise=noise, PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, temperature=temperature
+            sample_rng,
+            observation,
+            num_steps=num_steps,
+            max_decoding_steps=max_decoding_steps,
+            noise=noise,
+            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+            temperature=temperature,
         )
-        
-        outputs = {
-            "state": inputs["state"],
-            "actions": actions,
-            "tokens": predicted_tokens
-        }
+
+        outputs = {"state": inputs["state"], "actions": actions, "tokens": predicted_tokens}
         outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
-        
+
         action_outputs = {k: v for k, v in outputs.items() if k in ["state", "actions"]}
         action_outputs = self._output_transform(action_outputs)
         outputs.update(action_outputs)
@@ -633,7 +666,7 @@ class Policy(BasePolicy):
         text = tokenizer.detokenize(outputs["tokens"].astype(np.int32))
         outputs["text"] = text
         t3 = time.monotonic()
-        
+
         outputs["policy_timing"] = {
             "pre_proc_ms": (t1 - t0) * 1000,
             "infer_ms": (t2 - t1) * 1000,
@@ -668,19 +701,17 @@ class Policy(BasePolicy):
         inputs = jax.tree.map(_to_jax_batch, inputs)
 
         self._rng, sample_rng = jax.random.split(self._rng)
-        
+
         if noise is not None:
-             noise = jnp.asarray(noise)
-             if noise.ndim == 2:
-                 noise = noise[None, ...]
+            noise = jnp.asarray(noise)
+            if noise.ndim == 2:
+                noise = noise[None, ...]
 
         observation = _model.Observation.from_dict(inputs)
-        
+
         # Call model profile method
         # Note: This assumes the model has been JIT-ed appropriately if high performance is expected
-        actions, timings = self._model.profile_sample_actions(
-            sample_rng, observation, num_steps=num_steps, noise=noise
-        )
+        actions, timings = self._model.profile_sample_actions(sample_rng, observation, num_steps=num_steps, noise=noise)
 
         outputs = {
             "state": inputs["state"],
@@ -688,16 +719,18 @@ class Policy(BasePolicy):
         }
         outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
         outputs = self._output_transform(outputs)
-        
+
         # Add timings
-        outputs["policy_timing"] = {k: v * 1000 for k, v in timings.items()} # Convert s to ms
+        outputs["policy_timing"] = {k: v * 1000 for k, v in timings.items()}  # Convert s to ms
         outputs["policy_shapes"] = {
             "observation": jax.tree.map(lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs),
             "actions": tuple(outputs["actions"].shape),
         }
         return outputs
 
-    def infer_profile_text(self, obs: dict, max_decoding_steps: int = 20, temperature: float = 0.0, PALIGEMMA_EOS_TOKEN: int = 1) -> dict:  # type: ignore[misc]
+    def infer_profile_text(
+        self, obs: dict, max_decoding_steps: int = 20, temperature: float = 0.0, PALIGEMMA_EOS_TOKEN: int = 1
+    ) -> dict:  # type: ignore[misc]
         """Profile text inference.
 
         Args:
@@ -718,21 +751,25 @@ class Policy(BasePolicy):
 
         self._rng, sample_rng = jax.random.split(self._rng)
         observation = _model.Observation.from_dict(inputs)
-        
+
         predicted_tokens, timings = self._model.profile_sample_text(
-            sample_rng, observation, max_decoding_steps=max_decoding_steps, PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, temperature=temperature
+            sample_rng,
+            observation,
+            max_decoding_steps=max_decoding_steps,
+            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+            temperature=temperature,
         )
-        
+
         outputs = {
             "tokens": predicted_tokens,
         }
         outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
-        
+
         # Detokenize
         tokenizer = self._tokenizer
         text = tokenizer.detokenize(outputs["tokens"].astype(np.int32))
         outputs["text"] = text
-        
+
         outputs["policy_timing"] = {k: v * 1000 for k, v in timings.items()}
         outputs["policy_shapes"] = {
             "observation": jax.tree.map(lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs),
@@ -740,7 +777,15 @@ class Policy(BasePolicy):
         }
         return outputs
 
-    def infer_profile_text_actions_shared_kv(self, obs: dict, num_steps: int = 10, max_decoding_steps: int = 20, noise: np.ndarray | None = None, PALIGEMMA_EOS_TOKEN: int = -1, temperature: float = 0.0) -> dict:
+    def infer_profile_text_actions_shared_kv(
+        self,
+        obs: dict,
+        num_steps: int = 10,
+        max_decoding_steps: int = 20,
+        noise: np.ndarray | None = None,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        temperature: float = 0.0,
+    ) -> dict:
         """Profile text and action inference with shared KV.
 
         Args:
@@ -755,31 +800,34 @@ class Policy(BasePolicy):
             Dictionary with actions, tokens, text, and timings.
         """
         if not hasattr(self._model, "prefile_sample_text_actions_shared_kv"):
-             raise NotImplementedError("Model does not have prefile_sample_text_actions_shared_kv method")
-        
+            raise NotImplementedError("Model does not have prefile_sample_text_actions_shared_kv method")
+
         inputs = jax.tree.map(lambda x: x, obs)
         inputs = self._input_transform(inputs)
         inputs = jax.tree.map(_to_jax_batch, inputs)
 
         self._rng, sample_rng = jax.random.split(self._rng)
-        
+
         if noise is not None:
-             noise = jnp.asarray(noise)
-             if noise.ndim == 2: noise = noise[None, ...]
-             
+            noise = jnp.asarray(noise)
+            if noise.ndim == 2:
+                noise = noise[None, ...]
+
         observation = _model.Observation.from_dict(inputs)
-        
+
         actions, predicted_tokens, timings = self._model.prefile_sample_text_actions_shared_kv(
-            sample_rng, observation, num_steps=num_steps, max_decoding_steps=max_decoding_steps, noise=noise, PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, temperature=temperature
+            sample_rng,
+            observation,
+            num_steps=num_steps,
+            max_decoding_steps=max_decoding_steps,
+            noise=noise,
+            PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+            temperature=temperature,
         )
-        
-        outputs = {
-            "state": inputs["state"],
-            "actions": actions,
-            "tokens": predicted_tokens
-        }
+
+        outputs = {"state": inputs["state"], "actions": actions, "tokens": predicted_tokens}
         outputs = jax.tree.map(lambda x: np.asarray(x[0, ...]), outputs)
-        
+
         # Handle Output Transform for actions
         # Split actions and other outputs because output_transform might only expect actions/state
         action_outputs = {k: v for k, v in outputs.items() if k in ["state", "actions"]}
@@ -790,7 +838,7 @@ class Policy(BasePolicy):
         tokenizer = self._tokenizer
         text = tokenizer.detokenize(outputs["tokens"].astype(np.int32))
         outputs["text"] = text
-        
+
         outputs["policy_timing"] = {k: v * 1000 for k, v in timings.items()}
         outputs["policy_shapes"] = {
             "observation": jax.tree.map(lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs),
@@ -933,7 +981,7 @@ class Policy(BasePolicy):
                 if key in original_lengths:
                     lengths = original_lengths[key]
                     for i in range(batch_size):
-                        result[i][key] = np.asarray(value[i, :lengths[i]])
+                        result[i][key] = np.asarray(value[i, : lengths[i]])
                 else:
                     for i in range(batch_size):
                         result[i][key] = np.asarray(value[i])
@@ -985,13 +1033,13 @@ class Policy(BasePolicy):
             inputs_for_model = self._to_torch_tree(inputs)
         else:
             inputs_for_model = inputs
-        
+
         t1 = time.monotonic()
-        
+
         sample_kwargs = dict(self._sample_kwargs)
         if num_steps is not None:
             sample_kwargs["num_steps"] = num_steps
-        
+
         if noise is not None:
             if self._is_pytorch_model:
                 noise = torch.as_tensor(noise, device=self._pytorch_device)
@@ -1012,19 +1060,22 @@ class Policy(BasePolicy):
             actions = self._sample_actions(sample_rng, observation, **sample_kwargs)
             if hasattr(actions, "block_until_ready"):
                 actions.block_until_ready()
-        
+
         t2 = time.monotonic()
-        
+
         outputs = {"state": inputs_for_model["state"], "actions": actions}
-        outputs = jax.tree.map(lambda x: _torch_to_numpy(x) if self._is_pytorch_model else (np.asarray(x) if hasattr(x, 'shape') else x), outputs)
+        outputs = jax.tree.map(
+            lambda x: _torch_to_numpy(x) if self._is_pytorch_model else (np.asarray(x) if hasattr(x, "shape") else x),
+            outputs,
+        )
 
         output_list = self._unbatch_outputs(outputs, metadata)
-        
+
         for i in range(batch_size):
             output_list[i] = self._output_transform(output_list[i])
-        
+
         t3 = time.monotonic()
-        
+
         timing = {
             "pre_proc_ms": (t1 - t0) * 1000,
             "infer_ms": (t2 - t1) * 1000,
@@ -1033,10 +1084,10 @@ class Policy(BasePolicy):
             "batch_size": batch_size,
             "per_sample_ms": (t3 - t0) * 1000 / batch_size,
         }
-        
+
         for output in output_list:
             output["policy_timing"] = timing
-        
+
         return output_list
 
     def infer_text_batch(
@@ -1067,12 +1118,14 @@ class Policy(BasePolicy):
             return []
 
         if len(obs_list) == 1:
-            return [self.infer_text(
-                obs_list[0],
-                max_decoding_steps=max_decoding_steps,
-                temperature=temperature,
-                PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
-            )]
+            return [
+                self.infer_text(
+                    obs_list[0],
+                    max_decoding_steps=max_decoding_steps,
+                    temperature=temperature,
+                    PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                )
+            ]
 
         batch_size = len(obs_list)
         t0 = time.monotonic()
@@ -1112,15 +1165,17 @@ class Policy(BasePolicy):
         # Detokenize each sample
         tokenizer = self._tokenizer
         tokens_np = _torch_to_numpy(predicted_tokens) if self._is_pytorch_model else np.asarray(predicted_tokens)
-        
+
         output_list = []
         for i in range(batch_size):
             tokens_i = tokens_np[i]
             text_i = tokenizer.detokenize(tokens_i.astype(np.int32))
-            output_list.append({
-                "tokens": tokens_i,
-                "text": text_i,
-            })
+            output_list.append(
+                {
+                    "tokens": tokens_i,
+                    "text": text_i,
+                }
+            )
 
         t3 = time.monotonic()
 
@@ -1134,9 +1189,7 @@ class Policy(BasePolicy):
         }
 
         shapes = {
-            "observation": jax.tree.map(
-                lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs
-            ),
+            "observation": jax.tree.map(lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs),
             "tokens": tuple(tokens_np.shape),
         }
 
@@ -1175,14 +1228,16 @@ class Policy(BasePolicy):
             return []
 
         if len(obs_list) == 1:
-            return [self.infer_text_actions_shared_kv(
-                obs_list[0],
-                num_steps=num_steps,
-                max_decoding_steps=max_decoding_steps,
-                noise=noise,
-                PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
-                temperature=temperature,
-            )]
+            return [
+                self.infer_text_actions_shared_kv(
+                    obs_list[0],
+                    num_steps=num_steps,
+                    max_decoding_steps=max_decoding_steps,
+                    noise=noise,
+                    PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                    temperature=temperature,
+                )
+            ]
 
         batch_size = len(obs_list)
         t0 = time.monotonic()
@@ -1256,9 +1311,7 @@ class Policy(BasePolicy):
         }
 
         shapes = {
-            "observation": jax.tree.map(
-                lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs
-            ),
+            "observation": jax.tree.map(lambda x: tuple(x.shape) if hasattr(x, "shape") else (), inputs),
             "actions": tuple(actions_np.shape),
             "tokens": tuple(tokens_np.shape),
         }
@@ -1276,6 +1329,7 @@ class Policy(BasePolicy):
             ContinuousBatchManager instance for tracking ongoing generations
         """
         from openpi.models.kv_cache_manager import ContinuousBatchManager
+
         return ContinuousBatchManager()
 
     def infer_text_continuous(
@@ -1313,8 +1367,7 @@ class Policy(BasePolicy):
             # Resume from cache - not fully implemented yet
             # This would require modifying sample_text to accept initial cache
             raise NotImplementedError(
-                "Resuming from cache not yet implemented. "
-                "Need to extend sample_text to accept initial KV cache."
+                "Resuming from cache not yet implemented. Need to extend sample_text to accept initial KV cache."
             )
         else:
             # Start new generation
@@ -1460,27 +1513,40 @@ class Policy(BasePolicy):
 
             # ONE prefill for new requests (reused for text AND actions)
             prefill_result_new = self._prefill(
-                new_observation, align_right=False, max_decoding_steps=max_decoding_steps,
+                new_observation,
+                align_right=False,
+                max_decoding_steps=max_decoding_steps,
             )
 
             # Text: init incremental state from prefill
             rng_new = jax.random.split(rng_text, len(new_indices))
-            batched_new_state = self._init_incremental_state(prefill_result_new, rng_new[0])
+            if (
+                hasattr(self, "_init_language_adapter_incremental_state")
+                and getattr(self._model, "language_adapter", "none") != "none"
+            ):
+                batched_new_state = self._init_language_adapter_incremental_state(
+                    prefill_result_new,
+                    rng_new[0],
+                    jnp.asarray(self._language_seed_tokens),
+                )
+            else:
+                batched_new_state = self._init_incremental_state(prefill_result_new, rng_new[0])
             new_states = _split_incremental_state(batched_new_state, len(new_indices))
 
             # Actions: reuse same prefill result (shared KV cache)
             if noise is not None:
                 noise_new = jnp.asarray(noise)
                 if noise_new.ndim == 2:
-                    noise_new = jnp.broadcast_to(
-                        noise_new[None, ...], (len(new_indices),) + noise_new.shape
-                    )
+                    noise_new = jnp.broadcast_to(noise_new[None, ...], (len(new_indices),) + noise_new.shape)
             else:
                 noise_new = None
 
             actions_new = self._sample_actions_with_kv(
-                rng_action, new_observation, prefill_result_new,
-                num_steps=num_action_steps, noise=noise_new,
+                rng_action,
+                new_observation,
+                prefill_result_new,
+                num_steps=num_action_steps,
+                noise=noise_new,
             )
 
             # Map actions back to original indices
@@ -1492,21 +1558,27 @@ class Policy(BasePolicy):
 
         # === RESUMED REQUESTS: Actions if requested ===
         resumed_actions = {}
+        resumed_states_for_transform = {}
         if resumed_indices and generate_actions_for_resumed:
             resumed_obs_list = [obs_list[i] for i in resumed_indices]
             resumed_inputs, _ = self._prepare_batched_inputs(resumed_obs_list, allow_variable_length=False)
             resumed_observation = _model.Observation.from_dict(resumed_inputs)
 
             prefill_result_resumed = self._prefill(
-                resumed_observation, align_right=False, max_decoding_steps=0,
+                resumed_observation,
+                align_right=False,
+                max_decoding_steps=0,
             )
             actions_resumed = self._sample_actions_with_kv(
-                jax.random.fold_in(rng_action, 1), resumed_observation,
-                prefill_result_resumed, num_steps=num_action_steps,
+                jax.random.fold_in(rng_action, 1),
+                resumed_observation,
+                prefill_result_resumed,
+                num_steps=num_action_steps,
             )
             actions_resumed_np = np.asarray(actions_resumed)
             for j, idx in enumerate(resumed_indices):
                 resumed_actions[idx] = actions_resumed_np[j]
+                resumed_states_for_transform[idx] = np.asarray(resumed_inputs["state"][j])
 
         # === BATCHED TEXT GENERATION (all requests together) ===
         # Reorder states to match original indices
@@ -1563,8 +1635,14 @@ class Policy(BasePolicy):
             # Only include actions and apply output transform when actions were generated
             if actions_i is not None:
                 outputs_i["actions"] = actions_i
-                action_outputs_i = {"state": np.asarray(new_inputs["state"][new_indices.index(i)]) if i in new_indices else None, "actions": actions_i}
-                if action_outputs_i["state"] is not None:
+                state_for_transform = None
+                if i in new_indices:
+                    state_for_transform = np.asarray(new_inputs["state"][new_indices.index(i)])
+                elif i in resumed_states_for_transform:
+                    state_for_transform = resumed_states_for_transform[i]
+
+                action_outputs_i = {"state": state_for_transform, "actions": actions_i}
+                if state_for_transform is not None:
                     action_outputs_i = self._output_transform(action_outputs_i)
                     outputs_i.update(action_outputs_i)
             else:
@@ -1705,7 +1783,9 @@ class Policy(BasePolicy):
             state_i = updated_states[i]
             current_step = int(state_i.current_step[0].detach().cpu().item())
             full_tokens_i = _torch_to_numpy(state_i.output_tokens[0, :current_step])
-            is_finished_i = bool(state_i.is_finished[0].detach().cpu().item()) or current_step >= state_i.max_decoding_steps
+            is_finished_i = (
+                bool(state_i.is_finished[0].detach().cpu().item()) or current_step >= state_i.max_decoding_steps
+            )
             text_i = self._tokenizer.detokenize(full_tokens_i.astype(np.int32)) if len(full_tokens_i) > 0 else ""
 
             actions_i = new_actions.get(i, resumed_actions.get(i, None))

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
+from typing import Literal
 
 import flax.nnx as nnx
+import jax
 import tyro
 
 from experiments.libero_language_adapter import data
@@ -23,6 +25,8 @@ class Args:
     checkpoint: Path
     norm_stats: Path
     rank: int
+    adapter_type: Literal["final_mlp", "suffix_lora", "full_lora"] = "suffix_lora"
+    alpha: float = 16.0
     adapter: Path | None = None
     port: int = 8011
     seed: int = 7
@@ -34,7 +38,9 @@ def main(args: Args) -> None:
         checkpoint=args.checkpoint,
         norm_stats=args.norm_stats,
         output_dir=Path("unused"),
+        adapter_type=args.adapter_type,
         rank=args.rank,
+        alpha=args.alpha,
         seed=args.seed,
     )
     _, model = train.load_model(model_args)
@@ -44,13 +50,13 @@ def main(args: Args) -> None:
     model = nnx.merge(graphdef, state)
 
     norm_stats = normalize.load(args.norm_stats.parent)
-    tokenizer = tokenizer_lib.PaligemmaTokenizer(max_len=200)
+    tokenizer = tokenizer_lib.PaligemmaTokenizer(max_len=data.PROMPT_TOKEN_LEN)
     policy = policy_lib.Policy(
         model,
-        rng=None,
+        rng=jax.random.key(args.seed),
         transforms=[
-            libero_policy.LiberoInputs(model_type=model_lib.ModelType.PI05),
-            transforms.Normalize(norm_stats, use_quantiles=False),
+            libero_policy.LiberoInputs(model_type=model_lib.ModelType.PI05_O2),
+            transforms.Normalize(norm_stats, use_quantiles=True),
             transforms.ResizeImages(224, 224),
             transforms.TokenizePrompt(
                 tokenizer,
@@ -59,7 +65,7 @@ def main(args: Args) -> None:
             transforms.PadStatesAndActions(32),
         ],
         output_transforms=[
-            transforms.Unnormalize(norm_stats, use_quantiles=False),
+            transforms.Unnormalize(norm_stats, use_quantiles=True),
             libero_policy.LiberoOutputs(),
         ],
         sample_kwargs={"num_steps": 10},
@@ -67,7 +73,7 @@ def main(args: Args) -> None:
             "policy_seed": args.seed,
             "adapter": None if args.adapter is None else str(args.adapter.resolve()),
             "adapter_rank": args.rank,
-            "effective_infer_api": "sample_actions",
+            "effective_infer_api": "continuous_batching",
         },
     )
     server = websocket_policy_server.WebsocketPolicyServer(
@@ -75,6 +81,7 @@ def main(args: Args) -> None:
         host="0.0.0.0",
         port=args.port,
         metadata=policy.metadata,
+        infer_api="continuous_batching",
     )
     server.serve_forever()
 

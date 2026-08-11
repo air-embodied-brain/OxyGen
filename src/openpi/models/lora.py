@@ -52,11 +52,11 @@ class Einsum(nn.Module):
             self.w_b = self.param("lora_b", config.init_fn, shape_b)
 
     @nn.compact
-    def __call__(self, eqn: str, x):
+    def __call__(self, eqn: str, x, *, lora_active: bool = True):
         dtype = x.dtype  # original dtype, could be half-precision
         result = jnp.einsum(eqn, x, self.w.astype(dtype))
 
-        if config := self.lora_config:
+        if (config := self.lora_config) and lora_active:
             eqn_a, eqn_b = self._make_lora_eqns(eqn)
             lora = jnp.einsum(eqn_a, x, self.w_a.astype(dtype))
             lora = jnp.einsum(eqn_b, lora, self.w_b.astype(dtype))
@@ -121,23 +121,27 @@ class FeedForward(nn.Module):
             )
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, *, lora_active: bool = True):
         dtype = x.dtype  # original dtype, could be half-precision
         ff_gate = self._dot(
             x,
             self.w_gating[0],
-            None if self.w_gating_lora is None else (self.w_gating_lora[0][0], self.w_gating_lora[1][0]),
+            None
+            if self.w_gating_lora is None or not lora_active
+            else (self.w_gating_lora[0][0], self.w_gating_lora[1][0]),
         )
         gate_value = nn.gelu(ff_gate)
 
         ff1 = self._dot(
             x,
             self.w_gating[1],
-            None if self.w_gating_lora is None else (self.w_gating_lora[0][1], self.w_gating_lora[1][1]),
+            None
+            if self.w_gating_lora is None or not lora_active
+            else (self.w_gating_lora[0][1], self.w_gating_lora[1][1]),
         )
         activations = gate_value * ff1
 
-        outputs = self._dot(activations, self.w_linear, self.w_linear_lora)
+        outputs = self._dot(activations, self.w_linear, self.w_linear_lora if lora_active else None)
         assert outputs.dtype == dtype
         return outputs
 

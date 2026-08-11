@@ -1,0 +1,77 @@
+{
+  "action_exact_with_adapter_disabled_path": false,
+  "action_invariance_samples": 20,
+  "action_max_abs_diff": 0.43585205078125,
+  "adapter": "/home/lixiangyu/oxygen_ws/OxyGen/experiments/libero_language_adapter/results/2026-08-11/three_way_accuracy/training/full_lora_lr3e4/adapter_step_1500.npz",
+  "adapter_only_one_token": null,
+  "adapter_type": "full_lora",
+  "generated_samples": 80,
+  "incremental_disabled_argmax_exact": false,
+  "incremental_disabled_logit_max_abs_diff": 23.0,
+  "incremental_disabled_logit_mean_abs_diff": 0.00469970703125,
+  "incremental_teacher_forced_argmax_exact": true,
+  "incremental_teacher_forced_argmax_match_by_position": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "incremental_teacher_forced_logit_max_abs_diff": 36.0,
+  "incremental_teacher_forced_logit_max_abs_diff_by_position": [
+    0.75,
+    9.75,
+    13.0,
+    9.75,
+    16.75,
+    36.0
+  ],
+  "incremental_teacher_forced_logit_mean_abs_diff": 0.00592041015625,
+  "incremental_teacher_forced_positions": 6,
+  "mean_word_f1": 0.6538987891847462,
+  "measured_adapter_overhead_per_median_request_ms": 6.143204285763204,
+  "median_suffix_adapter_disabled": {
+    "max_ms": 92.9970471188426,
+    "mean_ms": 92.70014462526888,
+    "median_ms": 92.69911504816264,
+    "min_ms": 92.35423104837537
+  },
+  "median_suffix_adapter_enabled": {
+    "max_ms": 99.2642380297184,
+    "mean_ms": 98.86372521519661,
+    "median_ms": 98.84231933392584,
+    "min_ms": 98.70841889642179
+  },
+  "median_suffix_input_tokens": 10,
+  "median_target_tokens": 7.0,
+  "normalized_exact": 0.4,
+  "one_token_suffix_adapter_disabled": {
+    "max_ms": 13.991548912599683,
+    "mean_ms": 13.787019303999841,
+    "median_ms": 13.779142522253096,
+    "min_ms": 13.732369057834148
+  },
+  "one_token_suffix_adapter_enabled": {
+    "max_ms": 15.988572034984827,
+    "mean_ms": 14.935757000930607,
+    "median_ms": 14.902199967764318,
+    "min_ms": 14.84268601052463
+  },
+  "prefix_prefill": {
+    "max_ms": 55.03212590701878,
+    "mean_ms": 51.26271052286029,
+    "median_ms": 51.133439992554486,
+    "min_ms": 50.381154054775834
+  },
+  "prefix_saving_to_adapter_overhead_ratio": 8.323577991872346,
+  "root_cache_exact_with_adapter_zeroed": false,
+  "root_cache_max_abs_diff": 69.5,
+  "teacher_forced_validation": {
+    "mean_sample_loss": 0.06410147154859722,
+    "perplexity": 1.066200582296838,
+    "samples": 5075,
+    "token_accuracy": 0.9832785411887136,
+    "tokens": 42281
+  }
+}

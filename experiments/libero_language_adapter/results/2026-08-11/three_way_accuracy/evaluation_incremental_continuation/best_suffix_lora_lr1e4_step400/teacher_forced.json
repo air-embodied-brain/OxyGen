@@ -1,0 +1,7 @@
+{
+  "mean_sample_loss": 0.046809628491331204,
+  "perplexity": 1.047922495502971,
+  "samples": 5075,
+  "token_accuracy": 0.9847449208864502,
+  "tokens": 42281
+}

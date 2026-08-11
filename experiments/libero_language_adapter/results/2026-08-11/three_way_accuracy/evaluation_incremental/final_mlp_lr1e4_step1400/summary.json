@@ -1,0 +1,82 @@
+{
+  "action_exact_with_adapter_disabled_path": true,
+  "action_invariance_samples": 20,
+  "action_max_abs_diff": 0.0,
+  "adapter": "/home/lixiangyu/oxygen_ws/OxyGen/experiments/libero_language_adapter/results/2026-08-11/three_way_accuracy/training/final_mlp_lr1e4/adapter_step_1400.npz",
+  "adapter_only_one_token": {
+    "max_ms": 0.11420296505093575,
+    "mean_ms": 0.09830061346292496,
+    "median_ms": 0.09801005944609642,
+    "min_ms": 0.08972687646746635
+  },
+  "adapter_type": "final_mlp",
+  "generated_samples": 80,
+  "incremental_disabled_argmax_exact": false,
+  "incremental_disabled_logit_max_abs_diff": 29.5,
+  "incremental_disabled_logit_mean_abs_diff": 0.0027618408203125,
+  "incremental_teacher_forced_argmax_exact": false,
+  "incremental_teacher_forced_argmax_match_by_position": [
+    true,
+    false,
+    true,
+    false,
+    false,
+    false
+  ],
+  "incremental_teacher_forced_logit_max_abs_diff": 31.125,
+  "incremental_teacher_forced_logit_max_abs_diff_by_position": [
+    1.0,
+    31.125,
+    10.25,
+    16.875,
+    23.5,
+    20.0
+  ],
+  "incremental_teacher_forced_logit_mean_abs_diff": 0.003692626953125,
+  "incremental_teacher_forced_positions": 6,
+  "mean_word_f1": 0.1852704579300689,
+  "measured_adapter_overhead_per_median_request_ms": 0.024572014808654785,
+  "median_suffix_adapter_disabled": {
+    "max_ms": 93.26524985954165,
+    "mean_ms": 92.68748855218291,
+    "median_ms": 92.6420334726572,
+    "min_ms": 92.27120294235647
+  },
+  "median_suffix_adapter_enabled": {
+    "max_ms": 93.43158081173897,
+    "mean_ms": 92.68696205690503,
+    "median_ms": 92.66660548746586,
+    "min_ms": 92.41719101555645
+  },
+  "median_suffix_input_tokens": 10,
+  "median_target_tokens": 7.0,
+  "normalized_exact": 0.0,
+  "one_token_suffix_adapter_disabled": {
+    "max_ms": 14.174345880746841,
+    "mean_ms": 13.883578977547586,
+    "median_ms": 13.861095998436213,
+    "min_ms": 13.759424909949303
+  },
+  "one_token_suffix_adapter_enabled": {
+    "max_ms": 14.946884009987116,
+    "mean_ms": 13.902747482061386,
+    "median_ms": 13.880515587516129,
+    "min_ms": 13.757780892774463
+  },
+  "prefix_prefill": {
+    "max_ms": 49.809970892965794,
+    "mean_ms": 47.13772696442902,
+    "median_ms": 47.091344371438026,
+    "min_ms": 45.880916994065046
+  },
+  "prefix_saving_to_adapter_overhead_ratio": 1916.4624772589448,
+  "root_cache_exact_with_adapter_zeroed": true,
+  "root_cache_max_abs_diff": 0.0,
+  "teacher_forced_validation": {
+    "mean_sample_loss": 2.02345289408867,
+    "perplexity": 7.5643989607853195,
+    "samples": 5075,
+    "token_accuracy": 0.5106549040940375,
+    "tokens": 42281
+  }
+}

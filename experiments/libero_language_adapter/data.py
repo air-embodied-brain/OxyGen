@@ -18,6 +18,7 @@ from openpi.policies import libero_policy
 from openpi.shared import normalize
 
 DISCRETE_STATE_INPUT = False
+PROMPT_TOKEN_LEN = 100
 
 
 @dataclasses.dataclass(frozen=True)
@@ -157,8 +158,8 @@ class LiberoLanguageDataset:
         norm_stats = normalize.load(norm_stats_path.parent)
         self._transform = transforms.compose(
             [
-                libero_policy.LiberoInputs(model_type=model_lib.ModelType.PI05),
-                transforms.Normalize(norm_stats, use_quantiles=False),
+                libero_policy.LiberoInputs(model_type=model_lib.ModelType.PI05_O2),
+                transforms.Normalize(norm_stats, use_quantiles=True),
                 transforms.ResizeImages(224, 224),
                 transforms.TokenizePrompt(
                     prompt_tokenizer,

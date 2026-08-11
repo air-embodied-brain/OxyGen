@@ -204,5 +204,3 @@ cython_debug/
 !experiments/libero_language_adapter/results/**/
 !experiments/libero_language_adapter/results/**/*.json
 !experiments/libero_language_adapter/results/**/*.jsonl
-!experiments/libero_language_adapter/checkpoints/
-!experiments/libero_language_adapter/checkpoints/r8_lr3e4_step2000.npz
