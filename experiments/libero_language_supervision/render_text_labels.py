@@ -110,7 +110,7 @@ def _describe_state(predicate: Mapping[str, Any], resolver: NameResolver, satisf
         return f"{args[0]} is on" if satisfied else f"{args[0]} still needs to be turned on"
     if name == "turnoff":
         return f"{args[0]} is off" if satisfied else f"{args[0]} still needs to be turned off"
-    if name in ("grasped", "up"):
+    if name in ("picked_up", "up"):
         return f"{args[0]} has been picked up" if satisfied else f"{args[0]} still needs to be picked up"
     status = "is complete" if satisfied else "is not complete"
     return f"{name}({', '.join(args)}) {status}"
@@ -119,7 +119,7 @@ def _describe_state(predicate: Mapping[str, Any], resolver: NameResolver, satisf
 def _describe_next(predicate: Mapping[str, Any], resolver: NameResolver) -> str:
     name = str(predicate["name"]).lower()
     args = [resolver.resolve(str(value)) for value in predicate["args"]]
-    if name in ("grasped", "up"):
+    if name in ("picked_up", "up"):
         return f"Pick up {args[0]}."
     if name == "on":
         if predicate["args"][0].startswith("cream_cheese") and "in the bowl" in resolver.instruction:
@@ -217,6 +217,11 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
         predicate = predicates[predicate_id]
         predicate_name = str(predicate["name"]).lower()
         if predicate_name == "grasped":
+            # Preserve grasp provenance in the structured annotation, but do
+            # not expose it as a language milestone in the current target set.
+            auxiliary_frames[predicate_id] = None
+            continue
+        if predicate_name == "picked_up":
             object_name = str(predicate["args"][0])
             related_goals = [
                 predicates[goal_id]
@@ -229,9 +234,9 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
             ):
                 auxiliary_frames[predicate_id] = None
                 continue
-        if predicate_name in ("grasped", "up"):
-            # Grasp contact and the legacy Up predicate are useful only after
-            # a stable transition from their initial false state.
+        if predicate_name in ("picked_up", "up"):
+            # Pickup and the legacy Up predicate are useful only after a stable
+            # transition from their initial false state.
             frame = _first_stable_false_to_true(series[predicate_id], stability_window, end=success_frame)
         else:
             frame = _first_stable_true(series[predicate_id], stability_window, end=success_frame)

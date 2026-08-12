@@ -17,6 +17,8 @@ import numpy as np
 from predicate_schema import build_frame_record
 from predicate_schema import make_predicate_values
 
+PICKUP_HEIGHT_DELTA = 0.025
+
 
 def _decode(value: Any) -> Any:
     return value.decode("utf-8") if isinstance(value, bytes) else value
@@ -58,7 +60,11 @@ def _goal_and_auxiliary_states(env: Any) -> Tuple[List[Sequence[str]], List[Sequ
     for state in goal_states:
         if len(state) > 1 and state[1] in movable_objects and state[1] not in goal_objects:
             goal_objects.append(state[1])
-    auxiliary_states = [["grasped", object_name] for object_name in goal_objects]
+    auxiliary_states = [
+        [predicate, object_name]
+        for object_name in goal_objects
+        for predicate in ("grasped", "picked_up")
+    ]
     # Container tasks omit opening from the terminal goal, although opening is
     # an observable prerequisite in the demonstration.
     for state in goal_states:
@@ -77,10 +83,16 @@ def _goal_and_auxiliary_states(env: Any) -> Tuple[List[Sequence[str]], List[Sequ
     return goal_states, auxiliary_states
 
 
-def _evaluate_states(env: Any, states: Sequence[Sequence[str]]) -> List[bool]:
+def _evaluate_states(
+    env: Any,
+    states: Sequence[Sequence[str]],
+    pickup_references: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> List[bool]:
     return [
         _is_grasped(env, str(state[1]))
         if str(state[0]).lower() == "grasped"
+        else _is_picked_up(env, str(state[1]), pickup_references or {})
+        if str(state[0]).lower() == "picked_up"
         else bool(env.env._eval_predicate(state))  # noqa: SLF001
         for state in states
     ]
@@ -111,6 +123,65 @@ def _is_grasped(env: Any, object_name: str) -> bool:
     # Accept that case only when a finger joint has substantially closed.
     finger_qpos = base_env.sim.data.qpos[base_env.robots[0]._ref_gripper_joint_pos_indexes]  # noqa: SLF001
     return (left_contact or right_contact) and bool(np.min(np.abs(finger_qpos)) < 0.03)
+
+
+def _object_geom_names(base_env: Any, object_name: str) -> set:
+    return set(base_env.get_object(object_name).contact_geoms)
+
+
+def _contacting_external_geoms(base_env: Any, object_name: str) -> set:
+    """Return non-object, non-gripper geoms currently touching an object."""
+    object_geoms = _object_geom_names(base_env, object_name)
+    gripper_geoms = base_env.robots[0].gripper.important_geoms
+    excluded_geoms = object_geoms | set(gripper_geoms["left_finger"]) | set(gripper_geoms["right_finger"])
+    contacts = set()
+    for contact_index in range(base_env.sim.data.ncon):
+        contact = base_env.sim.data.contact[contact_index]
+        geom_1 = base_env.sim.model.geom_id2name(contact.geom1)
+        geom_2 = base_env.sim.model.geom_id2name(contact.geom2)
+        if geom_1 in object_geoms and geom_2 not in excluded_geoms:
+            contacts.add(geom_2)
+        elif geom_2 in object_geoms and geom_1 not in excluded_geoms:
+            contacts.add(geom_1)
+    return contacts
+
+
+def _object_height(base_env: Any, object_name: str) -> float:
+    body_id = base_env.sim.model.body_name2id(base_env.get_object(object_name).root_body)
+    return float(base_env.sim.data.body_xpos[body_id][2])
+
+
+def _capture_pickup_references(env: Any, auxiliary_states: Sequence[Sequence[str]]) -> Dict[str, Dict[str, Any]]:
+    """Capture each target object's initial height and supporting contacts."""
+    base_env = env.env
+    object_names = {
+        str(state[1])
+        for state in auxiliary_states
+        if len(state) > 1 and str(state[0]).lower() == "picked_up"
+    }
+    return {
+        object_name: {
+            "initial_height": _object_height(base_env, object_name),
+            "initial_support_geoms": _contacting_external_geoms(base_env, object_name),
+        }
+        for object_name in object_names
+    }
+
+
+def _is_picked_up(env: Any, object_name: str, pickup_references: Dict[str, Dict[str, Any]]) -> bool:
+    """Return whether a grasped object has left its initial support or lifted."""
+    if not _is_grasped(env, object_name):
+        return False
+    reference = pickup_references.get(object_name)
+    if reference is None:
+        return False
+    base_env = env.env
+    lifted = _object_height(base_env, object_name) >= reference["initial_height"] + PICKUP_HEIGHT_DELTA
+    initial_supports = set(reference["initial_support_geoms"])
+    left_initial_support = bool(initial_supports) and not (
+        _contacting_external_geoms(base_env, object_name) & initial_supports
+    )
+    return lifted or left_initial_support
 
 
 def _rewrite_libero_asset_paths(model_xml: str, asset_root: Path) -> str:
@@ -156,11 +227,16 @@ def _annotate_state(
     frame: int,
     goal_states: Sequence[Sequence[str]],
     auxiliary_states: Sequence[Sequence[str]],
+    pickup_references: Optional[Dict[str, Dict[str, Any]]],
     previous_values: Optional[Dict[str, bool]],
     replay_error: Optional[float],
 ) -> Tuple[Dict[str, Any], Dict[str, bool]]:
     goals = make_predicate_values("goal", goal_states, _evaluate_states(env, goal_states))
-    auxiliary = make_predicate_values("aux", auxiliary_states, _evaluate_states(env, auxiliary_states))
+    auxiliary = make_predicate_values(
+        "aux",
+        auxiliary_states,
+        _evaluate_states(env, auxiliary_states, pickup_references),
+    )
     return build_frame_record(
         dataset=dataset_name,
         demo=demo_name,
@@ -225,6 +301,7 @@ def main() -> None:
                 libero_checkout / "libero" / "libero" / "assets",
             )
             goal_states, auxiliary_states = _goal_and_auxiliary_states(env)
+            pickup_references = _capture_pickup_references(env, auxiliary_states)
             previous_values = None
             records = []
 
@@ -245,6 +322,7 @@ def main() -> None:
                     frame=frame,
                     goal_states=goal_states,
                     auxiliary_states=auxiliary_states,
+                    pickup_references=pickup_references,
                     previous_values=previous_values,
                     replay_error=replay_error,
                 )

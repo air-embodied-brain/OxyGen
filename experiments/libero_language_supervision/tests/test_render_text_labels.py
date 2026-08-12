@@ -27,16 +27,19 @@ def _trajectory(goal_values, up_values):
     return records
 
 
-def _grasp_trajectory(goal_values, grasp_values):
+def _pickup_trajectory(goal_values, grasp_values, pickup_values):
     records = []
-    for frame, (goal_value, grasp_value) in enumerate(zip(goal_values, grasp_values)):  # noqa: B905
+    for frame, (goal_value, grasp_value, pickup_value) in enumerate(  # noqa: B905
+        zip(goal_values, grasp_values, pickup_values)  # noqa: B905
+    ):
         goal = _predicate("goal", 0, "in", ["alphabet_soup_1", "basket_1_contain_region"], goal_value)
         grasped = _predicate("aux", 0, "grasped", ["alphabet_soup_1"], grasp_value)
+        picked_up = _predicate("aux", 1, "picked_up", ["alphabet_soup_1"], pickup_value)
         records.append({
             "frame": frame,
             "task_instruction": "pick up the alphabet soup and place it in the basket",
             "goal_predicates": [goal],
-            "auxiliary_predicates": [grasped],
+            "auxiliary_predicates": [grasped, picked_up],
             "success": goal_value,
         })
     return records
@@ -122,17 +125,20 @@ def test_instruction_override_preserves_natural_relation():
     assert rows[0]["language"]["next"] == "Place the cream cheese in the black bowl."
 
 
-def test_grasped_splits_pickup_from_container_placement():
+def test_only_picked_up_splits_pickup_from_container_placement():
     rows = compile_trajectory(
-        _grasp_trajectory(
+        _pickup_trajectory(
             [False, False, False, False, False, False, True, True],
-            [False, False, True, True, True, True, False, False],
+            [False, True, True, True, True, True, False, False],
+            [False, False, False, True, True, True, False, False],
         ),
         stability_window=2,
     )
     assert rows[0]["language"]["next"] == "Pick up the alphabet soup."
-    assert rows[2]["language"]["next"] == "Place the alphabet soup in the basket."
-    assert rows[2]["language"]["completed"] == "The alphabet soup has been picked up."
+    assert rows[1]["language"]["next"] == "Pick up the alphabet soup."
+    assert rows[3]["language"]["next"] == "Place the alphabet soup in the basket."
+    assert rows[3]["language"]["completed"] == "The alphabet soup has been picked up."
+    assert rows[3]["stable_progress"]["auxiliary_completion_frames"]["aux:00:grasped(alphabet_soup_1)"] is None
     assert rows[6]["language"]["next"] == "Task complete."
 
 
@@ -152,11 +158,12 @@ def test_grasped_is_ignored_for_push_to_spatial_region():
             goal_value,
         )
         grasped = _predicate("aux", 0, "grasped", ["plate_1"], grasp_value)
+        picked_up = _predicate("aux", 1, "picked_up", ["plate_1"], grasp_value)
         records.append({
             "frame": frame,
             "task_instruction": "push the plate to the front of the stove",
             "goal_predicates": [goal],
-            "auxiliary_predicates": [grasped],
+            "auxiliary_predicates": [grasped, picked_up],
             "success": goal_value,
         })
     rows = compile_trajectory(records, stability_window=2)

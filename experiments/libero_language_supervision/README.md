@@ -42,8 +42,9 @@ no longer reliable.
 Every JSONL row represents one simulator state and contains:
 
 - the original BDDL goal predicates and their Boolean values;
-- auxiliary `grasped(object)` predicates for movable goal objects, evaluated
-  from gripper-object contact in the recorded MuJoCo state;
+- auxiliary `grasped(object)` and `picked_up(object)` predicates for movable
+  goal objects. `grasped` records gripper contact; `picked_up` additionally
+  requires the object to leave its initial support or rise 2.5 cm;
 - newly satisfied and newly unsatisfied predicate IDs;
 - completed-goal count, goal progress, and task success;
 - replay divergence when annotation is generated from actions.
@@ -63,13 +64,14 @@ demonstration first reaches stable success. This also handles goals such as
 `Close(drawer)`, which may be true initially, become false while the drawer is
 used, and become true again only when the task is complete.
 
-The renderer uses generic rules for `on`, `in`, `grasped`, `open`, `close`,
-`turnon`, and `turnoff`. A stable grasp transition produces `Pick up ...`, and
-the later placement predicate produces `Place ...`; spatial pushing tasks keep
-their single `Move ...` milestone. Task-local naming distinguishes repeated
-objects and left/right targets. Small semantic overrides cover cases where the
-BDDL relation is intentionally coarser than the instruction, such as the cream
-cheese "in the bowl" task represented by `On`.
+The renderer uses generic rules for `on`, `in`, `picked_up`, `open`, `close`,
+`turnon`, and `turnoff`. `grasped` remains available in the structured record
+but is not exposed as a text milestone. A stable pickup transition completes
+`Pick up ...`, and the later placement predicate produces `Place ...`; spatial
+pushing tasks keep their single `Move ...` milestone. Task-local naming
+distinguishes repeated objects and left/right targets. Small semantic overrides
+cover cases where the BDDL relation is intentionally coarser than the
+instruction, such as the cream cheese "in the bowl" task represented by `On`.
 
 Each demonstration is interpreted with its own stored MuJoCo XML before its
 recorded states are loaded. This is required for tasks with repeated instances:
@@ -150,6 +152,14 @@ Run the dataset-wide temporal audit:
 ```bash
 python qa_annotations.py /path/to/annotations \
   --output /path/to/annotations/qa.json
+```
+
+Check that every placement follows `grasped <= picked_up < placement` and that
+the grasp-only predicate does not enter the language targets:
+
+```bash
+python audit_pickup_annotations.py /path/to/annotations \
+  --output /path/to/annotations/pickup_audit.json
 ```
 
 If only the language rules change, rebuild the three derived text fields from

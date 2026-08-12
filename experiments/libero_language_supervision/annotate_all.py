@@ -16,6 +16,7 @@ import h5py
 import numpy as np
 from render_text_labels import compile_trajectory
 from replay_and_annotate import _annotate_state
+from replay_and_annotate import _capture_pickup_references
 from replay_and_annotate import _decode
 from replay_and_annotate import _find_libero_checkout
 from replay_and_annotate import _goal_and_auxiliary_states
@@ -79,6 +80,7 @@ def annotate_file(
                 states = np.asarray(data[demo_name]["states"])
                 model_xml = _decode(data[demo_name].attrs.get("model_file"))
                 _prepare_environment(env, model_xml, states[0], asset_root)
+                pickup_references = _capture_pickup_references(env, auxiliary_states)
                 previous_values = None
                 raw_records = []
                 for frame, state in enumerate(states):
@@ -91,6 +93,7 @@ def annotate_file(
                         frame=frame,
                         goal_states=goal_states,
                         auxiliary_states=auxiliary_states,
+                        pickup_references=pickup_references,
                         previous_values=previous_values,
                         replay_error=None,
                     )

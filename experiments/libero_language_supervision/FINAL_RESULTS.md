@@ -2,7 +2,7 @@
 
 ## Coverage
 
-The final `libero_all_v5` annotation set covers the complete training split of
+The final `libero_all_v6` annotation set covers the complete training split of
 the four standard LIBERO suites:
 
 | Suite | Tasks | Demonstrations |
@@ -34,8 +34,8 @@ The final audit reports:
 The raw annotations and audit are stored outside Git at:
 
 ```text
-/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v5
-/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v5/qa.json
+/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v6
+/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v6/qa.json
 ```
 
 ## Corner cases
@@ -46,10 +46,13 @@ The raw annotations and audit are stored outside Git at:
   demonstrations.
 - Raw predicates are never smoothed or changed. A separate three-frame stable
   progress view suppresses text flicker and latches terminal completion.
-- Pickup milestones use gripper-object contact rather than LIBERO's geometric
-  height predicate. A three-frame stable grasp transition produces `Pick up`,
-  followed by `Place` when the destination predicate becomes stable. Across
-  2,100 placement goals, all 2,100 have a preceding grasp milestone.
+- Structured annotations retain both `grasped` and `picked_up`. The latter
+  requires a grasped object to leave its initial support or rise 2.5 cm. Only a
+  three-frame stable `picked_up` transition completes the textual `Pick up`
+  milestone; `grasped` is not exposed in the current language targets.
+- Across 2,100 placement goals, all 2,100 satisfy
+  `grasped <= picked_up < placement`. The median grasp-to-pickup interval is
+  three frames (95th percentile 15 frames), and no pickup is missing.
 - The 100 spatial movement goals remain a single `Move` milestone and contain
   no spurious pickup label.
 - Task-local naming resolves repeated moka pots, left/right plates, drawer
@@ -66,5 +69,5 @@ below 5 MB; the largest is 0.572 MB and the complete set is 8.7 MB. The page
 loads video sources only when their cards approach the viewport.
 
 ```text
-/home/lixiangyu/oxygen_ws/libero_exp/review/libero_language_v5
+/home/lixiangyu/oxygen_ws/libero_exp/review/libero_language_v6
 ```
