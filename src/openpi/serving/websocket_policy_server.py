@@ -33,6 +33,7 @@ class WebsocketPolicyServer:
         infer_api: str = "infer",
         continuous_batching_kwargs: dict[str, Any] | None = None,
         continuous_batching_request_mode: str = "resume_until_finished",
+        reset_policy_rng_on_connect: int | None = None,
     ) -> None:
         self._policy = policy
         self._host = host
@@ -44,6 +45,7 @@ class WebsocketPolicyServer:
         if continuous_batching_request_mode not in ("resume_until_finished", "new_each_call"):
             raise ValueError(f"Unknown continuous batching request mode: {continuous_batching_request_mode}")
         self._continuous_batching_request_mode = continuous_batching_request_mode
+        self._reset_policy_rng_on_connect = reset_policy_rng_on_connect
         logging.getLogger("websockets.server").setLevel(logging.INFO)
 
         supports_shared_kv = _has_attrs(
@@ -64,18 +66,18 @@ class WebsocketPolicyServer:
                 "_sample_actions_with_kv",
             ],
         )
-        if self._infer_api == "continuous_batching" and not supports_continuous_batching:
+        if self._infer_api in ("continuous_batching", "isolated_continuous") and not supports_continuous_batching:
             raise RuntimeError(
                 "requested infer_api=continuous_batching but policy lacks required incremental-kv methods"
             )
 
         self._cache_manager = None
-        if self._infer_api == "continuous_batching":
+        if self._infer_api in ("continuous_batching", "isolated_continuous"):
             self._cache_manager = self._policy.init_continuous_batching()
 
         self._metadata["requested_infer_api"] = self._requested_infer_api
         self._metadata["effective_infer_api"] = self._infer_api
-        if self._infer_api == "continuous_batching":
+        if self._infer_api in ("continuous_batching", "isolated_continuous"):
             self._metadata["continuous_batching_request_mode"] = self._continuous_batching_request_mode
         logger.info("Websocket infer api: %s", self._infer_api)
 
@@ -144,6 +146,24 @@ class WebsocketPolicyServer:
                 next_request_id = None
             return action, next_request_id
 
+        if self._infer_api == "isolated_continuous":
+            active_request_ids = list(request_state or [])
+            results = self._policy.infer_text_actions_isolated_continuous(
+                obs,
+                cache_manager=self._cache_manager,
+                request_ids=[None, *active_request_ids],
+                **self._continuous_batching_kwargs,
+            )
+            action = results[0]
+            action["language_updates"] = [
+                self._language_update(result, created_this_call=index == 0) for index, result in enumerate(results)
+            ]
+            next_active_request_ids = [
+                result["request_id"] for result in results if not result.get("is_finished", False)
+            ]
+            action["active_language_requests"] = len(next_active_request_ids)
+            return action, next_active_request_ids
+
         raise ValueError(f"Unsupported infer_api: {self._infer_api}")
 
     def _remove_request_state(self, request_state: str | list[str] | None) -> None:
@@ -169,10 +189,15 @@ class WebsocketPolicyServer:
 
     async def _handler(self, websocket: _server.ServerConnection):
         logger.info(f"Connection from {websocket.remote_address} opened")
+        if self._reset_policy_rng_on_connect is not None:
+            if not hasattr(self._policy, "reset_rng"):
+                raise RuntimeError("Policy does not support RNG reset on client connection")
+            self._policy.reset_rng(self._reset_policy_rng_on_connect)
         packer = msgpack_numpy.Packer()
         request_state: str | list[str] | None = (
             []
-            if self._infer_api == "continuous_batching" and self._continuous_batching_request_mode == "new_each_call"
+            if self._infer_api in ("continuous_batching", "isolated_continuous")
+            and self._continuous_batching_request_mode == "new_each_call"
             else None
         )
 

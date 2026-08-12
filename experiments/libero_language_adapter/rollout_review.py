@@ -133,9 +133,14 @@ def _render_request_buffer(
 
     speed = playback_fps / source_control_hz
     outcome = "running" if success is None else ("success" if success else "failure")
+    phase = caption.get("phase", "simulation")
+    if phase == "model_inference":
+        phase_text = f"MODEL INFERENCE · environment paused · {caption.get('inference_ms', 0):.0f} ms call"
+    else:
+        phase_text = "SIMULATION · model idle"
     footer = (
-        f"sim frame {caption['step']}  |  playback {speed:.1f}x real time "
-        f"({playback_fps} FPS / {source_control_hz} Hz)  |  rollout {outcome}"
+        f"{phase_text}  |  sim frame {caption['step']}  |  "
+        f"{playback_fps} FPS timeline · simulator advances at {source_control_hz} Hz  |  {outcome}"
     )
     draw.text((18, 836), footer, font=small_font, fill="#68717c")
     return canvas
@@ -336,6 +341,8 @@ def _run_episode(
     resize_size: int,
     replan_steps: int,
     num_steps_wait: int,
+    wall_clock_timeline: bool,
+    timeline_fps: int,
 ) -> tuple[dict, list[np.ndarray], list[dict], list[dict]]:
     from libero.libero import benchmark  # noqa: PLC0415 - optional rollout dependency
     from openpi_client import websocket_client_policy  # noqa: PLC0415 - optional rollout dependency
@@ -355,6 +362,8 @@ def _run_episode(
     inference_events: list[dict] = []
     action_plan: collections.deque = collections.deque()
     request_buffer: list[dict] = []
+    inference_pause_frames = 0
+    simulator_frames = 0
     done = False
     exception = None
     started = time.monotonic()
@@ -370,7 +379,10 @@ def _run_episode(
 
             element, review_image = _observation(obs, task_description, resize_size=resize_size)
             if not action_plan:
+                pre_inference_requests = [dict(request) for request in request_buffer[:3]]
+                inference_started = time.monotonic()
                 response = client.infer(element)
+                round_trip_ms = (time.monotonic() - inference_started) * 1000
                 actions = response["actions"]
                 if len(actions) < replan_steps:
                     raise ValueError(f"Policy returned {len(actions)} actions; need {replan_steps}")
@@ -388,17 +400,32 @@ def _run_episode(
                         "active_language_requests": response.get("active_language_requests"),
                         "server_timing": response.get("server_timing"),
                         "policy_timing": response.get("policy_timing"),
+                        "client_round_trip_ms": round_trip_ms,
                     }
                 )
+                if wall_clock_timeline:
+                    pause_frames = max(1, int(round(round_trip_ms / 1000 * timeline_fps)))
+                    pause_caption = {
+                        "task": task_description,
+                        "step": step,
+                        "requests": pre_inference_requests,
+                        "phase": "model_inference",
+                        "inference_ms": round_trip_ms,
+                    }
+                    frames.extend([review_image] * pause_frames)
+                    captions.extend([dict(pause_caption) for _ in range(pause_frames)])
+                    inference_pause_frames += pause_frames
 
-            frames.append(review_image)
-            captions.append(
-                {
-                    "task": task_description,
-                    "step": step,
-                    "requests": [dict(request) for request in request_buffer[:3]],
-                }
-            )
+            sim_caption = {
+                "task": task_description,
+                "step": step,
+                "requests": [dict(request) for request in request_buffer[:3]],
+                "phase": "simulation",
+            }
+            sim_repeats = timeline_fps // LIBERO_CONTROL_HZ if wall_clock_timeline else 1
+            frames.extend([review_image] * sim_repeats)
+            captions.extend([dict(sim_caption) for _ in range(sim_repeats)])
+            simulator_frames += 1
             action = action_plan.popleft()
             obs, _, done, _ = env.step(np.asarray(action).tolist())
             if done:
@@ -430,6 +457,10 @@ def _run_episode(
         "num_steps_wait": num_steps_wait,
         "replan_steps": replan_steps,
         "inference_calls": len(inference_events),
+        "wall_clock_timeline": wall_clock_timeline,
+        "inference_round_trip_s": sum(event["client_round_trip_ms"] for event in inference_events) / 1000,
+        "inference_pause_video_s": inference_pause_frames / timeline_fps,
+        "simulator_video_s": simulator_frames / LIBERO_CONTROL_HZ,
     }
     return record, frames, captions, inference_events
 
@@ -699,10 +730,13 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--video-fps", type=int, default=10)
     parser.add_argument("--source-control-hz", type=int, default=LIBERO_CONTROL_HZ)
+    parser.add_argument("--wall-clock-timeline", action="store_true")
     args = parser.parse_args()
 
     if args.video_fps <= 0 or args.source_control_hz <= 0:
         raise ValueError("Video FPS and source control frequency must be positive")
+    if args.wall_clock_timeline and args.video_fps % args.source_control_hz:
+        raise ValueError("Wall-clock video FPS must be divisible by the simulator control frequency")
     if args.rerender_from is not None:
         _rerender_existing(
             args.rerender_from,
@@ -745,6 +779,8 @@ def main() -> None:
                 resize_size=args.resize_size,
                 replan_steps=args.replan_steps,
                 num_steps_wait=args.num_steps_wait,
+                wall_clock_timeline=args.wall_clock_timeline,
+                timeline_fps=args.video_fps,
             )
             stem = f"{suite}__task{args.task_id:02d}__episode{episode_idx:02d}"
             video_path = args.output_root / "videos" / f"{stem}.mp4"
@@ -764,6 +800,7 @@ def main() -> None:
                     "source_control_hz": args.source_control_hz,
                     "render_playback_speed": args.video_fps / args.source_control_hz,
                     "request_buffer_rows": 3,
+                    "wall_clock_timeline": args.wall_clock_timeline,
                 }
             )
             _append_jsonl(rollout_path, record)

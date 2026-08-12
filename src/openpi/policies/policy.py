@@ -1333,6 +1333,133 @@ class Policy(BasePolicy):
 
         return ContinuousBatchManager()
 
+    def reset_rng(self, seed: int) -> None:
+        """Reset the policy RNG without rebuilding compiled model functions."""
+        if self._is_pytorch_model:
+            torch.manual_seed(seed)
+            if str(self._pytorch_device).startswith("cuda"):
+                torch.cuda.manual_seed_all(seed)
+        else:
+            self._rng = jax.random.key(seed)
+
+    def infer_text_actions_isolated_continuous(
+        self,
+        obs: dict,
+        cache_manager,
+        request_ids: Optional[list[str]] = None,
+        steps_per_frame: int = 5,
+        num_action_steps: int = 10,
+        max_decoding_steps: int = 20,
+        temperature: float = 0.1,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        noise: np.ndarray | None = None,
+        language_adapter_active: bool = True,
+    ) -> list[dict]:
+        """Isolated baseline for the continuous multi-request workload.
+
+        The new action and language requests use independent prefix forwards,
+        and active language requests are advanced sequentially without batching.
+        Request arrival, token budgets, EOS handling, and cache lifetime match
+        ``infer_text_actions_continuous_batch``.
+        """
+        request_ids = list(request_ids or [None])
+        if not request_ids or request_ids[0] is not None:
+            raise ValueError("The first isolated request must be a new request")
+
+        t0 = time.monotonic()
+        inputs, _ = self._prepare_batched_inputs([obs], allow_variable_length=False)
+        observation = _model.Observation.from_dict(inputs)
+        self._rng, text_rng, action_rng = jax.random.split(self._rng, 3)
+
+        if noise is not None:
+            action_noise = jnp.asarray(noise)
+            if action_noise.ndim == 2:
+                action_noise = action_noise[None]
+        else:
+            action_noise = None
+
+        action_root = self._prefill(observation, align_right=False, max_decoding_steps=0)
+        actions = self._sample_actions_with_kv(
+            action_rng,
+            observation,
+            action_root,
+            num_steps=num_action_steps,
+            noise=action_noise,
+        )
+        language_root = self._prefill(
+            observation,
+            align_right=False,
+            max_decoding_steps=max_decoding_steps,
+        )
+        if (
+            hasattr(self, "_init_language_adapter_incremental_state")
+            and getattr(self._model, "language_adapter", "none") != "none"
+        ):
+            new_state = self._init_language_adapter_incremental_state(
+                language_root,
+                text_rng,
+                jnp.asarray(self._language_seed_tokens),
+                adapter_active=language_adapter_active,
+            )
+        else:
+            new_state = self._init_incremental_state(language_root, text_rng)
+        states = [new_state, *[cache_manager.get_state(rid) for rid in request_ids[1:]]]
+        t_prefill = time.monotonic()
+
+        tokenizer = self._tokenizer
+        outputs = []
+        for index, state in enumerate(states):
+            tokens, updated_state, _ = self._generate_n_tokens(
+                state,
+                tokens_to_generate=steps_per_frame,
+                PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                temperature=temperature,
+                adapter_active=language_adapter_active,
+            )
+            tokens.block_until_ready()
+            state_i = _split_incremental_state(updated_state, 1)[0]
+            current_step = int(state_i.current_step[0])
+            full_tokens = np.asarray(state_i.output_tokens[0, :current_step])
+            is_finished = bool(state_i.is_finished[0]) or current_step >= state_i.max_decoding_steps
+            request_id = request_ids[index]
+            if request_id is None:
+                request_id = f"req_{cache_manager.next_request_id}"
+                cache_manager.next_request_id += 1
+            if is_finished:
+                cache_manager.remove_state(request_id)
+            else:
+                cache_manager.store_state(request_id, state_i)
+            outputs.append(
+                {
+                    "actions": None,
+                    "request_id": request_id,
+                    "tokens_this_frame": np.asarray(tokens[0]),
+                    "tokens_full": full_tokens,
+                    "text": tokenizer.detokenize(full_tokens.astype(np.int32)),
+                    "is_finished": is_finished,
+                }
+            )
+
+        action_array = np.asarray(actions[0])
+        action_output = {"state": np.asarray(inputs["state"][0]), "actions": action_array}
+        action_output = self._output_transform(action_output)
+        outputs[0].update(action_output)
+        elapsed = time.monotonic()
+        timing = {
+            "pre_proc_ms": 0.0,
+            "prefill_actions_ms": (t_prefill - t0) * 1000,
+            "text_gen_ms": (elapsed - t_prefill) * 1000,
+            "post_proc_ms": 0.0,
+            "total_ms": (elapsed - t0) * 1000,
+            "batch_size": len(states),
+            "new_requests": 1,
+            "resumed_requests": len(states) - 1,
+            "execution": "isolated_sequential",
+        }
+        for output in outputs:
+            output["policy_timing"] = timing
+        return outputs
+
     def infer_text_continuous(
         self,
         obs: dict,

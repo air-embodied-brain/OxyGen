@@ -153,6 +153,19 @@ new observation. Thus `replan_steps=5` at LIBERO's 20 Hz control rate produces
 both action replans and language-request arrivals at 4 Hz. The saved inference
 events contain every request's incremental text and the actual batch size.
 
+For a wall-clock rollout, pass `--wall-clock-timeline --video-fps 100
+--source-control-hz 20`. Each simulator state then occupies 50 ms of video,
+while every blocking model call is represented by a frozen environment frame
+for its measured client round-trip time, quantized to 10 ms. The server resets
+the policy RNG on each client connection, so a warmup rollout can compile all
+shapes without changing the action noise used by the formal episode.
+
+`run_wallclock_sweep.sh` runs one OxyGen or isolated-baseline point. The
+isolated baseline uses separate action/language prefix forwards and advances
+each active language request sequentially, while retaining the same request
+arrivals, LoRA, EOS handling, and token budget. `build_rollout_comparison.py`
+builds the two-column, five-row task pages.
+
 An existing review can be rerendered from its saved videos and response logs
 without rerunning the policy or simulator:
 
