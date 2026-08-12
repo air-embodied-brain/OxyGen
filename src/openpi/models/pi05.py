@@ -992,6 +992,8 @@ class Pi05(_model.BaseModel):
         prefill_result: tuple,
         rng: at.KeyArrayLike,
         seed_tokens: at.Int[at.Array, "s"],
+        *,
+        adapter_active: bool = True,
     ) -> IncrementalTextState:
         """Initialize private language state with the same seed used during training."""
         (_, root_kv_cache, prefix_mask, prefix_attn_mask, _, prefix_token_embeddings) = prefill_result
@@ -1015,7 +1017,7 @@ class Pi05(_model.BaseModel):
             prefix_mask,
             padded_seed,
             seed_mask,
-            adapter_active=True,
+            adapter_active=adapter_active,
         )
         last_logits = jax.nn.log_softmax(seed_logits[:, seed_len - 1 : seed_len], axis=-1)
 
@@ -1045,6 +1047,7 @@ class Pi05(_model.BaseModel):
         tokens_to_generate: int = 5,
         PALIGEMMA_EOS_TOKEN: int = -1,
         temperature: float = 0.0,
+        adapter_active: bool = True,
     ) -> tuple[jax.Array, IncrementalTextState, jax.Array]:
         """Generate N tokens from an existing IncrementalTextState.
 
@@ -1143,9 +1146,10 @@ class Pi05(_model.BaseModel):
                 positions=positions,
                 adarms_cond=[None, None],
                 kv_cache=state.kv_cache,
+                lora_active=adapter_active and self.language_adapter in ("suffix_lora", "full_lora"),
             )
             last_token_embedding = prefix_out[:, -1:]
-            if self.language_adapter == "final_mlp":
+            if adapter_active and self.language_adapter == "final_mlp":
                 update = self.suffix_lora_up(nnx.gelu(self.suffix_lora_down(last_token_embedding)))
                 last_token_embedding = last_token_embedding + update.astype(last_token_embedding.dtype)
             new_last_logits = self.PaliGemma.llm(last_token_embedding, method="deembed")

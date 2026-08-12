@@ -273,11 +273,12 @@ class Policy(BasePolicy):
             if hasattr(model, "init_language_adapter_incremental_state"):
                 self._init_language_adapter_incremental_state = nnx_utils.module_jit(
                     model.init_language_adapter_incremental_state,
+                    static_argnames=("adapter_active",),
                 )
             if hasattr(model, "generate_n_tokens"):
                 self._generate_n_tokens = nnx_utils.module_jit(
                     model.generate_n_tokens,
-                    static_argnames=("tokens_to_generate", "PALIGEMMA_EOS_TOKEN", "temperature"),
+                    static_argnames=("tokens_to_generate", "PALIGEMMA_EOS_TOKEN", "temperature", "adapter_active"),
                 )
             if hasattr(model, "sample_actions_with_kv"):
                 self._sample_actions_with_kv = nnx_utils.module_jit(
@@ -1421,6 +1422,7 @@ class Policy(BasePolicy):
         PALIGEMMA_EOS_TOKEN: int = -1,
         noise: np.ndarray | None = None,
         generate_actions_for_resumed: bool = False,
+        language_adapter_active: bool = True,
     ) -> list[dict]:
         """Batch inference with continuous text generation.
 
@@ -1528,6 +1530,7 @@ class Policy(BasePolicy):
                     prefill_result_new,
                     rng_new[0],
                     jnp.asarray(self._language_seed_tokens),
+                    adapter_active=language_adapter_active,
                 )
             else:
                 batched_new_state = self._init_incremental_state(prefill_result_new, rng_new[0])
@@ -1596,6 +1599,7 @@ class Policy(BasePolicy):
             tokens_to_generate=steps_per_frame,
             PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
             temperature=temperature,
+            adapter_active=language_adapter_active,
         )
 
         # Block until all GPU work is done

@@ -45,6 +45,47 @@ and qualitative regression, not a full LIBERO success-rate estimate.
 Local raw outputs are under
 `/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/v6_suffix_lora_20260812`.
 
+### End-to-end continuous-batching throughput
+
+We measured the deployed JAX path on one RTX 4090 with the same LIBERO
+observation, state, and task prompt in every configuration. The paper-style
+workload uses 10 action denoising steps, one new language request per frame,
+fixed-length `N=20` generation, `k=5` tokens per frame, and no EOS stopping.
+This produces a stable continuous batch of four requests. Each configuration
+was fully compiled and warmed up before timing; the table reports the median
+of three run medians, with 40 measured frames per run.
+
+| Configuration | Adapter | Frame latency | Request throughput | OxyGen speedup |
+|---|---:|---:|---:|---:|
+| Isolated action + language | off | 439.35 ms | 2.28 req/s | - |
+| OxyGen shared prefix + continuous batching | off | 215.61 ms | 4.64 req/s | 2.04x |
+| Isolated action + language | on | 461.65 ms | 2.17 req/s | - |
+| OxyGen shared prefix + continuous batching | on | 217.71 ms | 4.59 req/s | **2.12x** |
+
+The fair adapter-on comparison therefore retains a 2.12x end-to-end
+throughput gain. In isolated execution, LoRA adds 22.30 ms (5.08%) because all
+20 suffix tokens are decoded serially. In OxyGen, the block-run comparison
+adds only 2.10 ms (0.97% latency, or 0.96% lower throughput). The sign of this
+small difference changes under frame-interleaved on/off measurement, so it is
+below the resolution of this whole-frame benchmark; we conservatively treat
+the measured 0.97% as an upper observed slowdown, not as a precise intrinsic
+cost.
+
+For context, the submitted no-adapter sweep at the same `S=10, N=20, k=5`
+point measured about 398 ms for isolated execution and 169 ms for OxyGen
+(2.35x). The new experiment is not a numerical reproduction of that run: it
+uses the trained suffix seed, real per-layer LoRA, the updated incremental
+serving path, and longer measurement. It nevertheless reproduces the claimed
+end-to-end benefit under the adapted model.
+
+The throughput audit also exposed and fixed a serving inconsistency: the
+formal incremental evaluator applied LoRA to every suffix token, while the
+generic continuous-batching token loop previously applied it only to the
+initial seed block. The benchmark above uses the corrected path. Enabling or
+bypassing LoRA leaves the action tensor bit-exact and the request lifecycle
+unchanged; only language tokens differ. Raw results are in
+`/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/v6_suffix_lora_20260812/throughput_benchmark_n20_k5_final/summary.json`.
+
 ## 第二轮：balanced incremental 训练
 
 第一轮确认了 suffix-only LoRA 可以在不改变 action path 的前提下恢复文本

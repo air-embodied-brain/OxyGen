@@ -95,6 +95,8 @@ generation across 80 samples, root/action isolation with fixed diffusion noise,
 and adapter latency relative to the duplicate prefix forward it replaces.
 `verify_serving.py` calls the actual continuous-batching policy and checks that
 one request returns both actions and adapter-generated language.
+`benchmark_throughput.py` compares isolated execution and OxyGen with identical
+LoRA-on and LoRA-bypassed paths under a fixed-length paper-style workload.
 `rollout_review.py` runs deterministic LIBERO rollouts, records every raw policy
 response, and builds a lazy-loading review page with the generated text overlaid
 on the corresponding action chunk. Videos default to 10 FPS, or 0.5x the
@@ -114,6 +116,18 @@ python -m experiments.libero_language_adapter.evaluate \
   --teacher-forced-samples 5075 --teacher-forced-loss-mode incremental \
   --samples-per-task 10 --action-invariance-samples 20 \
   --output-dir /path/to/evaluation
+```
+
+Run the controlled end-to-end throughput comparison:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 \
+python -m experiments.libero_language_adapter.benchmark_throughput \
+  --split /path/to/split.json --checkpoint /path/to/pi05_libero \
+  --norm-stats /path/to/norm_stats.json --adapter /path/to/adapter.npz \
+  --max-decoding-steps 20 --steps-per-frame 5 \
+  --warmup-frames 8 --measured-frames 40 --repeats 3 \
+  --output /path/to/throughput_summary.json
 ```
 
 For qualitative review, start `serve_adapter.py` with the selected adapter, then
