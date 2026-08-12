@@ -20,7 +20,7 @@ layers. The root and action path never see adapter-modified states.
 - Supervision: predicate-derived `language.next` labels.
 - Coverage: all 40 tasks in LIBERO-Spatial, Object, Goal, and LIBERO-10.
 - Split: five held-out episodes per task, for 1,800 training and 200 validation
-  episodes (45,935 and 5,075 sampled frames).
+  episodes (47,773 and 5,277 sampled frames in the final v6 annotations).
 - Prefix: the released pi0.5 LIBERO observation, state, and task-prompt protocol.
 - Suffix: `Subtask: <next label> EOS`, padded to 20 tokens without truncation.
 
@@ -28,7 +28,7 @@ Build the deterministic split:
 
 ```bash
 python -m experiments.libero_language_adapter.build_split \
-  --annotation-root /path/to/libero_all_v3 \
+  --annotation-root /path/to/libero_all_v6 \
   --dataset-root /path/to/raw_libero \
   --output /path/to/split.json
 ```
@@ -100,6 +100,8 @@ response, and builds a lazy-loading review page with the generated text overlaid
 on the corresponding action chunk. Videos default to 10 FPS, or 0.5x the
 20 Hz simulator control rate. The latest three language requests are shown as a
 rolling buffer; incremental updates replace the current row in place.
+`merge_rollout_reviews.py` combines independently run per-suite reviews into one
+page without copying or re-encoding their videos.
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 XLA_PYTHON_CLIENT_ALLOCATOR=platform \

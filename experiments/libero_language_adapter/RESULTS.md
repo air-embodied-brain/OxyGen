@@ -2,6 +2,49 @@
 
 日期：2026-08-11
 
+## Final v6 suffix-LoRA rerun (2026-08-12)
+
+The final run uses the reviewed v6 predicate annotations: 40 tasks, 2,000
+demonstrations, and 338,575 annotated frames. Five episodes per task are held
+out, producing 47,773 stride-8 training samples and 5,277 validation samples.
+The adapter is a rank-16 LoRA on Q/K/V/O and gated/up/down FFN projections in
+all 18 language layers. Training and evaluation both use the deployed
+incremental suffix path; the observation, state, and task prompt use the frozen
+base model and remain the shared root prefix.
+
+Checkpoint selection used a fixed 400-sample task/target-balanced greedy set.
+The first 2,000-step sweep had not converged: the best exact match was still the
+last point (89.25% at `3e-4`). Low-rate continuation and two confirmation points
+then reached a 90.25% plateau. The selected confirmation checkpoint ties the
+best exact score and has the highest Word F1 (0.932).
+
+| Metric | Result |
+|---|---:|
+| Full held-out incremental token accuracy (5,277 samples) | 98.10% |
+| Greedy normalized exact (400 samples) | 90.25% |
+| Greedy Word F1 | 0.932 |
+| Spatial / Object / Goal / LIBERO-10 exact | 90% / 91% / 92% / 88% |
+| Root KV max difference from zero-adapter path | 0 |
+| Fixed-noise 10-step action max difference (20 observations) | 0 |
+
+On one RTX 4090, a median 10-token suffix request takes 92.59 ms with the
+adapter disabled and 98.80 ms with it enabled, so the full-layer LoRA adds
+6.21 ms. The reusable root prefix forward takes 47.79 ms; the saved duplicate
+prefix computation is therefore 7.69x the measured adapter overhead.
+
+The real simulator regression uses four standard suites, task 0 in each suite,
+initial states 0--4, 10-step action denoising, and `replan_steps=5`. Every action
+replan creates a new language request, and all unfinished requests are advanced
+by five tokens together. All 20 episodes succeeded without exceptions. Across
+665 replans, every call created one request; the first call of each episode had
+batch size 1 and the remaining 645 calls had batch size 2. All 665 requests
+produced non-empty model text, 647 completed before episode termination, and 18
+were released when their successful episode ended. These rollouts are a serving
+and qualitative regression, not a full LIBERO success-rate estimate.
+
+Local raw outputs are under
+`/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/v6_suffix_lora_20260812`.
+
 ## 第二轮：balanced incremental 训练
 
 第一轮确认了 suffix-only LoRA 可以在不改变 action path 的前提下恢复文本
