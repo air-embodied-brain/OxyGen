@@ -170,3 +170,30 @@ def test_grasped_is_ignored_for_push_to_spatial_region():
     assert rows[0]["language"]["next"] == "Move the plate to the area in front of the stove."
     assert rows[2]["language"]["next"] == "Move the plate to the area in front of the stove."
     assert "picked up" not in rows[2]["language"]["completed"]
+
+
+def test_repeated_objects_are_named_by_execution_order_not_instance_id():
+    records = []
+    for frame in range(10):
+        goals = [
+            _predicate("goal", 0, "on", ["moka_pot_1", "flat_stove_1_cook_region"], frame >= 8),
+            _predicate("goal", 1, "on", ["moka_pot_2", "flat_stove_1_cook_region"], frame >= 5),
+        ]
+        auxiliary = [
+            _predicate("aux", 0, "grasped", ["moka_pot_1"], 6 <= frame < 9),
+            _predicate("aux", 1, "picked_up", ["moka_pot_1"], 6 <= frame < 9),
+            _predicate("aux", 2, "grasped", ["moka_pot_2"], 2 <= frame < 6),
+            _predicate("aux", 3, "picked_up", ["moka_pot_2"], 2 <= frame < 6),
+        ]
+        records.append({
+            "frame": frame,
+            "task_instruction": "put both moka pots on the stove",
+            "goal_predicates": goals,
+            "auxiliary_predicates": auxiliary,
+            "success": frame >= 8,
+        })
+    rows = compile_trajectory(records, stability_window=2)
+    assert rows[0]["language"]["next"] == "Pick up the first moka pot."
+    assert rows[2]["language"]["next"] == "Place the first moka pot on the stove."
+    assert rows[5]["language"]["next"] == "Pick up the second moka pot."
+    assert rows[6]["language"]["next"] == "Place the second moka pot on the stove."

@@ -60,11 +60,17 @@ def _base_display_name(name: str) -> str:
 class NameResolver:
     """Resolve predicate arguments into concise, unambiguous task-local names."""
 
-    def __init__(self, predicates: Sequence[Mapping[str, Any]], task_instruction: str = "") -> None:
+    def __init__(
+        self,
+        predicates: Sequence[Mapping[str, Any]],
+        task_instruction: str = "",
+        execution_ordinals: Optional[Mapping[str, int]] = None,
+    ) -> None:
         names = {str(arg) for item in predicates for arg in item["args"]}
         bases = [_strip_instance(name)[0] for name in names]
         self._counts = Counter(bases)
         self._instruction = task_instruction.lower()
+        self._execution_ordinals = dict(execution_ordinals or {})
 
     @property
     def instruction(self) -> str:
@@ -79,8 +85,9 @@ class NameResolver:
 
         if "left plate" in self._instruction and "right plate" in self._instruction and base == "plate":
             return "the left plate" if instance == 1 else "the right plate"
-        if self._counts[base] > 1 and instance is not None and instance in ORDINALS:
-            return "the " + ORDINALS[instance] + " " + display
+        ordinal = self._execution_ordinals.get(name)
+        if self._counts[base] > 1 and ordinal in ORDINALS:
+            return "the " + ORDINALS[ordinal] + " " + display
         if display.startswith(("top of the ", "area ", "back compartment ")):
             return "the " + display
         return "the " + display
@@ -255,7 +262,21 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
     missing_goal_ids = [predicate_id for predicate_id in goal_ids if predicate_id not in milestone_ids]
 
     instruction = str(records[0].get("task_instruction", ""))
-    resolver = NameResolver(list(predicates.values()), instruction)
+    pickup_order = sorted(
+        (
+            frame,
+            str(predicates[predicate_id]["args"][0]),
+        )
+        for predicate_id, frame in auxiliary_frames.items()
+        if frame is not None and str(predicates[predicate_id]["name"]).lower() == "picked_up"
+    )
+    execution_ordinals = {}
+    per_base_counts = Counter()
+    for _, object_name in pickup_order:
+        base, _ = _strip_instance(object_name)
+        per_base_counts[base] += 1
+        execution_ordinals[object_name] = per_base_counts[base]
+    resolver = NameResolver(list(predicates.values()), instruction, execution_ordinals)
     output = []
     for frame, source in enumerate(records):
         completed_ids = [pid for event_frame, _, pid in events if event_frame <= frame]
