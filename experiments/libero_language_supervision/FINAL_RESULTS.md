@@ -2,7 +2,7 @@
 
 ## Coverage
 
-The final `libero_all_v3` annotation set covers the complete training split of
+The final `libero_all_v5` annotation set covers the complete training split of
 the four standard LIBERO suites:
 
 | Suite | Tasks | Demonstrations |
@@ -34,8 +34,8 @@ The final audit reports:
 The raw annotations and audit are stored outside Git at:
 
 ```text
-/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v3
-/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v3/qa.json
+/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v5
+/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v5/qa.json
 ```
 
 ## Corner cases
@@ -46,10 +46,12 @@ The raw annotations and audit are stored outside Git at:
   demonstrations.
 - Raw predicates are never smoothed or changed. A separate three-frame stable
   progress view suppresses text flicker and latches terminal completion.
-- LIBERO's `Up` predicate measures geometric height. The text compiler requires
-  a stable false-to-true transition before describing a pickup, so an object
-  initialized in a drawer or on a raised fixture is not falsely labeled as
-  already picked up.
+- Pickup milestones use gripper-object contact rather than LIBERO's geometric
+  height predicate. A three-frame stable grasp transition produces `Pick up`,
+  followed by `Place` when the destination predicate becomes stable. Across
+  2,100 placement goals, all 2,100 have a preceding grasp milestone.
+- The 100 spatial movement goals remain a single `Move` milestone and contain
+  no spurious pickup label.
 - Task-local naming resolves repeated moka pots, left/right plates, drawer
   levels, cabinet and microwave regions, the caddy compartment, and spatial
   target regions.
@@ -59,10 +61,10 @@ The raw annotations and audit are stored outside Git at:
 ## Human review set
 
 The review set contains one seeded random demonstration per task (40 videos).
-The 20 Hz source is shown at 10 fps for 2x playback. All videos are below 5 MB;
-the largest is 0.572 MB and the complete set is 8.7 MB. The page loads video
-sources only when their cards approach the viewport.
+The 20 Hz source is shown at 10 fps for 0.5x real-time playback. All videos are
+below 5 MB; the largest is 0.572 MB and the complete set is 8.7 MB. The page
+loads video sources only when their cards approach the viewport.
 
 ```text
-/home/lixiangyu/oxygen_ws/libero_exp/review/libero_language_v3
+/home/lixiangyu/oxygen_ws/libero_exp/review/libero_language_v5
 ```

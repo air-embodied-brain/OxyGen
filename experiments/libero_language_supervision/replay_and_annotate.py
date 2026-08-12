@@ -58,7 +58,7 @@ def _goal_and_auxiliary_states(env: Any) -> Tuple[List[Sequence[str]], List[Sequ
     for state in goal_states:
         if len(state) > 1 and state[1] in movable_objects and state[1] not in goal_objects:
             goal_objects.append(state[1])
-    auxiliary_states = [["up", object_name] for object_name in goal_objects]
+    auxiliary_states = [["grasped", object_name] for object_name in goal_objects]
     # Container tasks omit opening from the terminal goal, although opening is
     # an observable prerequisite in the demonstration.
     for state in goal_states:
@@ -78,7 +78,39 @@ def _goal_and_auxiliary_states(env: Any) -> Tuple[List[Sequence[str]], List[Sequ
 
 
 def _evaluate_states(env: Any, states: Sequence[Sequence[str]]) -> List[bool]:
-    return [bool(env.env._eval_predicate(state)) for state in states]  # noqa: SLF001
+    return [
+        _is_grasped(env, str(state[1]))
+        if str(state[0]).lower() == "grasped"
+        else bool(env.env._eval_predicate(state))  # noqa: SLF001
+        for state in states
+    ]
+
+
+def _is_grasped(env: Any, object_name: str) -> bool:
+    """Return whether the closed gripper stably contacts the target object."""
+    base_env = env.env
+    object_geoms = set(base_env.get_object(object_name).contact_geoms)
+    gripper_geoms = base_env.robots[0].gripper.important_geoms
+    left_geoms = set(gripper_geoms["left_finger"])
+    right_geoms = set(gripper_geoms["right_finger"])
+    left_contact = False
+    right_contact = False
+    for contact_index in range(base_env.sim.data.ncon):
+        contact = base_env.sim.data.contact[contact_index]
+        geom_names = {
+            base_env.sim.model.geom_id2name(contact.geom1),
+            base_env.sim.model.geom_id2name(contact.geom2),
+        }
+        if not geom_names & object_geoms:
+            continue
+        left_contact = left_contact or bool(geom_names & left_geoms)
+        right_contact = right_contact or bool(geom_names & right_geoms)
+        if left_contact and right_contact:
+            return True
+    # Concave objects such as bowls may register collision on only one finger.
+    # Accept that case only when a finger joint has substantially closed.
+    finger_qpos = base_env.sim.data.qpos[base_env.robots[0]._ref_gripper_joint_pos_indexes]  # noqa: SLF001
+    return (left_contact or right_contact) and bool(np.min(np.abs(finger_qpos)) < 0.03)
 
 
 def _rewrite_libero_asset_paths(model_xml: str, asset_root: Path) -> str:

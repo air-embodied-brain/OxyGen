@@ -42,7 +42,8 @@ no longer reliable.
 Every JSONL row represents one simulator state and contains:
 
 - the original BDDL goal predicates and their Boolean values;
-- auxiliary built-in `up(object)` predicates for movable goal objects;
+- auxiliary `grasped(object)` predicates for movable goal objects, evaluated
+  from gripper-object contact in the recorded MuJoCo state;
 - newly satisfied and newly unsatisfied predicate IDs;
 - completed-goal count, goal progress, and task success;
 - replay divergence when annotation is generated from actions.
@@ -62,10 +63,12 @@ demonstration first reaches stable success. This also handles goals such as
 `Close(drawer)`, which may be true initially, become false while the drawer is
 used, and become true again only when the task is complete.
 
-The renderer uses generic rules for `on`, `in`, `up`, `open`, `close`,
-`turnon`, and `turnoff`. Task-local naming distinguishes repeated objects and
-left/right targets. Small semantic overrides cover cases where the BDDL
-relation is intentionally coarser than the instruction, such as the cream
+The renderer uses generic rules for `on`, `in`, `grasped`, `open`, `close`,
+`turnon`, and `turnoff`. A stable grasp transition produces `Pick up ...`, and
+the later placement predicate produces `Place ...`; spatial pushing tasks keep
+their single `Move ...` milestone. Task-local naming distinguishes repeated
+objects and left/right targets. Small semantic overrides cover cases where the
+BDDL relation is intentionally coarser than the instruction, such as the cream
 cheese "in the bowl" task represented by `On`.
 
 Each demonstration is interpreted with its own stored MuJoCo XML before its
@@ -165,10 +168,10 @@ python build_review_site.py \
   --output-root /path/to/review_site
 ```
 
-Videos use the stored observation frames, play at twice the demonstration
-speed, and are rejected if they exceed 5 MB. The page keeps video URLs out of
-the DOM until each item approaches the viewport, so a 40-task review does not
-download every video at startup.
+Videos use the stored observation frames, play at 10 fps (0.5x the simulator's
+20 Hz rate), and are rejected if they exceed 5 MB. The page keeps video URLs
+out of the DOM until each item approaches the viewport, so a 40-task review
+does not download every video at startup.
 
 Run the environment-independent tests with:
 

@@ -14,7 +14,7 @@ def _predicate(kind, index, name, args, satisfied):
 
 def _trajectory(goal_values, up_values):
     records = []
-    for frame, (goal_value, up_value) in enumerate(zip(goal_values, up_values)):
+    for frame, (goal_value, up_value) in enumerate(zip(goal_values, up_values)):  # noqa: B905
         goal = _predicate("goal", 0, "on", ["akita_black_bowl_1", "plate_1"], goal_value)
         up = _predicate("aux", 0, "up", ["akita_black_bowl_1"], up_value)
         records.append({
@@ -22,6 +22,21 @@ def _trajectory(goal_values, up_values):
             "task_instruction": "put the black bowl on the plate",
             "goal_predicates": [goal],
             "auxiliary_predicates": [up],
+            "success": goal_value,
+        })
+    return records
+
+
+def _grasp_trajectory(goal_values, grasp_values):
+    records = []
+    for frame, (goal_value, grasp_value) in enumerate(zip(goal_values, grasp_values)):  # noqa: B905
+        goal = _predicate("goal", 0, "in", ["alphabet_soup_1", "basket_1_contain_region"], goal_value)
+        grasped = _predicate("aux", 0, "grasped", ["alphabet_soup_1"], grasp_value)
+        records.append({
+            "frame": frame,
+            "task_instruction": "pick up the alphabet soup and place it in the basket",
+            "goal_predicates": [goal],
+            "auxiliary_predicates": [grasped],
             "success": goal_value,
         })
     return records
@@ -104,4 +119,47 @@ def test_instruction_override_preserves_natural_relation():
         })
     rows = compile_trajectory(records, stability_window=2)
     assert rows[0]["language"]["remaining"] == "The cream cheese still needs to be placed in the black bowl."
-    assert rows[0]["language"]["next"] == "Put the cream cheese in the black bowl."
+    assert rows[0]["language"]["next"] == "Place the cream cheese in the black bowl."
+
+
+def test_grasped_splits_pickup_from_container_placement():
+    rows = compile_trajectory(
+        _grasp_trajectory(
+            [False, False, False, False, False, False, True, True],
+            [False, False, True, True, True, True, False, False],
+        ),
+        stability_window=2,
+    )
+    assert rows[0]["language"]["next"] == "Pick up the alphabet soup."
+    assert rows[2]["language"]["next"] == "Place the alphabet soup in the basket."
+    assert rows[2]["language"]["completed"] == "The alphabet soup has been picked up."
+    assert rows[6]["language"]["next"] == "Task complete."
+
+
+def test_grasped_is_ignored_for_push_to_spatial_region():
+    records = []
+    for frame, (goal_value, grasp_value) in enumerate(  # noqa: B905
+        zip(  # noqa: B905
+            [False, False, False, False, False, False, True, True],
+            [False, False, True, True, True, True, False, False],
+        )
+    ):
+        goal = _predicate(
+            "goal",
+            0,
+            "on",
+            ["plate_1", "main_table_stove_front_region"],
+            goal_value,
+        )
+        grasped = _predicate("aux", 0, "grasped", ["plate_1"], grasp_value)
+        records.append({
+            "frame": frame,
+            "task_instruction": "push the plate to the front of the stove",
+            "goal_predicates": [goal],
+            "auxiliary_predicates": [grasped],
+            "success": goal_value,
+        })
+    rows = compile_trajectory(records, stability_window=2)
+    assert rows[0]["language"]["next"] == "Move the plate to the area in front of the stove."
+    assert rows[2]["language"]["next"] == "Move the plate to the area in front of the stove."
+    assert "picked up" not in rows[2]["language"]["completed"]

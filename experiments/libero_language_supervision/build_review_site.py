@@ -86,7 +86,7 @@ def render_video(dataset_path: Path, annotation_path: Path, output_path: Path, f
     return {"frames": len(rows), "bytes": size, "demo": demo, "poster": "posters/" + poster_path.name}
 
 
-def build_html(items: Sequence[Dict[str, Any]], output_path: Path) -> None:
+def build_html(items: Sequence[Dict[str, Any]], output_path: Path, *, fps: int, source_hz: int = 20) -> None:
     cards = []
     for item in items:
         cards.append(f'''<article class="video-item" data-suite="{html.escape(item['suite'])}">
@@ -112,7 +112,7 @@ main{{max-width:1480px;margin:20px auto;padding:0 20px;display:grid;grid-templat
 .video-shell{{aspect-ratio:4/5;background:#101214}} video{{display:block;width:100%;height:100%;object-fit:contain}}
 h2{{font-size:14px;margin:12px 14px 5px;font-weight:600}} p{{margin:0 14px 13px;color:var(--muted);font-size:12px}}
 @media(max-width:520px){{header{{padding:12px}}main{{padding:0 10px;grid-template-columns:1fr}}}}
-</style></head><body><header><div class="bar"><h1>LIBERO annotation review</h1><div class="filters">{''.join(buttons)}</div></div></header>
+</style></head><body><header><div class="bar"><h1>LIBERO annotation review</h1><span>{fps / source_hz:.1f}x simulator real time ({fps} FPS / {source_hz} Hz)</span><div class="filters">{''.join(buttons)}</div></div></header>
 <main>{''.join(cards)}</main>
 <script>
 const videos=[...document.querySelectorAll('video[data-src]')];
@@ -155,7 +155,7 @@ def main() -> None:
     (args.output_root / "manifest.json").write_text(
         json.dumps(items, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    build_html(items, args.output_root / "index.html")
+    build_html(items, args.output_root / "index.html", fps=args.fps)
     print(json.dumps({"videos": len(items), "output": str(args.output_root)}, indent=2))
 
 

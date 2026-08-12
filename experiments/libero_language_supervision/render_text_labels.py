@@ -110,7 +110,7 @@ def _describe_state(predicate: Mapping[str, Any], resolver: NameResolver, satisf
         return f"{args[0]} is on" if satisfied else f"{args[0]} still needs to be turned on"
     if name == "turnoff":
         return f"{args[0]} is off" if satisfied else f"{args[0]} still needs to be turned off"
-    if name == "up":
+    if name in ("grasped", "up"):
         return f"{args[0]} has been picked up" if satisfied else f"{args[0]} still needs to be picked up"
     status = "is complete" if satisfied else "is not complete"
     return f"{name}({', '.join(args)}) {status}"
@@ -119,17 +119,17 @@ def _describe_state(predicate: Mapping[str, Any], resolver: NameResolver, satisf
 def _describe_next(predicate: Mapping[str, Any], resolver: NameResolver) -> str:
     name = str(predicate["name"]).lower()
     args = [resolver.resolve(str(value)) for value in predicate["args"]]
-    if name == "up":
+    if name in ("grasped", "up"):
         return f"Pick up {args[0]}."
     if name == "on":
         if predicate["args"][0].startswith("cream_cheese") and "in the bowl" in resolver.instruction:
-            return f"Put {args[0]} in {args[1]}."
+            return f"Place {args[0]} in {args[1]}."
         # The plate-front task is demonstrated by pushing rather than lifting.
         if "area " in args[1]:
             return f"Move {args[0]} to {args[1]}."
         return f"Place {args[0]} on {args[1]}."
     if name == "in":
-        return f"Put {args[0]} in {args[1]}."
+        return f"Place {args[0]} in {args[1]}."
     if name == "open":
         return f"Open {args[0]}."
     if name == "close":
@@ -214,11 +214,24 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
     }
     auxiliary_frames = {}
     for predicate_id in aux_ids:
-        predicate_name = str(predicates[predicate_id]["name"]).lower()
-        if predicate_name == "up":
-            # LIBERO's Up predicate measures height. Objects initialized in a
-            # drawer or on another object can therefore be Up at frame zero
-            # without having been picked up in the demonstration.
+        predicate = predicates[predicate_id]
+        predicate_name = str(predicate["name"]).lower()
+        if predicate_name == "grasped":
+            object_name = str(predicate["args"][0])
+            related_goals = [
+                predicates[goal_id]
+                for goal_id in goal_ids
+                if predicates[goal_id]["args"] and str(predicates[goal_id]["args"][0]) == object_name
+            ]
+            if related_goals and all(
+                len(goal["args"]) > 1 and _base_display_name(str(goal["args"][1])).startswith("area ")
+                for goal in related_goals
+            ):
+                auxiliary_frames[predicate_id] = None
+                continue
+        if predicate_name in ("grasped", "up"):
+            # Grasp contact and the legacy Up predicate are useful only after
+            # a stable transition from their initial false state.
             frame = _first_stable_false_to_true(series[predicate_id], stability_window, end=success_frame)
         else:
             frame = _first_stable_true(series[predicate_id], stability_window, end=success_frame)
