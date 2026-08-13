@@ -42,6 +42,7 @@ def main() -> None:
     parser.add_argument("--rank", type=int, default=16)
     parser.add_argument("--alpha", type=float, default=16.0)
     parser.add_argument("--suffix-len", type=int, default=20)
+    parser.add_argument("--suffix-seed", default="Subtask: ")
     parser.add_argument("--seed", type=int, default=7)
     args = parser.parse_args()
 
@@ -55,6 +56,7 @@ def main() -> None:
         prompt_tokenizer=tokenizer,
         action_dim=32,
         suffix_len=args.suffix_len,
+        suffix_seed=args.suffix_seed,
     )
     model_args = train.Args(
         split=args.split,
@@ -65,10 +67,11 @@ def main() -> None:
         rank=args.rank,
         alpha=args.alpha,
         seed=args.seed,
+        suffix_seed=args.suffix_seed,
     )
     _, model = train.load_model(model_args)
     model_def, state = nnx.split(model)
-    seed_tokens = tokenizer.tokenize_language_seed("Subtask: ")
+    seed_tokens = tokenizer.tokenize_language_seed(args.suffix_seed)
     (
         _,
         prefill_incremental,
@@ -104,6 +107,7 @@ def main() -> None:
                 suffix_step_active,
                 suffix_block_active,
                 suffix_len=args.suffix_len,
+                suffix_seed=args.suffix_seed,
             )
             predictions.append(
                 {

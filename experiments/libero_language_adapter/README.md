@@ -179,3 +179,7 @@ See [RESULTS.md](RESULTS.md) for the findings and the
 [current aggregate summary](results/2026-08-11/balanced_incremental_v2/aggregate_summary.json)
 for machine-readable metrics. Large checkpoints, datasets, and review videos
 remain local and are not tracked by Git.
+
+The follow-up [visual-memory experiment](results/2026-08-13/visual_memory_v1/REPORT.md)
+predicts current, visibly completed goal states with a private `Memory: `
+suffix. Its machine-readable metrics are in the adjacent `summary.json`.

@@ -39,6 +39,7 @@ class Args:
     warmup_frames: int = 8
     measured_frames: int = 30
     repeats: int = 3
+    suffix_seed: str = "Subtask: "
 
 
 def _summary(samples: list[float]) -> dict[str, float]:
@@ -205,6 +206,7 @@ def main(args: Args) -> None:
         prompt_tokenizer=tokenizer,
         action_dim=32,
         suffix_len=args.max_decoding_steps,
+        suffix_seed=args.suffix_seed,
     )
     observation = dataset[args.sample_index][0]
     raw_observation = {
@@ -218,13 +220,14 @@ def main(args: Args) -> None:
         adapter_type="suffix_lora",
         rank=args.rank,
         alpha=args.alpha,
+        suffix_seed=args.suffix_seed,
         seed=args.seed,
     )
     _, model = train.load_model(model_args)
     graphdef, state = nnx.split(model)
     evaluate.apply_adapter(state, args.adapter)
     model = nnx.merge(graphdef, state)
-    policy = policy_lib.Policy(model, rng=jax.random.key(args.seed))
+    policy = policy_lib.Policy(model, rng=jax.random.key(args.seed), language_seed=args.suffix_seed)
     noise = np.random.default_rng(args.seed).standard_normal(
         (model.action_horizon, model.action_dim), dtype=np.float32
     )

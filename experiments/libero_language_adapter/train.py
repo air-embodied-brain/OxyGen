@@ -44,6 +44,7 @@ class Args:
     steps: int = 2_000
     warmup_steps: int = 100
     suffix_len: int = 20
+    suffix_seed: str = "Subtask: "
     seed: int = 7
     sampling_mode: Literal["uniform_frames", "task_target_balanced"] = "uniform_frames"
     validation_sampling_mode: Literal["uniform_frames", "task_target_balanced"] = "uniform_frames"
@@ -255,6 +256,7 @@ def main(args: Args) -> None:
         "prompt_tokenizer": tokenizer,
         "action_dim": 32,
         "suffix_len": args.suffix_len,
+        "suffix_seed": args.suffix_seed,
     }
     train_dataset = data.LiberoLanguageDataset(train_refs, **dataset_kwargs)
     validation_dataset = data.LiberoLanguageDataset(validation_refs, **dataset_kwargs)
@@ -297,7 +299,7 @@ def main(args: Args) -> None:
         optax.adamw(schedule, b1=0.9, b2=0.95, weight_decay=0.0),
     )
     opt_state = tx.init(adapter_params)
-    seed_len = len(tokenizer.tokenize_language_seed("Subtask: "))
+    seed_len = len(tokenizer.tokenize_language_seed(args.suffix_seed))
     train_step = _make_train_step(model_def, tx, loss_mode=args.loss_mode, seed_len=seed_len)
     eval_step = make_eval_step(model_def, loss_mode=args.loss_mode, seed_len=seed_len)
 

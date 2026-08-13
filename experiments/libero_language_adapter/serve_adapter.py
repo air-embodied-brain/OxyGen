@@ -34,6 +34,7 @@ class Args:
     request_mode: Literal["resume_until_finished", "new_each_call"] = "resume_until_finished"
     steps_per_frame: int = 5
     max_decoding_steps: int = 20
+    language_seed: str = "Subtask: "
     temperature: float = 0.1
     execution: Literal["oxygen", "isolated"] = "oxygen"
 
@@ -48,6 +49,7 @@ def main(args: Args) -> None:
         rank=args.rank,
         alpha=args.alpha,
         seed=args.seed,
+        suffix_seed=args.language_seed,
     )
     _, model = train.load_model(model_args)
     graphdef, state = nnx.split(model)
@@ -85,7 +87,9 @@ def main(args: Args) -> None:
             "language_steps_per_frame": args.steps_per_frame,
             "language_max_decoding_steps": args.max_decoding_steps,
             "language_temperature": args.temperature,
+            "language_seed": args.language_seed,
         },
+        language_seed=args.language_seed,
     )
     server = websocket_policy_server.WebsocketPolicyServer(
         policy=policy,

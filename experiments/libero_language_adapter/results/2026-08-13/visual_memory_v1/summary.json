@@ -1,0 +1,40 @@
+{
+  "annotation": {
+    "demos": 2000,
+    "frames": 338575,
+    "issues": 0,
+    "target": "visual_memory"
+  },
+  "checkpoint": {
+    "learning_rate": 0.0001,
+    "step": 1500,
+    "suffix_length": 28,
+    "suffix_seed": "Memory: "
+  },
+  "evaluation": {
+    "action_invariance_samples": 20,
+    "action_max_abs_diff": 0.0,
+    "generated_samples": 400,
+    "normalized_exact": 0.8725,
+    "root_cache_max_abs_diff": 0.0,
+    "teacher_forced_samples": 5082,
+    "teacher_forced_token_accuracy": 0.9815445297903259,
+    "word_f1": 0.9001360384985384
+  },
+  "performance": {
+    "adapter_overhead_per_median_request_ms": 8.160672499798238,
+    "median_suffix_input_tokens": 11,
+    "prefix_prefill_ms": 47.65825520735234,
+    "prefix_saving_to_adapter_overhead_ratio": 5.839991153735262
+  },
+  "rollout": {
+    "action_replans": 142,
+    "completed_language_requests": 134,
+    "episodes": 3,
+    "exceptions": 0,
+    "language_requests": 142,
+    "max_continuous_batch_size": 5,
+    "successes": 3,
+    "unfinished_at_episode_end": 8
+  }
+}

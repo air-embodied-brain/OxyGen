@@ -34,7 +34,10 @@ def audit_file(path: Path) -> dict[str, Any]:
     }
     for row in rows:
         language = row.get("language", {})
-        if any(not str(language.get(key, "")).strip() for key in ("completed", "remaining", "next")):
+        if any(
+            not str(language.get(key, "")).strip()
+            for key in ("completed", "remaining", "next", "visual_memory")
+        ):
             issues.append(f"frame {row['frame']}: missing language component")
             break
         components = row.get("language_components", {})
@@ -47,6 +50,14 @@ def audit_file(path: Path) -> dict[str, Any]:
             issues.append(f"frame {row['frame']}: stable completion regresses")
             break
         previous_completed = completed
+        visual_memory = set(components.get("visual_memory_predicate_ids", []))
+        current_goal_values = {item["id"]: bool(item["satisfied"]) for item in row["goal_predicates"]}
+        if not visual_memory <= goal_ids:
+            issues.append(f"frame {row['frame']}: visual memory contains a non-goal predicate")
+            break
+        if any(not current_goal_values[predicate_id] for predicate_id in visual_memory):
+            issues.append(f"frame {row['frame']}: visual memory contains a currently false predicate")
+            break
         target_id = components.get("next_target_predicate_id")
         target_frame = components.get("next_target_frame")
         if target_id is not None and target_id not in predicate_ids:
@@ -68,7 +79,7 @@ def audit_file(path: Path) -> dict[str, Any]:
         "issues": issues,
         "language_values": {
             component: sorted({row["language"][component] for row in rows})
-            for component in ("completed", "remaining", "next")
+            for component in ("completed", "remaining", "next", "visual_memory")
         },
     }
 
@@ -122,7 +133,10 @@ def main() -> None:
     catalog: Dict[str, Dict[str, set]] = {}
     for item in audits:
         task_key = f"{item.get('suite')}/{item.get('task')}"
-        task_catalog = catalog.setdefault(task_key, {key: set() for key in ("completed", "remaining", "next")})
+        task_catalog = catalog.setdefault(
+            task_key,
+            {key: set() for key in ("completed", "remaining", "next", "visual_memory")},
+        )
         for component, values in item.get("language_values", {}).items():
             task_catalog[component].update(values)
     report = {

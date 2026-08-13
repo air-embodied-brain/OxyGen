@@ -43,6 +43,7 @@ class SplitManifest:
     train_samples: int
     validation_samples: int
     validation_demos: dict[str, list[str]]
+    language_target: str = "next"
 
 
 def _stable_seed(seed: int, suite: str, task: str) -> int:
@@ -68,6 +69,19 @@ def _sample_frames(rows: Sequence[dict], uniform_stride: int) -> list[int]:
     return sorted(selected)
 
 
+def _sample_target_frames(rows: Sequence[dict], uniform_stride: int, language_target: str) -> list[int]:
+    selected = {0, len(rows) - 1}
+    selected.update(range(0, len(rows), uniform_stride))
+    previous = None
+    for index, row in enumerate(rows):
+        target = row["language"][language_target]
+        if previous is not None and target != previous:
+            selected.add(index)
+            selected.add(index - 1)
+        previous = target
+    return sorted(selected)
+
+
 def build_episode_split(
     annotation_root: Path,
     dataset_root: Path,
@@ -75,6 +89,7 @@ def build_episode_split(
     seed: int = 7,
     validation_episodes_per_task: int = 5,
     uniform_stride: int = 8,
+    language_target: str = "next",
 ) -> tuple[list[SampleRef], list[SampleRef], SplitManifest]:
     annotation_paths = sorted(annotation_root.glob("*/*/demo_*.jsonl"))
     grouped: dict[tuple[str, str], list[Path]] = {}
@@ -109,7 +124,7 @@ def build_episode_split(
                 validation_episode_count += 1
             else:
                 train_episode_count += 1
-            for frame in _sample_frames(rows, uniform_stride):
+            for frame in _sample_target_frames(rows, uniform_stride, language_target):
                 row = rows[frame]
                 if row["frame"] != frame or row["demo"] != demo:
                     raise ValueError(f"Misaligned annotation row in {path} at frame {frame}")
@@ -120,7 +135,7 @@ def build_episode_split(
                         demo=demo,
                         frame=frame,
                         instruction=row["task_instruction"],
-                        target=row["language"]["next"],
+                        target=row["language"][language_target],
                         annotation_path=str(path),
                         dataset_path=str(dataset_path),
                     )
@@ -135,6 +150,7 @@ def build_episode_split(
         train_samples=len(train_samples),
         validation_samples=len(validation_samples),
         validation_demos=validation_demos,
+        language_target=language_target,
     )
     return train_samples, validation_samples, manifest
 

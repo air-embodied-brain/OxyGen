@@ -188,6 +188,13 @@ def _final_stable_true(values: Sequence[bool], success_frame: int, window: int) 
     return start
 
 
+def _causal_stable_progress(values: Sequence[bool], frame: int, window: int) -> bool:
+    """Return whether a false-to-true goal transition is stably visible now."""
+    if frame + 1 < window or not all(values[frame - window + 1 : frame + 1]):
+        return False
+    return any(not value for value in values[: frame - window + 1])
+
+
 def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int = 3) -> List[Dict[str, Any]]:
     if not records:
         return []
@@ -284,6 +291,11 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
         completed_goal_ids = [pid for pid in completed_ids if pid in goal_ids]
         remaining_goal_ids = [pid for pid in goal_ids if pid not in completed_goal_ids]
         next_event = next(((event_frame, pid) for event_frame, _, pid in events if event_frame > frame), None)
+        visual_memory_ids = [
+            predicate_id
+            for predicate_id in goal_ids
+            if _causal_stable_progress(series[predicate_id], frame, stability_window)
+        ]
 
         row = dict(source)
         row["stable_progress"] = {
@@ -299,6 +311,7 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
             "remaining_goal_predicate_ids": remaining_goal_ids,
             "next_target_predicate_id": next_event[1] if next_event else None,
             "next_target_frame": next_event[0] if next_event else None,
+            "visual_memory_predicate_ids": visual_memory_ids,
         }
         row["language"] = {
             "completed": _sentence(
@@ -310,6 +323,10 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
                 "No task step remains.",
             ),
             "next": _describe_next(predicates[next_event[1]], resolver) if next_event else "Task complete.",
+            "visual_memory": _sentence(
+                [_describe_state(predicates[pid], resolver, True) for pid in visual_memory_ids],
+                "No relevant task progress is visible yet.",
+            ),
         }
         output.append(row)
     return output
@@ -317,7 +334,7 @@ def compile_trajectory(records: Sequence[Dict[str, Any]], stability_window: int 
 
 def compose_language(record: Mapping[str, Any], components: Sequence[str], separator: str = "\n") -> str:
     """Compose any configured subset without regenerating annotations."""
-    allowed = {"completed", "remaining", "next"}
+    allowed = {"completed", "remaining", "next", "visual_memory"}
     unknown = set(components) - allowed
     if unknown:
         raise ValueError("Unknown language components: " + ", ".join(sorted(unknown)))
@@ -329,7 +346,12 @@ def main() -> None:
     parser.add_argument("input", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--stability-window", type=int, default=3)
-    parser.add_argument("--components", nargs="+", choices=("completed", "remaining", "next"), default=None)
+    parser.add_argument(
+        "--components",
+        nargs="+",
+        choices=("completed", "remaining", "next", "visual_memory"),
+        default=None,
+    )
     parser.add_argument("--separator", default="\n")
     args = parser.parse_args()
 

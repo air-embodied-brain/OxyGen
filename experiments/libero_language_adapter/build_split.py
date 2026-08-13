@@ -15,6 +15,7 @@ class Args:
     seed: int = 7
     validation_episodes_per_task: int = 5
     uniform_stride: int = 8
+    language_target: str = "next"
 
 
 def main(args: Args) -> None:
@@ -24,6 +25,7 @@ def main(args: Args) -> None:
         seed=args.seed,
         validation_episodes_per_task=args.validation_episodes_per_task,
         uniform_stride=args.uniform_stride,
+        language_target=args.language_target,
     )
     data.save_split(args.output, train, validation, manifest)
     print(json.dumps(dataclasses.asdict(manifest), indent=2, sort_keys=True))

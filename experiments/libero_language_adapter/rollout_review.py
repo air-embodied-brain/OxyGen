@@ -343,6 +343,7 @@ def _run_episode(
     num_steps_wait: int,
     wall_clock_timeline: bool,
     timeline_fps: int,
+    post_success_replans: int,
 ) -> tuple[dict, list[np.ndarray], list[dict], list[dict]]:
     from libero.libero import benchmark  # noqa: PLC0415 - optional rollout dependency
     from openpi_client import websocket_client_policy  # noqa: PLC0415 - optional rollout dependency
@@ -429,6 +430,40 @@ def _run_episode(
             action = action_plan.popleft()
             obs, _, done, _ = env.step(np.asarray(action).tolist())
             if done:
+                # Freeze the successful terminal observation while allowing a
+                # final request to finish for qualitative memory review.
+                terminal_step = step
+                for replay_index in range(post_success_replans):
+                    review_step = terminal_step + replay_index * replan_steps
+                    element, review_image = _observation(obs, task_description, resize_size=resize_size)
+                    inference_started = time.monotonic()
+                    response = client.infer(element)
+                    round_trip_ms = (time.monotonic() - inference_started) * 1000
+                    updates = _language_updates(response)
+                    _apply_request_updates(request_buffer, updates, step=review_step)
+                    inference_events.append(
+                        {
+                            "step": review_step,
+                            "request_id": response.get("request_id"),
+                            "text": str(response.get("text", "")),
+                            "is_finished": bool(response.get("is_finished", False)),
+                            "tokens_full": np.asarray(response.get("tokens_full", [])).astype(int).tolist(),
+                            "language_updates": updates,
+                            "active_language_requests": response.get("active_language_requests"),
+                            "server_timing": response.get("server_timing"),
+                            "policy_timing": response.get("policy_timing"),
+                            "client_round_trip_ms": round_trip_ms,
+                            "post_success": True,
+                        }
+                    )
+                    caption = {
+                        "task": task_description,
+                        "step": review_step,
+                        "requests": [dict(request) for request in request_buffer[:3]],
+                        "phase": "post_success_memory",
+                    }
+                    frames.extend([review_image] * replan_steps)
+                    captions.extend([dict(caption) for _ in range(replan_steps)])
                 break
             step += 1
     except Exception as error:
@@ -456,6 +491,7 @@ def _run_episode(
         "max_steps": MAX_STEPS[suite_name],
         "num_steps_wait": num_steps_wait,
         "replan_steps": replan_steps,
+        "post_success_replans": post_success_replans,
         "inference_calls": len(inference_events),
         "wall_clock_timeline": wall_clock_timeline,
         "inference_round_trip_s": sum(event["client_round_trip_ms"] for event in inference_events) / 1000,
@@ -731,6 +767,7 @@ def main() -> None:
     parser.add_argument("--video-fps", type=int, default=10)
     parser.add_argument("--source-control-hz", type=int, default=LIBERO_CONTROL_HZ)
     parser.add_argument("--wall-clock-timeline", action="store_true")
+    parser.add_argument("--post-success-replans", type=int, default=0)
     args = parser.parse_args()
 
     if args.video_fps <= 0 or args.source_control_hz <= 0:
@@ -781,6 +818,7 @@ def main() -> None:
                 num_steps_wait=args.num_steps_wait,
                 wall_clock_timeline=args.wall_clock_timeline,
                 timeline_fps=args.video_fps,
+                post_success_replans=args.post_success_replans,
             )
             stem = f"{suite}__task{args.task_id:02d}__episode{episode_idx:02d}"
             video_path = args.output_root / "videos" / f"{stem}.mp4"

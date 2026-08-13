@@ -54,6 +54,10 @@ Every JSONL row represents one simulator state and contains:
   - `remaining`: demonstrated milestones that remain incomplete;
   - `next`: the next demonstrated predicate transition, phrased as a concise
     pi0.5-style subtask.
+- a separate `visual_memory` field that reports only goal predicates that made
+  a stable false-to-true transition and remain stably true at the current
+  observation. It excludes `grasped` and `picked_up`, does not use future
+  trajectory information, and does not latch reversible states.
 - predicate IDs and target frames used to produce each language field.
 
 Goal predicates and auxiliary predicates are kept separate. Only goal
@@ -79,7 +83,7 @@ reusing one task-level model can swap identifiers such as `moka_pot_1` and
 `moka_pot_2`. Each task also runs in a separate subprocess so MuJoCo/EGL
 resources are released before the next task starts.
 
-All three text components are stored independently. Training can select any
+All text components are stored independently. Training can select any
 ordered subset without replaying the simulator or regenerating labels. For
 example, a training configuration can specify:
 
@@ -92,6 +96,11 @@ language_targets:
 Changing `components` to `[next]` or `[completed, next]` changes only the
 training target composition. `compose_language()` in `render_text_labels.py`
 implements this operation.
+
+The visual-memory experiment uses `components: [visual_memory]` with a private
+`Memory: ` suffix seed. The shared prefix remains the released LIBERO policy's
+observation, robot state, and task instruction; no generated history is fed
+back to the action expert.
 
 ## Usage
 

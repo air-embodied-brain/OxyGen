@@ -29,6 +29,7 @@ class Args:
     rank: int = 16
     alpha: float = 16.0
     suffix_len: int = 20
+    suffix_seed: str = "Subtask: "
     samples_per_task: int = 2
     max_generated_samples: int = 0
     seed: int = 7
@@ -252,9 +253,10 @@ def _generate(
     suffix_block_active,
     *,
     suffix_len: int,
+    suffix_seed: str,
 ) -> str:
     kv_cache, prefix_mask = prefill_incremental(state, observation)
-    seed_tokens = tokenizer.tokenize_language_seed("Subtask: ")
+    seed_tokens = tokenizer.tokenize_language_seed(suffix_seed)
     seed_inputs = np.zeros((1, suffix_len), dtype=np.int32)
     seed_inputs[0, : len(seed_tokens)] = seed_tokens
     seed_mask = np.zeros(seed_inputs.shape, dtype=np.bool_)
@@ -361,13 +363,14 @@ def main(args: Args) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     _, validation_refs, _ = train.load_split(args.split)
     tokenizer = tokenizer_lib.PaligemmaTokenizer(max_len=data.PROMPT_TOKEN_LEN)
-    language_seed_tokens = tokenizer.tokenize_language_seed("Subtask: ")
+    language_seed_tokens = tokenizer.tokenize_language_seed(args.suffix_seed)
     dataset = data.LiberoLanguageDataset(
         validation_refs,
         norm_stats_path=args.norm_stats,
         prompt_tokenizer=tokenizer,
         action_dim=32,
         suffix_len=args.suffix_len,
+        suffix_seed=args.suffix_seed,
     )
     model_args = train.Args(
         split=args.split,
@@ -377,6 +380,7 @@ def main(args: Args) -> None:
         adapter_type=args.adapter_type,
         rank=args.rank,
         alpha=args.alpha,
+        suffix_seed=args.suffix_seed,
     )
     _, model = train.load_model(model_args)
     model_def, state = nnx.split(model)
@@ -433,6 +437,7 @@ def main(args: Args) -> None:
             suffix_step_active,
             suffix_block_active,
             suffix_len=args.suffix_len,
+            suffix_seed=args.suffix_seed,
         )
         record = {
             **dataclasses.asdict(sample),
@@ -568,7 +573,7 @@ def main(args: Args) -> None:
     )
 
     root_cache, prefix_mask = prefill_incremental(state, first_observation)
-    seed_tokens = tokenizer.tokenize_language_seed("Subtask: ")
+    seed_tokens = tokenizer.tokenize_language_seed(args.suffix_seed)
     one_token = np.asarray([[seed_tokens[0]]], dtype=np.int32)
     suffix_index_zero = np.asarray(0, dtype=np.int32)
     prefix_timing = _timed(
@@ -590,7 +595,7 @@ def main(args: Args) -> None:
     suffix_input_lengths = []
     for sample in selected:
         _, _, suffix_mask, loss_mask = tokenizer.tokenize_language_suffix(
-            "Subtask: ", sample.target, max_len=args.suffix_len
+            args.suffix_seed, sample.target, max_len=args.suffix_len
         )
         target_token_lengths.append(int(loss_mask.sum()))
         suffix_input_lengths.append(int(suffix_mask.sum()))

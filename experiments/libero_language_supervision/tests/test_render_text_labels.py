@@ -105,8 +105,50 @@ def test_initially_high_object_is_not_reported_as_picked_up():
 
 
 def test_configurable_composition():
-    row = {"language": {"completed": "Done.", "remaining": "Left.", "next": "Act."}}
+    row = {
+        "language": {
+            "completed": "Done.",
+            "remaining": "Left.",
+            "next": "Act.",
+            "visual_memory": "Seen.",
+        }
+    }
     assert compose_language(row, ["completed", "next"], " ") == "Done. Act."
+    assert compose_language(row, ["visual_memory"]) == "Seen."
+
+
+def test_visual_memory_is_causal_stable_and_excludes_pickup():
+    rows = compile_trajectory(
+        _pickup_trajectory(
+            [False, False, False, False, False, True, True, True],
+            [False, True, True, True, False, False, False, False],
+            [False, False, True, True, True, False, False, False],
+        ),
+        stability_window=2,
+    )
+    assert rows[4]["language"]["visual_memory"] == "No relevant task progress is visible yet."
+    assert rows[6]["language"]["visual_memory"] == "The alphabet soup is in the basket."
+    assert rows[6]["language_components"]["visual_memory_predicate_ids"] == [
+        "goal:00:in(alphabet_soup_1,basket_1_contain_region)"
+    ]
+
+
+def test_visual_memory_does_not_claim_initial_or_reverted_state():
+    records = []
+    values = [True, True, False, False, True, True, False, False]
+    for frame, value in enumerate(values):
+        goal = _predicate("goal", 0, "close", ["microwave_1"], value)
+        records.append({
+            "frame": frame,
+            "task_instruction": "put the mug in the microwave and close it",
+            "goal_predicates": [goal],
+            "auxiliary_predicates": [],
+            "success": value and frame >= 4,
+        })
+    rows = compile_trajectory(records, stability_window=2)
+    assert rows[1]["language"]["visual_memory"] == "No relevant task progress is visible yet."
+    assert rows[5]["language"]["visual_memory"] == "The microwave is closed."
+    assert rows[7]["language"]["visual_memory"] == "No relevant task progress is visible yet."
 
 
 def test_instruction_override_preserves_natural_relation():

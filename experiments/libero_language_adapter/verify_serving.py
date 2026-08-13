@@ -28,6 +28,7 @@ class Args:
     alpha: float = 16.0
     seed: int = 7
     suffix_len: int = 20
+    suffix_seed: str = "Subtask: "
 
 
 def main(args: Args) -> None:
@@ -39,6 +40,7 @@ def main(args: Args) -> None:
         prompt_tokenizer=tokenizer,
         action_dim=32,
         suffix_len=args.suffix_len,
+        suffix_seed=args.suffix_seed,
     )
     sample = validation_refs[args.sample_index]
     observation = dataset[args.sample_index][0]
@@ -52,13 +54,19 @@ def main(args: Args) -> None:
         rank=args.rank,
         alpha=args.alpha,
         seed=args.seed,
+        suffix_seed=args.suffix_seed,
     )
     _, model = train.load_model(model_args)
     graphdef, state = nnx.split(model)
     evaluate.apply_adapter(state, args.adapter)
     model = nnx.merge(graphdef, state)
 
-    policy = policy_lib.Policy(model, rng=jax.random.key(args.seed), sample_kwargs={"num_steps": 10})
+    policy = policy_lib.Policy(
+        model,
+        rng=jax.random.key(args.seed),
+        sample_kwargs={"num_steps": 10},
+        language_seed=args.suffix_seed,
+    )
     manager = policy.init_continuous_batching()
     raw_observation = {
         key: jax.tree.map(np.asarray, value) for key, value in observation.to_dict().items() if value is not None

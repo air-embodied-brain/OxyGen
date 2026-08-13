@@ -18,20 +18,20 @@ def _jsonl(path: Path) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
-    parser.add_argument("--suites", default=",".join(rollout_review.SUITE_LABELS))
+    parser.add_argument("--sources", default=",".join(rollout_review.SUITE_LABELS))
     args = parser.parse_args()
 
-    suites = [value.strip() for value in args.suites.split(",") if value.strip()]
+    sources = [value.strip() for value in args.sources.split(",") if value.strip()]
     items: list[dict] = []
     rollouts: list[dict] = []
     events: list[dict] = []
-    for suite in suites:
-        suite_root = args.root / suite
+    for source in sources:
+        suite_root = args.root / source
         suite_items = json.loads((suite_root / "manifest.json").read_text(encoding="utf-8"))
         for item in suite_items:
             merged_item = dict(item)
-            merged_item["video"] = f"{suite}/{item['video']}"
-            merged_item["poster"] = f"{suite}/{item['poster']}"
+            merged_item["video"] = f"{source}/{item['video']}"
+            merged_item["poster"] = f"{source}/{item['poster']}"
             items.append(merged_item)
         rollouts.extend(_jsonl(suite_root / "rollouts.jsonl"))
         events.extend(_jsonl(suite_root / "inference_events.jsonl"))
@@ -39,18 +39,18 @@ def main() -> None:
     batch_histogram = collections.Counter(int(event["policy_timing"]["batch_size"]) for event in events)
     update_histogram = collections.Counter(len(event["language_updates"]) for event in events)
     request_keys = {
-        (event["task_suite"], int(event["episode_idx"]), update["request_id"])
+        (event["task_suite"], int(event["task_id"]), int(event["episode_idx"]), update["request_id"])
         for event in events
         for update in event["language_updates"]
     }
     completed_keys = {
-        (event["task_suite"], int(event["episode_idx"]), update["request_id"])
+        (event["task_suite"], int(event["task_id"]), int(event["episode_idx"]), update["request_id"])
         for event in events
         for update in event["language_updates"]
         if update["is_finished"]
     }
     nonempty_keys = {
-        (event["task_suite"], int(event["episode_idx"]), update["request_id"])
+        (event["task_suite"], int(event["task_id"]), int(event["episode_idx"]), update["request_id"])
         for event in events
         for update in event["language_updates"]
         if update["text"].strip()
@@ -74,14 +74,14 @@ def main() -> None:
                 "episodes": sum(record["task_suite"] == suite for record in rollouts),
                 "successes": sum(record["task_suite"] == suite and record["success"] for record in rollouts),
             }
-            for suite in suites
+            for suite in rollout_review.SUITE_LABELS
         ],
         "request_arrival_protocol": {
             "simulator_control_hz": 20,
             "action_replan_steps": 5,
             "action_replan_and_request_arrival_hz": 4,
-            "language_steps_per_frame": 5,
-            "max_decoding_steps": 20,
+            "language_steps_per_frame": rollouts[0]["server_metadata"]["language_steps_per_frame"],
+            "max_decoding_steps": rollouts[0]["server_metadata"]["language_max_decoding_steps"],
             "request_mode": "new_each_call",
         },
     }

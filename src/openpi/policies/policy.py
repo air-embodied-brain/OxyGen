@@ -203,6 +203,7 @@ class Policy(BasePolicy):
         output_transforms: Sequence[_transforms.DataTransformFn] = (),
         sample_kwargs: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        language_seed: str = "Subtask: ",
         pytorch_device: str = "cpu",
         is_pytorch: bool = False,
     ):
@@ -215,6 +216,7 @@ class Policy(BasePolicy):
             output_transforms: Output data transformations to apply after inference.
             sample_kwargs: Additional keyword arguments to pass to model.sample_actions.
             metadata: Additional metadata to store with the policy.
+            language_seed: Private language-suffix prompt written after the shared prefix.
             pytorch_device: Device to use for PyTorch models (e.g., "cpu", "cuda:0").
                           Only relevant when is_pytorch=True.
             is_pytorch: Whether the model is a PyTorch model. If False, assumes JAX model.
@@ -290,7 +292,7 @@ class Policy(BasePolicy):
         # Cache the tokenizer to avoid repeated initialization
         self._tokenizer = _tokenizer.PaligemmaTokenizer()
         self._language_seed_tokens = np.asarray(
-            self._tokenizer.tokenize_language_seed("Subtask: "),
+            self._tokenizer.tokenize_language_seed(language_seed),
             dtype=np.int32,
         )
 
