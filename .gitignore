@@ -199,8 +199,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Keep compact, formal language-adapter metrics under version control.
+# Keep only the selected language-adapter report under version control.
 !experiments/libero_language_adapter/results/
-!experiments/libero_language_adapter/results/**/
-!experiments/libero_language_adapter/results/**/*.json
-!experiments/libero_language_adapter/results/**/*.jsonl
+!experiments/libero_language_adapter/results/2026-08-13/
+!experiments/libero_language_adapter/results/2026-08-13/visual_memory_v1/
+!experiments/libero_language_adapter/results/2026-08-13/visual_memory_v1/REPORT.md
+!experiments/libero_language_adapter/results/2026-08-13/visual_memory_v1/summary.json

@@ -31,12 +31,10 @@ The final audit reports:
   success because of tail contact flicker. Stable textual completion remains
   latched and does not regress.
 
-The raw annotations and audit are stored outside Git at:
-
-```text
-/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v6
-/home/lixiangyu/oxygen_ws/libero_exp/annotations/libero_all_v6/qa.json
-```
+The raw annotations and audit remain outside Git. A release should include the
+derived JSONL trajectories, `qa.json`, `pickup_audit.json`, and a portable
+manifest without host-local source paths. The original LIBERO HDF5 files are
+downloaded separately from the official dataset.
 
 ## Corner cases
 
@@ -68,6 +66,4 @@ The 20 Hz source is shown at 10 fps for 0.5x real-time playback. All videos are
 below 5 MB; the largest is 0.572 MB and the complete set is 8.7 MB. The page
 loads video sources only when their cards approach the viewport.
 
-```text
-/home/lixiangyu/oxygen_ws/libero_exp/review/libero_language_v6
-```
+The review site is a generated release artifact and is not tracked by Git.

@@ -232,6 +232,61 @@ def _render_video(
     return size, f"posters/{poster_path.name}"
 
 
+class _RawTimelineWriter:
+    def __init__(self, output_path: Path, *, fps: int, width: int = LIBERO_ENV_RESOLUTION) -> None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        self.output_path = output_path
+        self.fps = fps
+        self.width = width
+        self.frame_count = 0
+        command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-s",
+            f"{width}x{width}",
+            "-r",
+            str(fps),
+            "-i",
+            "-",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "24",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(output_path),
+        ]
+        self.process = subprocess.Popen(command, stdin=subprocess.PIPE)
+        assert self.process.stdin is not None
+
+    def write(self, image: np.ndarray, repeats: int = 1) -> tuple[int, int]:
+        start = self.frame_count
+        frame = np.ascontiguousarray(image).tobytes()
+        for _ in range(repeats):
+            self.process.stdin.write(frame)
+        self.frame_count += repeats
+        return start, self.frame_count
+
+    def close(self) -> None:
+        assert self.process.stdin is not None
+        self.process.stdin.close()
+        return_code = self.process.wait()
+        if return_code:
+            raise subprocess.CalledProcessError(return_code, self.process.args)
+
+
 def _get_env(task, *, seed: int):
     from libero.libero import get_libero_path  # noqa: PLC0415 - optional rollout dependency
     from libero.libero.envs import OffScreenRenderEnv  # noqa: PLC0415 - optional rollout dependency
@@ -344,6 +399,7 @@ def _run_episode(
     wall_clock_timeline: bool,
     timeline_fps: int,
     post_success_replans: int,
+    raw_timeline_path: Path | None = None,
 ) -> tuple[dict, list[np.ndarray], list[dict], list[dict]]:
     from libero.libero import benchmark  # noqa: PLC0415 - optional rollout dependency
     from openpi_client import websocket_client_policy  # noqa: PLC0415 - optional rollout dependency
@@ -361,6 +417,8 @@ def _run_episode(
     frames: list[np.ndarray] = []
     captions: list[dict] = []
     inference_events: list[dict] = []
+    action_trajectory: list[dict] = []
+    timeline_segments: list[dict] = []
     action_plan: collections.deque = collections.deque()
     request_buffer: list[dict] = []
     inference_pause_frames = 0
@@ -370,6 +428,33 @@ def _run_episode(
     started = time.monotonic()
     env.reset()
     obs = env.set_init_state(initial_states[episode_idx])
+    goal_states = [list(state) for state in env.env.parsed_problem["goal_state"]]
+    raw_writer = (
+        _RawTimelineWriter(raw_timeline_path, fps=timeline_fps) if raw_timeline_path is not None else None
+    )
+
+    def oracle_snapshot() -> dict:
+        values = [bool(env.env._eval_predicate(state)) for state in goal_states]  # noqa: SLF001
+        return {
+            "goal_states": goal_states,
+            "goal_values": values,
+            "completed_goal_count": sum(values),
+            "goal_count": len(values),
+        }
+
+    def append_timeline(image: np.ndarray, caption: dict, repeats: int) -> None:
+        if raw_writer is None:
+            frames.extend([image] * repeats)
+            captions.extend([dict(caption) for _ in range(repeats)])
+            return
+        start_frame, end_frame = raw_writer.write(image, repeats)
+        timeline_segments.append(
+            {
+                "start_frame": start_frame,
+                "end_frame": end_frame,
+                **caption,
+            }
+        )
     step = 0
     try:
         while step < MAX_STEPS[suite_name] + num_steps_wait:
@@ -381,6 +466,7 @@ def _run_episode(
             element, review_image = _observation(obs, task_description, resize_size=resize_size)
             if not action_plan:
                 pre_inference_requests = [dict(request) for request in request_buffer[:3]]
+                request_oracle = oracle_snapshot()
                 inference_started = time.monotonic()
                 response = client.infer(element)
                 round_trip_ms = (time.monotonic() - inference_started) * 1000
@@ -402,6 +488,7 @@ def _run_episode(
                         "server_timing": response.get("server_timing"),
                         "policy_timing": response.get("policy_timing"),
                         "client_round_trip_ms": round_trip_ms,
+                        "request_oracle": request_oracle,
                     }
                 )
                 if wall_clock_timeline:
@@ -413,8 +500,7 @@ def _run_episode(
                         "phase": "model_inference",
                         "inference_ms": round_trip_ms,
                     }
-                    frames.extend([review_image] * pause_frames)
-                    captions.extend([dict(pause_caption) for _ in range(pause_frames)])
+                    append_timeline(review_image, pause_caption, pause_frames)
                     inference_pause_frames += pause_frames
 
             sim_caption = {
@@ -424,10 +510,16 @@ def _run_episode(
                 "phase": "simulation",
             }
             sim_repeats = timeline_fps // LIBERO_CONTROL_HZ if wall_clock_timeline else 1
-            frames.extend([review_image] * sim_repeats)
-            captions.extend([dict(sim_caption) for _ in range(sim_repeats)])
+            append_timeline(review_image, sim_caption, sim_repeats)
             simulator_frames += 1
             action = action_plan.popleft()
+            action_trajectory.append(
+                {
+                    "step": step,
+                    "action": np.asarray(action).astype(float).tolist(),
+                    "oracle_before_action": oracle_snapshot(),
+                }
+            )
             obs, _, done, _ = env.step(np.asarray(action).tolist())
             if done:
                 # Freeze the successful terminal observation while allowing a
@@ -462,8 +554,7 @@ def _run_episode(
                         "requests": [dict(request) for request in request_buffer[:3]],
                         "phase": "post_success_memory",
                     }
-                    frames.extend([review_image] * replan_steps)
-                    captions.extend([dict(caption) for _ in range(replan_steps)])
+                    append_timeline(review_image, caption, replan_steps)
                 break
             step += 1
     except Exception as error:
@@ -472,6 +563,8 @@ def _run_episode(
     finally:
         _close_client(client)
         env.close()
+        if raw_writer is not None:
+            raw_writer.close()
 
     record = {
         "event": "rollout",
@@ -497,6 +590,9 @@ def _run_episode(
         "inference_round_trip_s": sum(event["client_round_trip_ms"] for event in inference_events) / 1000,
         "inference_pause_video_s": inference_pause_frames / timeline_fps,
         "simulator_video_s": simulator_frames / LIBERO_CONTROL_HZ,
+        "raw_timeline_frames": raw_writer.frame_count if raw_writer is not None else None,
+        "timeline_segments": timeline_segments,
+        "action_trajectory": action_trajectory,
     }
     return record, frames, captions, inference_events
 
@@ -767,6 +863,11 @@ def main() -> None:
     parser.add_argument("--video-fps", type=int, default=10)
     parser.add_argument("--source-control-hz", type=int, default=LIBERO_CONTROL_HZ)
     parser.add_argument("--wall-clock-timeline", action="store_true")
+    parser.add_argument(
+        "--raw-timeline",
+        action="store_true",
+        help="Stream a clean wall-clock simulator timeline and retain event metadata for later rendering.",
+    )
     parser.add_argument("--post-success-replans", type=int, default=0)
     args = parser.parse_args()
 
@@ -806,6 +907,10 @@ def main() -> None:
     items = []
     for suite in suites:
         for episode_idx in episodes:
+            stem = f"{suite}__task{args.task_id:02d}__episode{episode_idx:02d}"
+            raw_timeline_path = (
+                args.output_root / "raw_videos" / f"{stem}.mp4" if args.raw_timeline else None
+            )
             record, frames, captions, events = _run_episode(
                 host=args.host,
                 port=args.port,
@@ -819,20 +924,28 @@ def main() -> None:
                 wall_clock_timeline=args.wall_clock_timeline,
                 timeline_fps=args.video_fps,
                 post_success_replans=args.post_success_replans,
+                raw_timeline_path=raw_timeline_path,
             )
-            stem = f"{suite}__task{args.task_id:02d}__episode{episode_idx:02d}"
-            video_path = args.output_root / "videos" / f"{stem}.mp4"
-            size, poster = _render_video(
-                frames,
-                captions,
-                video_path,
-                fps=args.video_fps,
-                source_control_hz=args.source_control_hz,
-                success=record["success"],
-            )
+            if args.raw_timeline:
+                assert raw_timeline_path is not None
+                video_path = raw_timeline_path
+                size = video_path.stat().st_size
+                poster = None
+            else:
+                video_path = args.output_root / "videos" / f"{stem}.mp4"
+                size, poster = _render_video(
+                    frames,
+                    captions,
+                    video_path,
+                    fps=args.video_fps,
+                    source_control_hz=args.source_control_hz,
+                    success=record["success"],
+                )
+            action_trajectory = record.pop("action_trajectory")
+            timeline_segments = record.pop("timeline_segments")
             record.update(
                 {
-                    "video": f"videos/{video_path.name}",
+                    "video": str(video_path.relative_to(args.output_root)),
                     "video_bytes": size,
                     "render_playback_fps": args.video_fps,
                     "source_control_hz": args.source_control_hz,
@@ -842,6 +955,26 @@ def main() -> None:
                 }
             )
             _append_jsonl(rollout_path, record)
+            for action_record in action_trajectory:
+                _append_jsonl(
+                    args.output_root / "action_trajectory.jsonl",
+                    {
+                        "task_suite": suite,
+                        "task_id": args.task_id,
+                        "episode_idx": episode_idx,
+                        **action_record,
+                    },
+                )
+            for segment in timeline_segments:
+                _append_jsonl(
+                    args.output_root / "timeline_segments.jsonl",
+                    {
+                        "task_suite": suite,
+                        "task_id": args.task_id,
+                        "episode_idx": episode_idx,
+                        **segment,
+                    },
+                )
             for event in events:
                 _append_jsonl(
                     event_path,
@@ -859,7 +992,7 @@ def main() -> None:
                     "episode_idx": episode_idx,
                     "task": record["task_description"],
                     "success": record["success"],
-                    "frames": len(frames),
+                    "frames": record.get("raw_timeline_frames") or len(frames),
                     "bytes": size,
                     "video": record["video"],
                     "poster": poster,
@@ -875,7 +1008,8 @@ def main() -> None:
         json.dumps(items, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    _build_html(items, args.output_root / "index.html")
+    if not args.raw_timeline:
+        _build_html(items, args.output_root / "index.html")
     print(
         json.dumps(
             {

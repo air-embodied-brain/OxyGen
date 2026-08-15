@@ -46,6 +46,7 @@ class WebsocketPolicyServer:
             raise ValueError(f"Unknown continuous batching request mode: {continuous_batching_request_mode}")
         self._continuous_batching_request_mode = continuous_batching_request_mode
         self._reset_policy_rng_on_connect = reset_policy_rng_on_connect
+        self._blocking_request_counter = 0
         logging.getLogger("websockets.server").setLevel(logging.INFO)
 
         supports_shared_kv = _has_attrs(
@@ -54,6 +55,10 @@ class WebsocketPolicyServer:
         )
         if self._infer_api == "shared_kv" and not supports_shared_kv:
             raise RuntimeError("requested infer_api=shared_kv but policy lacks shared_kv capability")
+        if self._infer_api == "blocking_baseline" and not hasattr(
+            self._policy, "infer_text_actions_blocking_baseline"
+        ):
+            raise RuntimeError("requested infer_api=blocking_baseline but policy lacks that method")
 
         supports_continuous_batching = _has_attrs(
             self._policy,
@@ -66,18 +71,18 @@ class WebsocketPolicyServer:
                 "_sample_actions_with_kv",
             ],
         )
-        if self._infer_api in ("continuous_batching", "isolated_continuous") and not supports_continuous_batching:
+        if self._infer_api == "continuous_batching" and not supports_continuous_batching:
             raise RuntimeError(
-                "requested infer_api=continuous_batching but policy lacks required incremental-kv methods"
+                f"requested infer_api={self._infer_api} but policy lacks required incremental-kv methods"
             )
 
         self._cache_manager = None
-        if self._infer_api in ("continuous_batching", "isolated_continuous"):
+        if self._infer_api == "continuous_batching":
             self._cache_manager = self._policy.init_continuous_batching()
 
         self._metadata["requested_infer_api"] = self._requested_infer_api
         self._metadata["effective_infer_api"] = self._infer_api
-        if self._infer_api in ("continuous_batching", "isolated_continuous"):
+        if self._infer_api == "continuous_batching":
             self._metadata["continuous_batching_request_mode"] = self._continuous_batching_request_mode
         logger.info("Websocket infer api: %s", self._infer_api)
 
@@ -110,6 +115,17 @@ class WebsocketPolicyServer:
 
         if self._infer_api == "shared_kv":
             return self._policy.infer_text_actions_shared_kv(obs), request_state
+
+        if self._infer_api == "blocking_baseline":
+            action = self._policy.infer_text_actions_blocking_baseline(
+                obs,
+                **self._continuous_batching_kwargs,
+            )
+            request_id = f"req_{self._blocking_request_counter}"
+            self._blocking_request_counter += 1
+            action["request_id"] = request_id
+            action["language_updates"] = [self._language_update(action, created_this_call=True)]
+            return action, None
 
         if self._infer_api == "continuous_batching":
             if self._continuous_batching_request_mode == "new_each_call":
@@ -146,24 +162,6 @@ class WebsocketPolicyServer:
                 next_request_id = None
             return action, next_request_id
 
-        if self._infer_api == "isolated_continuous":
-            active_request_ids = list(request_state or [])
-            results = self._policy.infer_text_actions_isolated_continuous(
-                obs,
-                cache_manager=self._cache_manager,
-                request_ids=[None, *active_request_ids],
-                **self._continuous_batching_kwargs,
-            )
-            action = results[0]
-            action["language_updates"] = [
-                self._language_update(result, created_this_call=index == 0) for index, result in enumerate(results)
-            ]
-            next_active_request_ids = [
-                result["request_id"] for result in results if not result.get("is_finished", False)
-            ]
-            action["active_language_requests"] = len(next_active_request_ids)
-            return action, next_active_request_ids
-
         raise ValueError(f"Unsupported infer_api: {self._infer_api}")
 
     def _remove_request_state(self, request_state: str | list[str] | None) -> None:
@@ -196,7 +194,7 @@ class WebsocketPolicyServer:
         packer = msgpack_numpy.Packer()
         request_state: str | list[str] | None = (
             []
-            if self._infer_api in ("continuous_batching", "isolated_continuous")
+            if self._infer_api == "continuous_batching"
             and self._continuous_batching_request_mode == "new_each_call"
             else None
         )

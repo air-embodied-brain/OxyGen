@@ -36,7 +36,7 @@ class Args:
     max_decoding_steps: int = 20
     language_seed: str = "Subtask: "
     temperature: float = 0.1
-    execution: Literal["oxygen", "isolated"] = "oxygen"
+    execution: Literal["oxygen", "blocking_baseline"] = "oxygen"
 
 
 def main(args: Args) -> None:
@@ -81,10 +81,10 @@ def main(args: Args) -> None:
             "policy_seed": args.seed,
             "adapter": None if args.adapter is None else str(args.adapter.resolve()),
             "adapter_rank": args.rank,
-            "effective_infer_api": "continuous_batching" if args.execution == "oxygen" else "isolated_continuous",
+            "effective_infer_api": ("continuous_batching" if args.execution == "oxygen" else args.execution),
             "execution": args.execution,
             "text_stop_condition": "eos" if args.stop_on_eos else "fixed_length",
-            "language_steps_per_frame": args.steps_per_frame,
+            "language_steps_per_frame": (None if args.execution == "blocking_baseline" else args.steps_per_frame),
             "language_max_decoding_steps": args.max_decoding_steps,
             "language_temperature": args.temperature,
             "language_seed": args.language_seed,
@@ -96,12 +96,12 @@ def main(args: Args) -> None:
         host="0.0.0.0",
         port=args.port,
         metadata=policy.metadata,
-        infer_api="continuous_batching" if args.execution == "oxygen" else "isolated_continuous",
+        infer_api="continuous_batching" if args.execution == "oxygen" else args.execution,
         continuous_batching_kwargs={
-            "steps_per_frame": args.steps_per_frame,
             "max_decoding_steps": args.max_decoding_steps,
             "temperature": args.temperature,
             "PALIGEMMA_EOS_TOKEN": tokenizer.eos_token_id if args.stop_on_eos else -1,
+            **({"steps_per_frame": args.steps_per_frame} if args.execution != "blocking_baseline" else {}),
         },
         continuous_batching_request_mode=args.request_mode,
         reset_policy_rng_on_connect=args.seed,

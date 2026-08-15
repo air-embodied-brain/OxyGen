@@ -85,6 +85,21 @@ class _FakeContinuousBatchingPolicy:
         return results
 
 
+class _FakeBlockingPolicy:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def infer_text_actions_blocking_baseline(self, obs: dict, **kwargs) -> dict:
+        self.calls.append({"obs": obs, "kwargs": kwargs})
+        return {
+            "actions": np.ones((10, 7), dtype=np.float32),
+            "tokens_this_frame": np.arange(4),
+            "tokens_full": np.arange(4),
+            "text": "Memory complete.",
+            "is_finished": True,
+        }
+
+
 def test_new_each_call_batches_all_unfinished_language_requests() -> None:
     policy = _FakeContinuousBatchingPolicy()
     server = websocket_policy_server.WebsocketPolicyServer(
@@ -130,3 +145,26 @@ def test_remove_request_state_cleans_up_all_active_requests() -> None:
 
     assert policy.manager.active_states == {}
     assert policy.manager.removed == ["req_2", "req_1"]
+
+
+def test_blocking_baseline_finishes_one_request_per_call() -> None:
+    policy = _FakeBlockingPolicy()
+    server = websocket_policy_server.WebsocketPolicyServer(
+        policy,
+        infer_api="blocking_baseline",
+        continuous_batching_kwargs={"max_decoding_steps": 28},
+    )
+
+    first, first_state = server._infer_once({"frame": 0}, None)  # noqa: SLF001
+    second, second_state = server._infer_once({"frame": 1}, None)  # noqa: SLF001
+
+    assert first_state is None
+    assert second_state is None
+    assert [first["request_id"], second["request_id"]] == ["req_0", "req_1"]
+    assert first["language_updates"][0]["created_this_call"]
+    assert first["language_updates"][0]["is_finished"]
+    assert first["actions"].shape == (10, 7)
+    assert policy.calls == [
+        {"obs": {"frame": 0}, "kwargs": {"max_decoding_steps": 28}},
+        {"obs": {"frame": 1}, "kwargs": {"max_decoding_steps": 28}},
+    ]

@@ -38,5 +38,6 @@ The terminal observation is frozen for six additional language replans in the
 review only, allowing the final request to finish. These frames do not execute
 actions or change rollout success.
 
-Large annotations, adapters, predictions, and videos are stored under
-`/home/lixiangyu/oxygen_ws/libero_exp/language_adapter_runs/visual_memory_v1_20260813`.
+Large annotations, adapters, predictions, and videos are release assets and
+remain outside Git. The selected adapter hash and packaging requirements are
+listed in [`../../../RESULTS.md`](../../../RESULTS.md).

@@ -1,8 +1,0 @@
-{
-  "loss_mode": "incremental",
-  "mean_sample_loss": 0.051944026101398935,
-  "perplexity": 1.0533167826164875,
-  "samples": 5075,
-  "token_accuracy": 0.9812681819256877,
-  "tokens": 42281
-}
