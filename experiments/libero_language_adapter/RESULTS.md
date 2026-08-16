@@ -47,6 +47,27 @@ exception. They contained 142 action replans and 142 memory requests, of which
 5. These rollouts are serving regressions and qualitative examples, not a
 LIBERO success-rate estimate.
 
+### Response transport profile
+
+A localhost microbenchmark used a fixed LIBERO observation, the JAX backend,
+`N=25`, `k=5`, and a stable language batch of 5 on the same RTX 4090. After
+compilation, 30 measured delta-response calls had median model time of 239.97
+ms and median client round-trip time of 241.84 ms. The 1.87 ms difference
+consisted of 0.76 ms for response assembly, 0.39 ms for server pack/send, and
+0.72 ms for request packing, client reconstruction, and residual scheduling.
+
+Replacing full token histories with token deltas reduced the median wire
+response from 2,824 to 2,355 bytes. Server pack/send measured 0.36 and 0.39 ms
+in the two runs, respectively, which is within sub-millisecond run-to-run
+variation. The optimization removes redundant payload but does not materially
+change end-to-end model latency. A prior diagnostic rollout showed an
+unprofiled 44.7 ms client/server gap, but this gap did not reproduce in either
+the fixed-observation model benchmark or a 100-call synthetic localhost
+benchmark. It is therefore not treated as an OxyGen transport cost.
+
+The component measurements are preserved in
+[`results/2026-08-13/visual_memory_v1/transport_profile.json`](results/2026-08-13/visual_memory_v1/transport_profile.json).
+
 ## Known limitation
 
 The single-stage drawer example exposed a label/model failure: the action

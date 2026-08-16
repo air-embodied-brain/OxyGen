@@ -37,6 +37,7 @@ class Args:
     language_seed: str = "Subtask: "
     temperature: float = 0.1
     execution: Literal["oxygen", "blocking_baseline"] = "oxygen"
+    profile_transport: bool = False
 
 
 def main(args: Args) -> None:
@@ -105,6 +106,7 @@ def main(args: Args) -> None:
         },
         continuous_batching_request_mode=args.request_mode,
         reset_policy_rng_on_connect=args.seed,
+        profile_transport=args.profile_transport,
     )
     server.serve_forever()
 

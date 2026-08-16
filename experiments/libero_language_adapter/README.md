@@ -117,6 +117,10 @@ CUDA_VISIBLE_DEVICES=0 python -m experiments.libero_language_adapter.serve_adapt
   --execution oxygen --port 8011
 ```
 
+Add `--profile-transport` to include request unpacking and the previous
+response's pack/send timing in `server_timing`. The client always exposes its
+latest pack/send/wait/unpack breakdown through `get_last_transport_timing()`.
+
 Run the same action policy with blocking language generation by changing only:
 
 ```text
@@ -147,10 +151,10 @@ At LIBERO's 20 Hz control rate and `replan_steps=5`, requests arrive at 4 Hz.
 ## Render the comparison demo
 
 `build_demo_review.py` consumes saved OxyGen and blocking-baseline rollouts and
-renders measured server-inference time followed by 1x simulator time. Client
-transport and serialization are intentionally excluded from this visualization
-until the response schema is changed to return deltas rather than every active
-request's full token history.
+renders measured server-inference time followed by 1x simulator time. The
+serving protocol sends only each request's new tokens and status; the client
+reconstructs the complete token history for existing rollout and visualization
+code. The demo continues to show model inference rather than network latency.
 
 ```bash
 python -m experiments.libero_language_adapter.build_demo_review \
@@ -202,15 +206,8 @@ run.
 
 ## Release status
 
-The data, training, evaluation, serving, blocking-baseline, and demo paths are
-implemented and covered by targeted tests. Two release tasks remain:
-
-1. Change continuous-batching responses to send token/status deltas instead of
-   every active request's full token history, then restore client-observed
-   timing in the demo. The current demo uses measured server inference time so
-   this transport artifact does not affect its reported comparison.
-2. Upload the staged model and dataset directories to reviewed Hugging Face
-   namespaces and replace the local asset manifest with public links.
-
-No additional training is required. The first item and a short serving smoke
-benchmark should be completed before merging this feature into `main`.
+The data, training, evaluation, serving, blocking-baseline, delta-response, and
+demo paths are implemented and covered by targeted tests. The remaining
+release task is to upload the staged model and dataset directories to reviewed
+Hugging Face namespaces and replace the local asset manifest with public links.
+No additional training is required.

@@ -34,6 +34,8 @@ class WebsocketPolicyServer:
         continuous_batching_kwargs: dict[str, Any] | None = None,
         continuous_batching_request_mode: str = "resume_until_finished",
         reset_policy_rng_on_connect: int | None = None,
+        *,
+        profile_transport: bool = False,
     ) -> None:
         self._policy = policy
         self._host = host
@@ -46,6 +48,7 @@ class WebsocketPolicyServer:
             raise ValueError(f"Unknown continuous batching request mode: {continuous_batching_request_mode}")
         self._continuous_batching_request_mode = continuous_batching_request_mode
         self._reset_policy_rng_on_connect = reset_policy_rng_on_connect
+        self._profile_transport = profile_transport
         self._blocking_request_counter = 0
         logging.getLogger("websockets.server").setLevel(logging.INFO)
 
@@ -84,6 +87,8 @@ class WebsocketPolicyServer:
         self._metadata["effective_infer_api"] = self._infer_api
         if self._infer_api == "continuous_batching":
             self._metadata["continuous_batching_request_mode"] = self._continuous_batching_request_mode
+        if self._infer_api in ("continuous_batching", "blocking_baseline"):
+            self._metadata["language_update_schema"] = "token_delta_v1"
         logger.info("Websocket infer api: %s", self._infer_api)
 
     @staticmethod
@@ -104,6 +109,28 @@ class WebsocketPolicyServer:
             "is_finished": bool(result.get("is_finished", False)),
             "created_this_call": created_this_call,
         }
+
+    @staticmethod
+    def _encode_language_update_deltas(
+        action: dict[str, Any],
+        token_counts: dict[str, int],
+    ) -> dict[str, Any]:
+        for update in action.get("language_updates", []):
+            request_id = str(update["request_id"])
+            raw_tokens = update.pop("tokens_full", None)
+            tokens_full = np.asarray([] if raw_tokens is None else raw_tokens)
+            previous_count = 0 if update.get("created_this_call", False) else token_counts.get(request_id, 0)
+            if previous_count > len(tokens_full):
+                raise RuntimeError(
+                    f"Language token history shrank for {request_id}: {len(tokens_full)} < {previous_count}"
+                )
+            update["tokens_this_frame"] = tokens_full[previous_count:]
+            update["token_count"] = len(tokens_full)
+            if update.get("is_finished", False):
+                token_counts.pop(request_id, None)
+            else:
+                token_counts[request_id] = len(tokens_full)
+        return action
 
     def _infer_once(
         self,
@@ -192,6 +219,7 @@ class WebsocketPolicyServer:
                 raise RuntimeError("Policy does not support RNG reset on client connection")
             self._policy.reset_rng(self._reset_policy_rng_on_connect)
         packer = msgpack_numpy.Packer()
+        language_token_counts: dict[str, int] = {}
         request_state: str | list[str] | None = (
             []
             if self._infer_api == "continuous_batching"
@@ -201,28 +229,47 @@ class WebsocketPolicyServer:
 
         await websocket.send(packer.pack(self._metadata))
 
-        prev_total_time = None
+        previous_response_timing = None
         while True:
             try:
-                start_time = time.monotonic()
-                obs = msgpack_numpy.unpackb(await websocket.recv())
+                packed_obs = await websocket.recv()
+                unpack_started = time.perf_counter()
+                obs = msgpack_numpy.unpackb(packed_obs)
+                unpack_finished = time.perf_counter()
 
-                infer_time = time.monotonic()
+                infer_started = time.perf_counter()
                 action, request_state = self._infer_once(obs, request_state)
+                action = self._encode_language_update_deltas(action, language_token_counts)
                 action = self._normalize_actions(action)
-                infer_time = time.monotonic() - infer_time
+                infer_finished = time.perf_counter()
 
                 action["server_timing"] = {
-                    "infer_ms": infer_time * 1000,
+                    "infer_ms": (infer_finished - infer_started) * 1000,
                     "infer_api": self._infer_api,
                     "requested_infer_api": self._requested_infer_api,
                 }
-                if prev_total_time is not None:
-                    # We can only record the last total time since we also want to include the send time.
-                    action["server_timing"]["prev_total_ms"] = prev_total_time * 1000
+                if self._profile_transport:
+                    action["server_timing"].update(
+                        {
+                            "request_unpack_ms": (unpack_finished - unpack_started) * 1000,
+                            "request_bytes": len(packed_obs),
+                        }
+                    )
+                if self._profile_transport and previous_response_timing is not None:
+                    action["server_timing"]["previous_response"] = previous_response_timing
 
-                await websocket.send(packer.pack(action))
-                prev_total_time = time.monotonic() - start_time
+                pack_started = time.perf_counter()
+                packed_action = packer.pack(action)
+                pack_finished = time.perf_counter()
+                await websocket.send(packed_action)
+                send_finished = time.perf_counter()
+                if self._profile_transport:
+                    previous_response_timing = {
+                        "response_pack_ms": (pack_finished - pack_started) * 1000,
+                        "response_send_ms": (send_finished - pack_finished) * 1000,
+                        "response_bytes": len(packed_action),
+                        "server_request_ms": (send_finished - unpack_started) * 1000,
+                    }
 
             except websockets.ConnectionClosed:
                 self._remove_request_state(request_state)

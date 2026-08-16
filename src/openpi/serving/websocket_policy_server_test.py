@@ -127,6 +127,20 @@ def test_new_each_call_batches_all_unfinished_language_requests() -> None:
     assert [response["policy_timing"]["batch_size"] for response in responses] == [1, 2, 3]
     assert [response["active_language_requests"] for response in responses] == [1, 2, 2]
     assert [len(response["language_updates"]) for response in responses] == [1, 2, 3]
+    token_counts: dict[str, int] = {}
+    wire_responses = [server._encode_language_update_deltas(response, token_counts) for response in responses]  # noqa: SLF001
+    assert all(
+        "tokens_full" not in update for response in wire_responses for update in response["language_updates"]
+    )
+    assert [[update["token_count"] for update in response["language_updates"]] for response in wire_responses] == [
+        [5],
+        [5, 10],
+        [5, 10, 15],
+    ]
+    assert [
+        [len(update["tokens_this_frame"]) for update in response["language_updates"]]
+        for response in wire_responses
+    ] == [[5], [5, 5], [5, 5, 5]]
     assert all(response["actions"].shape == (10, 7) for response in responses)
     assert request_state == ["req_2", "req_1"]
     assert "req_0" not in policy.manager.active_states
@@ -145,6 +159,27 @@ def test_remove_request_state_cleans_up_all_active_requests() -> None:
 
     assert policy.manager.active_states == {}
     assert policy.manager.removed == ["req_2", "req_1"]
+
+
+def test_language_delta_trims_fixed_width_tokens_to_valid_history() -> None:
+    token_counts = {"req_0": 20}
+    action = {
+        "language_updates": [
+            {
+                "request_id": "req_0",
+                "tokens_this_frame": np.arange(5),
+                "tokens_full": np.arange(23),
+                "is_finished": True,
+                "created_this_call": False,
+            }
+        ]
+    }
+
+    websocket_policy_server.WebsocketPolicyServer._encode_language_update_deltas(action, token_counts)  # noqa: SLF001
+
+    np.testing.assert_array_equal(action["language_updates"][0]["tokens_this_frame"], [20, 21, 22])
+    assert action["language_updates"][0]["token_count"] == 23
+    assert token_counts == {}
 
 
 def test_blocking_baseline_finishes_one_request_per_call() -> None:

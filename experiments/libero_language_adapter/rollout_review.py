@@ -131,7 +131,6 @@ def _render_request_buffer(
             fill="#15191e",
         )
 
-    speed = playback_fps / source_control_hz
     outcome = "running" if success is None else ("success" if success else "failure")
     phase = caption.get("phase", "simulation")
     if phase == "model_inference":
@@ -487,12 +486,13 @@ def _run_episode(
                         "active_language_requests": response.get("active_language_requests"),
                         "server_timing": response.get("server_timing"),
                         "policy_timing": response.get("policy_timing"),
+                        "client_transport_timing": client.get_last_transport_timing(),
                         "client_round_trip_ms": round_trip_ms,
                         "request_oracle": request_oracle,
                     }
                 )
                 if wall_clock_timeline:
-                    pause_frames = max(1, int(round(round_trip_ms / 1000 * timeline_fps)))
+                    pause_frames = max(1, round(round_trip_ms / 1000 * timeline_fps))
                     pause_caption = {
                         "task": task_description,
                         "step": step,
@@ -544,6 +544,7 @@ def _run_episode(
                             "active_language_requests": response.get("active_language_requests"),
                             "server_timing": response.get("server_timing"),
                             "policy_timing": response.get("policy_timing"),
+                            "client_transport_timing": client.get_last_transport_timing(),
                             "client_round_trip_ms": round_trip_ms,
                             "post_success": True,
                         }

@@ -1,0 +1,47 @@
+{
+  "delta_response": {
+    "calls": 30,
+    "median_client_round_trip_ms": 241.83508349960903,
+    "median_client_unpack_and_reconstruct_ms": 0.12006600445602089,
+    "median_model_ms": 239.96994299523067,
+    "median_non_model_ms": 1.8651405043783593,
+    "median_response_assembly_ms": 0.7610239917994477,
+    "median_response_bytes": 2355,
+    "median_server_pack_ms": 0.21491749794222414,
+    "median_server_send_ms": 0.17363999359076843
+  },
+  "full_history_response": {
+    "calls": 5,
+    "median_client_round_trip_ms": 240.80106600013096,
+    "median_client_unpack_ms": 0.188584002899006,
+    "median_model_ms": 238.61031400156207,
+    "median_non_model_ms": 2.190751998568885,
+    "median_response_assembly_ms": 0.6554249994223937,
+    "median_response_bytes": 2824,
+    "median_server_pack_ms": 0.2027790033025667,
+    "median_server_send_ms": 0.15759500092826784
+  },
+  "method": {
+    "backend": "JAX",
+    "continuous_batch_size": 5,
+    "hardware": "NVIDIA RTX 4090 24GB",
+    "host": "127.0.0.1",
+    "language_max_decoding_steps": 25,
+    "language_steps_per_frame": 5,
+    "observation": "one fixed held-out LIBERO observation",
+    "stop_condition": "fixed length",
+    "transport": "websocket, compression disabled",
+    "warmup": "all observed batch shapes compiled before measurement"
+  },
+  "synthetic_localhost": {
+    "calls_per_batch_size": 100,
+    "median_client_round_trip_ms": {
+      "1": 1.1372704993846128,
+      "2": 1.7418295010429574,
+      "5": 1.8470734994480154,
+      "10": 1.2562964984681457
+    },
+    "response_bytes_at_batch_10": 8232,
+    "server_pack_plus_send_ms_at_batch_10": 0.1481710023659265
+  }
+}
