@@ -1,12 +1,23 @@
 # OxyGen
 
-This repository contains code for paper [*OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism*](https://arxiv.org/abs/2603.14371). It is built atop [openpi](https://github.com/Physical-Intelligence/openpi).
+This repository contains code for the paper [*OxyGen: Unified KV Cache Management for VLA Inference under Multi-Task Parallelism*](https://arxiv.org/abs/2603.14371).
 
-OxyGen optimizes multi-task inference for Mixture-of-Transformers (MoT) Vision-Language-Action (VLA) models (e.g., pi0.5) through unified KV cache management, with cross-task KV sharing and cross-frame continuous batching.
+OxyGen optimizes **concurrent multi-task inference** for Mixture-of-Transformers (MoT) Vision-Language-Action (VLA) models such as pi0.5 through unified KV cache management across tasks and control cycles. It targets local deployment on GPUs such as RTX 4090 and Jetson AGX Thor, while also supporting cloud GPUs.
+
+## Demo
+
+This LIBERO rollout compares OxyGen with the isolated openpi baseline during concurrent textual-memory generation and action inference. OxyGen batches
+unfinished textual-memory requests across control frames, while the baseline completes each request before returning the action. The timeline uses measured model inference and 1× simulator time.
+
+https://github.com/user-attachments/assets/142e8b9c-f2a2-41a3-b613-c8ab0e49f8c5
+
+See [LIBERO textual-memory adaptation](language_adaptation/libero/README.md) for training, evaluation, and serving details.
 
 ## News
 
+- **2026-08:** Added suffix-only LoRA training and inference support, plus a LIBERO textual-memory example.
 - **2026-05:** Added PyTorch inference support with primary `torch.compile` optimization, verified on NVIDIA A100 and Jetson AGX Thor.
+- **2026-03:** Initial release with the JAX backend and unified KV cache management for pi0.5 inference.
 
 ## Requirements
 
@@ -74,7 +85,7 @@ If you find this project useful, please cite our [paper](https://arxiv.org/abs/2
 
 ```bibtex
 @article{li2026oxygen,
-  title={OxyGen: Unified KV Cache Management for Vision-Language-Action Models under Multi-Task Parallelism},
+  title={OxyGen: Unified KV Cache Management for VLA Inference under Multi-Task Parallelism},
   author={Li, Xiangyu and Tang, Huaizhi and Ding, Xin and Wang, Weijun and Cao, Ting and Liu, Yunxin},
   journal={arXiv preprint arXiv:2603.14371},
   year={2026}

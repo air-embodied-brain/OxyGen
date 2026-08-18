@@ -50,6 +50,23 @@ def test_lora_einsum_same_output():
     assert jnp.allclose(output, output_lora)
 
 
+def test_lora_einsum_can_be_disabled():
+    einsum = lora.Einsum(
+        (8, 4),
+        lora_config=lora.LoRAConfig(rank=2, init_fn=nn.initializers.ones),
+    )
+    key = jax.random.key(0)
+    x = jax.random.normal(key, (3, 8))
+    params = einsum.init(key, "BD,DF->BF", x)
+
+    enabled = einsum.apply(params, "BD,DF->BF", x, lora_active=True)
+    disabled = einsum.apply(params, "BD,DF->BF", x, lora_active=False)
+    base = jnp.einsum("BD,DF->BF", x, params["params"]["w"])
+
+    assert not jnp.allclose(enabled, base)
+    assert jnp.array_equal(disabled, base)
+
+
 def test_lora_ffn_params_shape():
     ffn = lora.FeedForward(features=8, hidden_dim=32)
     ffn_lora = lora.FeedForward(
@@ -92,3 +109,19 @@ def test_lora_ffn_same_output():
     output_lora = ffn_lora.apply(params_lora, x)
 
     assert jnp.allclose(output, output_lora)
+
+
+def test_lora_ffn_can_be_disabled():
+    ffn_lora = lora.FeedForward(
+        features=8,
+        hidden_dim=32,
+        lora_config=lora.LoRAConfig(rank=2, init_fn=nn.initializers.ones),
+    )
+    key = jax.random.key(0)
+    x = jax.random.normal(key, (2, 8))
+    params = ffn_lora.init(key, x)
+
+    enabled = ffn_lora.apply(params, x, lora_active=True)
+    disabled = ffn_lora.apply(params, x, lora_active=False)
+
+    assert not jnp.allclose(enabled, disabled)

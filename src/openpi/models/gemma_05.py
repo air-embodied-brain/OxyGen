@@ -187,8 +187,34 @@ class Attention(nn.Module):
         idx_new = idx + 1
         return idx_new, k_new, v_new
 
+    def _update_cache_block(self, k, v, idx, k_cache, v_cache, attn_mask):
+        """Append a fixed block when the cache was preallocated for it."""
+        batch_size = k.shape[0]
+        k_new, v_new = k_cache, v_cache
+        valid_tokens = jnp.any(attn_mask, axis=(1, 3))
+        appended = jnp.sum(valid_tokens, axis=-1, dtype=jnp.int32)
+        for b in range(batch_size):
+            offset = jnp.int32(0)
+            for token_index in range(k.shape[1]):
+                indices = (b, idx[b] + offset, 0, 0)
+                updated_k = jax.lax.dynamic_update_slice(
+                    k_new,
+                    k[b : b + 1, token_index : token_index + 1].astype(k.dtype),
+                    indices,
+                )
+                updated_v = jax.lax.dynamic_update_slice(
+                    v_new,
+                    v[b : b + 1, token_index : token_index + 1].astype(v.dtype),
+                    indices,
+                )
+                is_valid = valid_tokens[b, token_index]
+                k_new = jnp.where(is_valid, updated_k, k_new)
+                v_new = jnp.where(is_valid, updated_v, v_new)
+                offset += is_valid.astype(jnp.int32)
+        return idx + appended, k_new, v_new
+
     @nn.compact
-    def __call__(self, xs, positions, attn_mask, kv_cache):
+    def __call__(self, xs, positions, attn_mask, kv_cache, *, lora_active: bool = True):
         # all experts must share the same head dim, num heads, and num kv heads for self-attention to work
         assert all(config.head_dim == self.configs[0].head_dim for config in self.configs)
         assert all(config.num_heads == self.configs[0].num_heads for config in self.configs)
@@ -207,7 +233,7 @@ class Attention(nn.Module):
                     init_fn=nn.initializers.lecun_normal(in_axis=-2, out_axis=-1, batch_axis=(0, 1)),
                     lora_config=config.lora_configs.get("attn"),
                 )
-                qkvs.append(qkv_einsum("BSD,3KDH->3BSKH", x))
+                qkvs.append(qkv_einsum("BSD,3KDH->3BSKH", x, lora_active=lora_active))
             else:
                 q_einsum = lora.Einsum(
                     shape=(config.num_heads, config.width, config.head_dim),
@@ -215,14 +241,14 @@ class Attention(nn.Module):
                     init_fn=nn.initializers.lecun_normal(in_axis=-2, out_axis=-1, batch_axis=(0,)),
                     lora_config=config.lora_configs.get("attn"),
                 )
-                q = q_einsum("BTD,NDH->BTNH", x)
+                q = q_einsum("BTD,NDH->BTNH", x, lora_active=lora_active)
                 kv_einsum = lora.Einsum(
                     shape=(2, config.num_kv_heads, config.width, config.head_dim),
                     name=_name("kv_einsum", i),
                     init_fn=nn.initializers.lecun_normal(in_axis=-2, out_axis=-1, batch_axis=(0, 1)),
                     lora_config=config.lora_configs.get("attn"),
                 )
-                k, v = kv_einsum("BSD,2KDH->2BSKH", x)
+                k, v = kv_einsum("BSD,2KDH->2BSKH", x, lora_active=lora_active)
                 qkvs.append((q, k, v))
 
         q, k, v = (jnp.concatenate(y, axis=1) for y in zip(*qkvs, strict=True))
@@ -242,6 +268,10 @@ class Attention(nn.Module):
             idx, k_cache, v_cache = kv_cache
             if k.shape[1] == 1: # Next token prediction, k,v length = 1
                 idx, k_cache, v_cache = self._update_cache(k, v, idx, k_cache, v_cache)
+                k, v = k_cache, v_cache
+            elif attn_mask.shape[-1] == k_cache.shape[1]:
+                # A language append view reserves its full capacity up front.
+                idx, k_cache, v_cache = self._update_cache_block(k, v, idx, k_cache, v_cache, attn_mask)
                 k, v = k_cache, v_cache
             else: # Sample action, k,v length = action horizon; We don't update kv_cache here since it is no use
                 k = jnp.concatenate([k_cache, k], axis=1)
@@ -277,7 +307,7 @@ class Attention(nn.Module):
                     init_fn=nn.initializers.lecun_normal(in_axis=(-3, -2), out_axis=-1),
                     lora_config=config.lora_configs.get("attn"),
                 )
-                out.append(out_einsum("BTNH,NHD->BTD", encoded[:, start:end]))
+                out.append(out_einsum("BTNH,NHD->BTD", encoded[:, start:end], lora_active=lora_active))
                 start = end
             else:
                 out.append(None)
@@ -326,7 +356,16 @@ class Block(nn.Module):
     dropout_bdims: tuple[int, ...] = ()
 
     @nn.compact
-    def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True):  # noqa: FBT002
+    def __call__(
+        self,
+        xs,
+        kv_cache,
+        positions,
+        attn_mask,
+        adarms_cond,
+        lora_active=True,  # noqa: FBT002
+        deterministic=True,  # noqa: FBT002
+    ):
         xs = sharding.activation_sharding_constraint(xs)
         drop = nn.Dropout(self.dropout, self.dropout_bdims) if self.dropout else lambda x, _: x
 
@@ -341,7 +380,13 @@ class Block(nn.Module):
             gates.append(gate if x is not None else None)
 
         pre_attn = sharding.activation_sharding_constraint(pre_attn)
-        post_attn, kv_cache = attn(pre_attn, positions, attn_mask, kv_cache)
+        post_attn, kv_cache = attn(
+            pre_attn,
+            positions,
+            attn_mask,
+            kv_cache,
+            lora_active=lora_active,
+        )
         post_attn = jax.tree.map(lambda x: drop(x, deterministic), post_attn)
         post_attn = sharding.activation_sharding_constraint(post_attn)
         xs = [_gated_residual(x, y, gate) for x, y, gate in zip(xs, post_attn, gates, strict=True)]
@@ -357,7 +402,7 @@ class Block(nn.Module):
                     hidden_dim=config.mlp_dim,
                     name=_name("mlp", i),
                     lora_config=config.lora_configs.get("ffn"),
-                )(x)
+                )(x, lora_active=lora_active)
             out.append(x)
             gates.append(gate if x is not None else None)
 
@@ -369,7 +414,9 @@ class Block(nn.Module):
         return xs, kv_cache
 
 
-KVCache: TypeAlias = tuple[at.Int[at.Array, "l b"], at.Float[at.Array, "l b _t _k _h"], at.Float[at.Array, "l b _t _v _h"]]
+KVCache: TypeAlias = tuple[
+    at.Int[at.Array, "l b"], at.Float[at.Array, "l b _t _k _h"], at.Float[at.Array, "l b _t _v _h"]
+]
 
 
 @at.typecheck
@@ -396,7 +443,7 @@ class Module(nn.Module):
         block_cls = nn.remat(
             Block,
             prevent_cse=False,
-            static_argnums=(5,),  # 0=self, 6=deterministic # TODO: may no longer be a static argument
+            static_argnums=(5, 6),
             policy=jax.checkpoint_policies.nothing_saveable,
         )
         self.layers = nn.scan(
@@ -405,6 +452,7 @@ class Module(nn.Module):
             split_rngs={"params": True, "dropout": True},
             in_axes=(
                 0,
+                nn.broadcast,
                 nn.broadcast,
                 nn.broadcast,
                 nn.broadcast,
@@ -436,6 +484,7 @@ class Module(nn.Module):
         adarms_cond: Sequence[at.Float[at.Array, "b _d"] | None] | None = None,
         *,
         kv_cache: KVCache | None = None,
+        lora_active: bool = True,
         deterministic: bool = True,
     ) -> tuple[Sequence[at.Float[at.Array, "b _t _d"] | None], KVCache]:
         embedded = jax.tree.map(lambda e: e.astype(self.embed_dtype), embedded)
@@ -443,7 +492,15 @@ class Module(nn.Module):
         if adarms_cond is None:
             adarms_cond = [None] * len(self.configs)
 
-        embedded, kv_cache = self.layers(embedded, kv_cache, positions, mask, adarms_cond, deterministic)
+        embedded, kv_cache = self.layers(
+            embedded,
+            kv_cache,
+            positions,
+            mask,
+            adarms_cond,
+            lora_active,
+            deterministic,
+        )
 
         assert all(e.dtype == jnp.dtype(self.embed_dtype) for e in embedded if e is not None)
 
@@ -459,6 +516,7 @@ class Module(nn.Module):
             jnp.zeros((1, len(self.configs)), dtype=jnp.int32),
             jnp.zeros((1, len(self.configs), len(self.configs)), dtype=bool),
             adarms_cond=[jnp.zeros((1, c.width)) if u else None for u, c in zip(use_adarms, self.configs, strict=True)],
+            lora_active=True,
         )
 
 

@@ -23,10 +23,14 @@ from openpi.shared import nnx_utils
 BasePolicy: TypeAlias = _base_policy.BasePolicy
 
 
+def _uses_suffix_language_adapter(model: _model.BaseModel) -> bool:
+    return getattr(model, "language_adapter", "none") == "suffix_lora"
+
+
 def _stack_incremental_states(states: list[IncrementalTextState]) -> IncrementalTextState:
     """Stack multiple IncrementalTextStates into a single batched state.
 
-    All states must have the same metadata (prefill_size, max_decoding_steps, cache_size).
+    All states must have the same static cache metadata.
     This is required for efficient batched token generation.
 
     Args:
@@ -43,6 +47,8 @@ def _stack_incremental_states(states: list[IncrementalTextState]) -> Incremental
     for s in states[1:]:
         if s.prefill_size != ref.prefill_size:
             raise ValueError(f"Incompatible prefill_size: {s.prefill_size} vs {ref.prefill_size}")
+        if s.suffix_offset != ref.suffix_offset:
+            raise ValueError(f"Incompatible suffix_offset: {s.suffix_offset} vs {ref.suffix_offset}")
         if s.max_decoding_steps != ref.max_decoding_steps:
             raise ValueError(f"Incompatible max_decoding_steps: {s.max_decoding_steps} vs {ref.max_decoding_steps}")
         if s.cache_size != ref.cache_size:
@@ -66,6 +72,7 @@ def _stack_incremental_states(states: list[IncrementalTextState]) -> Incremental
         prefill_len=jnp.concatenate([s.prefill_len for s in states], axis=0),
         # Metadata (static)
         prefill_size=ref.prefill_size,
+        suffix_offset=ref.suffix_offset,
         max_decoding_steps=ref.max_decoding_steps,
         cache_size=ref.cache_size,
     )
@@ -94,6 +101,7 @@ def _split_incremental_state(state: IncrementalTextState, batch_size: int) -> li
             is_finished=state.is_finished[i:i+1],
             prefill_len=state.prefill_len[i:i+1],
             prefill_size=state.prefill_size,
+            suffix_offset=state.suffix_offset,
             max_decoding_steps=state.max_decoding_steps,
             cache_size=state.cache_size,
         ))
@@ -204,6 +212,7 @@ class Policy(BasePolicy):
         output_transforms: Sequence[_transforms.DataTransformFn] = (),
         sample_kwargs: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
+        language_seed: str | None = None,
         pytorch_device: str = "cpu",
         is_pytorch: bool = False,
     ):
@@ -216,6 +225,8 @@ class Policy(BasePolicy):
             output_transforms: Output data transformations to apply after inference.
             sample_kwargs: Additional keyword arguments to pass to model.sample_actions.
             metadata: Additional metadata to store with the policy.
+            language_seed: Initial tokens for the private language suffix. Required
+                when the model provides a language adapter.
             pytorch_device: Device to use for PyTorch models (e.g., "cpu", "cuda:0").
                           Only relevant when is_pytorch=True.
             is_pytorch: Whether the model is a PyTorch model. If False, assumes JAX model.
@@ -226,6 +237,7 @@ class Policy(BasePolicy):
         self._sample_kwargs = sample_kwargs or {}
         self._metadata = metadata or {}
         self._is_pytorch_model = is_pytorch
+        self._uses_language_adapter = _uses_suffix_language_adapter(model)
         self._pytorch_device = pytorch_device
 
         if self._is_pytorch_model:
@@ -273,6 +285,12 @@ class Policy(BasePolicy):
                 self._init_incremental_state = nnx_utils.module_jit(
                     model.init_incremental_state,
                 )
+            if self._uses_language_adapter:
+                if language_seed is None:
+                    raise ValueError("language_seed is required for a language-adapter model")
+                self._init_language_adapter_incremental_state = nnx_utils.module_jit(
+                    model.init_language_adapter_incremental_state,
+                )
             if hasattr(model, "generate_n_tokens"):
                 self._generate_n_tokens = nnx_utils.module_jit(
                     model.generate_n_tokens,
@@ -287,6 +305,11 @@ class Policy(BasePolicy):
 
         # Cache the tokenizer to avoid repeated initialization
         self._tokenizer = _tokenizer.PaligemmaTokenizer()
+        self._language_seed_tokens = (
+            None
+            if language_seed is None
+            else np.asarray(self._tokenizer.tokenize_language_seed(language_seed), dtype=np.int32)
+        )
 
     def _to_torch_tree(self, inputs: dict, *, add_batch_dim: bool = False) -> dict:
         """Convert transformed inputs to torch tensors on the configured device."""
@@ -1278,6 +1301,75 @@ class Policy(BasePolicy):
         from openpi.models.kv_cache_manager import ContinuousBatchManager
         return ContinuousBatchManager()
 
+    def infer_text_actions_blocking_baseline(
+        self,
+        obs: dict,
+        *,
+        num_action_steps: int = 10,
+        max_decoding_steps: int = 28,
+        temperature: float = 0.0,
+        PALIGEMMA_EOS_TOKEN: int = -1,
+        noise: np.ndarray | None = None,
+    ) -> dict:
+        """Run isolated action and language requests with separate prefix forwards."""
+        if self._is_pytorch_model:
+            raise NotImplementedError("The language-adapter baseline requires the JAX backend")
+
+        inputs, _ = self._prepare_batched_inputs([obs], allow_variable_length=False)
+        observation = _model.Observation.from_dict(inputs)
+        self._rng, text_rng, action_rng = jax.random.split(self._rng, 3)
+
+        action_noise = None if noise is None else jnp.asarray(noise)
+        if action_noise is not None and action_noise.ndim == 2:
+            action_noise = action_noise[None]
+        action_root = self._prefill(observation, align_right=False, max_decoding_steps=0)
+        actions = self._sample_actions_with_kv(
+            action_rng,
+            observation,
+            action_root,
+            num_steps=num_action_steps,
+            noise=action_noise,
+        )
+
+        language_root = self._prefill(
+            observation,
+            align_right=False,
+            max_decoding_steps=max_decoding_steps,
+        )
+        if self._uses_language_adapter:
+            language_state = self._init_language_adapter_incremental_state(
+                language_root,
+                text_rng,
+                jnp.asarray(self._language_seed_tokens),
+            )
+        else:
+            language_state = self._init_incremental_state(language_root, text_rng)
+        while True:
+            _, language_state, all_finished = self._generate_n_tokens(
+                language_state,
+                tokens_to_generate=1,
+                PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN,
+                temperature=temperature,
+            )
+            if bool(all_finished.block_until_ready()):
+                break
+
+        current_step = int(language_state.current_step[0])
+        tokens = np.asarray(language_state.output_tokens[0, :current_step])
+        output = self._output_transform(
+            {
+                "state": np.asarray(inputs["state"][0]),
+                "actions": np.asarray(actions[0]),
+            }
+        )
+        return {
+            **output,
+            "tokens_this_frame": tokens,
+            "tokens_full": tokens,
+            "text": self._tokenizer.detokenize(tokens.astype(np.int32)),
+            "is_finished": True,
+        }
+
     def infer_text_continuous(
         self,
         obs: dict,
@@ -1465,7 +1557,14 @@ class Policy(BasePolicy):
 
             # Text: init incremental state from prefill
             rng_new = jax.random.split(rng_text, len(new_indices))
-            batched_new_state = self._init_incremental_state(prefill_result_new, rng_new[0])
+            if self._uses_language_adapter:
+                batched_new_state = self._init_language_adapter_incremental_state(
+                    prefill_result_new,
+                    rng_new[0],
+                    jnp.asarray(self._language_seed_tokens),
+                )
+            else:
+                batched_new_state = self._init_incremental_state(prefill_result_new, rng_new[0])
             new_states = _split_incremental_state(batched_new_state, len(new_indices))
 
             # Actions: reuse same prefill result (shared KV cache)
@@ -1492,6 +1591,7 @@ class Policy(BasePolicy):
 
         # === RESUMED REQUESTS: Actions if requested ===
         resumed_actions = {}
+        resumed_states_for_transform = {}
         if resumed_indices and generate_actions_for_resumed:
             resumed_obs_list = [obs_list[i] for i in resumed_indices]
             resumed_inputs, _ = self._prepare_batched_inputs(resumed_obs_list, allow_variable_length=False)
@@ -1507,6 +1607,7 @@ class Policy(BasePolicy):
             actions_resumed_np = np.asarray(actions_resumed)
             for j, idx in enumerate(resumed_indices):
                 resumed_actions[idx] = actions_resumed_np[j]
+                resumed_states_for_transform[idx] = np.asarray(resumed_inputs["state"][j])
 
         # === BATCHED TEXT GENERATION (all requests together) ===
         # Reorder states to match original indices
@@ -1563,8 +1664,13 @@ class Policy(BasePolicy):
             # Only include actions and apply output transform when actions were generated
             if actions_i is not None:
                 outputs_i["actions"] = actions_i
-                action_outputs_i = {"state": np.asarray(new_inputs["state"][new_indices.index(i)]) if i in new_indices else None, "actions": actions_i}
-                if action_outputs_i["state"] is not None:
+                state_for_transform = None
+                if i in new_indices:
+                    state_for_transform = np.asarray(new_inputs["state"][new_indices.index(i)])
+                elif i in resumed_states_for_transform:
+                    state_for_transform = resumed_states_for_transform[i]
+                action_outputs_i = {"state": state_for_transform, "actions": actions_i}
+                if state_for_transform is not None:
                     action_outputs_i = self._output_transform(action_outputs_i)
                     outputs_i.update(action_outputs_i)
             else:

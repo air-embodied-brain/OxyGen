@@ -36,6 +36,10 @@ sbatch_scripts/
 .claude
 .ruff_cache
 
+# Curated release assets
+!language_adaptation/libero/assets/
+!language_adaptation/libero/assets/*.mp4
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
