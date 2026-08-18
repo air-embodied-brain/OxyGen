@@ -1,5 +1,5 @@
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import flax.nnx as nnx
 import jax
@@ -31,10 +31,19 @@ class Pi05Config(_model.BaseModelConfig):
     pi05: bool = True
     # This config option is not used directly by the model, but it is read by the ModelTransformFactory.
     discrete_state_input: bool = None  # type: ignore
+    language_adapter: Literal["none", "suffix_lora"] = "none"
+    language_suffix_adapter_rank: int = 0
+    language_lora_alpha: float = 16.0
 
     def __post_init__(self):
         if not self.pi05:
             raise ValueError("pi05 must be True")
+        if self.language_suffix_adapter_rank < 0:
+            raise ValueError("language_suffix_adapter_rank must be non-negative")
+        if self.language_adapter == "none" and self.language_suffix_adapter_rank:
+            raise ValueError("language_suffix_adapter_rank must be zero when language_adapter='none'")
+        if self.language_adapter == "suffix_lora" and not self.language_suffix_adapter_rank:
+            raise ValueError("language_suffix_adapter_rank must be positive for suffix LoRA")
         if self.max_token_len is None:
             object.__setattr__(self, "max_token_len", 200)
         if self.discrete_state_input is None:

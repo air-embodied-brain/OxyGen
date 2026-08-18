@@ -15,6 +15,7 @@ from typing import Callable
 from openpi.models import model as _model
 from openpi.models import pi05_config
 import openpi.models.gemma_05 as _gemma
+import openpi.models.lora as _lora
 import openpi.models.siglip as _siglip
 from openpi.shared import array_typing as at
 import openpi.shared.nnx_utils as nnx_utils
@@ -43,6 +44,7 @@ class IncrementalTextState:
 
     # Prefill metadata (meta fields - static in JIT, define pytree structure)
     prefill_size: int                   # Size of prefix tokens
+    suffix_offset: int  # Seed tokens already appended after the root prefix
     max_decoding_steps: int             # Max tokens to generate
     cache_size: int                     # Full KV cache size (prefill_size + max_decoding_steps)
 
@@ -54,7 +56,7 @@ jax.tree_util.register_dataclass(
     IncrementalTextState,
     data_fields=['rng', 'last_logits', 'output_tokens', 'kv_cache',
                  'current_step', 'is_finished', 'prefill_len'],
-    meta_fields=['prefill_size', 'max_decoding_steps', 'cache_size'],
+    meta_fields=['prefill_size', 'suffix_offset', 'max_decoding_steps', 'cache_size'],
 )
 
 
@@ -186,6 +188,17 @@ class Pi05(_model.BaseModel):
         super().__init__(config.action_dim, config.action_horizon, config.max_token_len)
         self.pi05 = config.pi05
         paligemma_config = _gemma.get_config(config.paligemma_variant)
+        self.language_adapter = config.language_adapter
+        self.language_suffix_adapter_rank = config.language_suffix_adapter_rank
+        if self.language_adapter == "suffix_lora":
+            lora_config = _lora.LoRAConfig(
+                rank=self.language_suffix_adapter_rank,
+                alpha=config.language_lora_alpha,
+            )
+            paligemma_config = replace(
+                paligemma_config,
+                lora_configs={"attn": lora_config, "ffn": lora_config},
+            )
         action_expert_config = _gemma.get_config(config.action_expert_variant)
         # TODO: rewrite gemma in NNX. For now, use bridge.
         llm = nnx_bridge.ToNNX(
@@ -219,6 +232,203 @@ class Pi05(_model.BaseModel):
 
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
+
+    @at.typecheck
+    def prefill_language_root(
+        self,
+        rng: at.KeyArrayLike | None,
+        observation: _model.Observation,
+        *,
+        train: bool = False,
+        max_suffix_tokens: int = 0,
+    ):
+        """Build the Pi05 root cache, optionally reserving language suffix slots."""
+        observation = _model.preprocess_observation(
+            rng,
+            observation,
+            train=train,
+            image_keys=list(observation.images.keys()),
+        )
+        prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
+        prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
+        if max_suffix_tokens:
+            prefix_attn_mask = jnp.pad(prefix_attn_mask, ((0, 0), (0, 0), (0, max_suffix_tokens)))
+        prefix_positions = jnp.cumsum(prefix_mask, axis=1) - 1
+        _, root_kv_cache = self.PaliGemma.llm(
+            [prefix_tokens, None],
+            mask=prefix_attn_mask,
+            positions=prefix_positions,
+            lora_active=False,
+        )
+        return root_kv_cache, prefix_mask
+
+    @at.typecheck
+    def forward_language_suffix(
+        self,
+        root_kv_cache,
+        prefix_mask: at.Bool[at.Array, "b p"],
+        suffix_input_tokens: at.Int[at.Array, "b l"],
+        suffix_mask: at.Bool[at.Array, "b l"],
+        *,
+        adapter_active: bool = True,
+    ):
+        """Run a causal language suffix from an existing root KV cache."""
+        suffix_tokens = self.PaliGemma.llm(suffix_input_tokens, method="embed")
+        suffix_ar_mask = jnp.ones(suffix_mask.shape[1], dtype=jnp.bool_)
+        suffix_attn_mask = make_attn_mask(suffix_mask, suffix_ar_mask)
+        prefix_to_suffix_mask = einops.repeat(prefix_mask, "b p -> b s p", s=suffix_mask.shape[1])
+        prefix_to_suffix_mask = prefix_to_suffix_mask & suffix_mask[:, :, None]
+        full_attn_mask = jnp.concatenate([prefix_to_suffix_mask, suffix_attn_mask], axis=-1)
+        positions = jnp.sum(prefix_mask, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
+        (suffix_out, _), _ = self.PaliGemma.llm(
+            [suffix_tokens, None],
+            mask=full_attn_mask,
+            positions=positions,
+            kv_cache=root_kv_cache,
+            lora_active=adapter_active and self.language_adapter == "suffix_lora",
+        )
+        return self.PaliGemma.llm(suffix_out, method="deembed")
+
+    @at.typecheck
+    def forward_language_suffix_token(
+        self,
+        kv_cache,
+        prefix_mask: at.Bool[at.Array, "b p"],
+        token: at.Int[at.Array, "b 1"],
+        suffix_index: at.Int[at.Array, ""],
+        *,
+        adapter_active: bool = True,
+    ):
+        """Append one causal language token to a fixed-size private cache."""
+        token_embedding = self.PaliGemma.llm(token, method="embed")
+        prefix_size = prefix_mask.shape[1]
+        cache_size = kv_cache[1].shape[2]
+        prefix_len = jnp.sum(prefix_mask, axis=-1)
+        positions = prefix_len[:, None] + suffix_index
+        cache_positions = jnp.arange(cache_size)[None, None, :]
+        mask = (cache_positions < prefix_len[:, None, None]) | (
+            (cache_positions >= prefix_size) & (cache_positions < prefix_size + suffix_index + 1)
+        )
+        (token_out, _), kv_cache = self.PaliGemma.llm(
+            [token_embedding, None],
+            mask=mask,
+            positions=positions,
+            kv_cache=kv_cache,
+            lora_active=adapter_active and self.language_adapter == "suffix_lora",
+        )
+        return self.PaliGemma.llm(token_out, method="deembed"), kv_cache
+
+    @at.typecheck
+    def append_language_suffix_block(
+        self,
+        kv_cache,
+        prefix_mask: at.Bool[at.Array, "b p"],
+        suffix_tokens: at.Int[at.Array, "b s"],
+        suffix_mask: at.Bool[at.Array, "b s"],
+        *,
+        adapter_active: bool = True,
+    ):
+        """Append an initial causal suffix block to a fixed-size private cache."""
+        suffix_embeddings = self.PaliGemma.llm(suffix_tokens, method="embed")
+        suffix_ar_mask = jnp.ones(suffix_mask.shape[1], dtype=jnp.bool_)
+        suffix_attn_mask = make_attn_mask(suffix_mask, suffix_ar_mask)
+        prefix_to_suffix_mask = einops.repeat(prefix_mask, "b p -> b s p", s=suffix_mask.shape[1])
+        prefix_to_suffix_mask = prefix_to_suffix_mask & suffix_mask[:, :, None]
+        full_attn_mask = jnp.concatenate([prefix_to_suffix_mask, suffix_attn_mask], axis=-1)
+        cache_size = kv_cache[1].shape[2]
+        full_attn_mask = jnp.pad(
+            full_attn_mask,
+            ((0, 0), (0, 0), (0, cache_size - full_attn_mask.shape[-1])),
+        )
+        positions = jnp.sum(prefix_mask, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
+        (suffix_out, _), kv_cache = self.PaliGemma.llm(
+            [suffix_embeddings, None],
+            mask=full_attn_mask,
+            positions=positions,
+            kv_cache=kv_cache,
+            lora_active=adapter_active and self.language_adapter == "suffix_lora",
+        )
+        return self.PaliGemma.llm(suffix_out, method="deembed"), kv_cache
+
+    def forward_language_suffix_incremental(
+        self,
+        root_kv_cache,
+        prefix_mask,
+        suffix_input_tokens,
+        suffix_mask,
+        *,
+        seed_len: int,
+        adapter_active: bool = True,
+    ):
+        """Teacher-force a suffix through the same block-plus-append path used at inference."""
+        suffix_len = suffix_input_tokens.shape[1]
+        seed_positions = jnp.arange(suffix_len)[None, :] < seed_len
+        seed_tokens = jnp.where(seed_positions, suffix_input_tokens, 0)
+        seed_mask = suffix_mask & seed_positions
+        seed_logits, kv_cache = self.append_language_suffix_block(
+            root_kv_cache,
+            prefix_mask,
+            seed_tokens,
+            seed_mask,
+            adapter_active=adapter_active,
+        )
+
+        def step(cache, token_and_index):
+            token, suffix_index = token_and_index
+            logits, cache = self.forward_language_suffix_token(
+                cache,
+                prefix_mask,
+                token[:, None],
+                suffix_index,
+                adapter_active=adapter_active,
+            )
+            return cache, logits
+
+        _, token_logits = jax.lax.scan(
+            step,
+            kv_cache,
+            (
+                suffix_input_tokens[:, seed_len:].T,
+                jnp.arange(seed_len, suffix_len, dtype=jnp.int32),
+            ),
+        )
+        token_logits = jnp.squeeze(token_logits, axis=2).transpose(1, 0, 2)
+        return jnp.concatenate([seed_logits[:, :seed_len], token_logits], axis=1)
+
+    def compute_language_suffix_incremental_loss(
+        self,
+        rng,
+        observation,
+        suffix_input_tokens,
+        suffix_target_tokens,
+        suffix_mask,
+        suffix_loss_mask,
+        *,
+        seed_len: int,
+        train: bool = False,
+    ):
+        root_kv_cache, prefix_mask = self.prefill_language_root(
+            rng,
+            observation,
+            train=train,
+            max_suffix_tokens=suffix_input_tokens.shape[1],
+        )
+        root_kv_cache = jax.tree.map(jax.lax.stop_gradient, root_kv_cache)
+        logits = self.forward_language_suffix_incremental(
+            root_kv_cache,
+            prefix_mask,
+            suffix_input_tokens,
+            suffix_mask,
+            seed_len=seed_len,
+            adapter_active=True,
+        )
+        token_loss = -jnp.take_along_axis(
+            jax.nn.log_softmax(logits, axis=-1),
+            suffix_target_tokens[..., None],
+            axis=-1,
+        )[..., 0]
+        loss_mask = suffix_loss_mask & suffix_mask
+        return jnp.sum(token_loss * loss_mask, axis=-1) / jnp.maximum(jnp.sum(loss_mask, axis=-1), 1)
 
     @at.typecheck
     def embed_prefix(
@@ -255,9 +465,10 @@ class Pi05(_model.BaseModel):
             tokenized_inputs = self.PaliGemma.llm(obs.tokenized_prompt, method="embed")
             tokens.append(tokenized_inputs)
             input_mask.append(obs.tokenized_prompt_mask)
-            ### TODO: pi0 -> full attention between image and language inputs
-            ### TODO: pi05 -> AR attention for subtask generation, but what about action expert?
-            ar_mask += [True] * tokenized_inputs.shape[1]
+            # The adapter uses a reusable full-attention root; the base model
+            # retains pi0.5's original autoregressive prompt attention.
+            prompt_is_autoregressive = self.language_adapter != "suffix_lora"
+            ar_mask += [prompt_is_autoregressive] * tokenized_inputs.shape[1]
         tokens = jnp.concatenate(tokens, axis=1)
         input_mask = jnp.concatenate(input_mask, axis=1)
         ar_mask = jnp.array(ar_mask)
@@ -342,9 +553,9 @@ class Pi05(_model.BaseModel):
         # We input the last token because the last token is used for flow loss
         prefix_positions = jnp.cumsum(prefix_mask, axis=1) - 1
         (prefix_out, _), kv_cache = self.PaliGemma.llm(
-            [prefix_token_embeddings, None], 
-            mask=prefix_attn_mask, 
-            positions=prefix_positions, 
+            [prefix_token_embeddings, None],
+            mask=prefix_attn_mask,
+            positions=prefix_positions,
             adarms_cond=[None, None]
         )
         prefix_out = prefix_out[:, :-1]
@@ -430,7 +641,8 @@ class Pi05(_model.BaseModel):
 
         prefix_positions = jnp.cumsum(prefix_mask, axis=-1) - 1
         (prefix_out, _), kv_cache = self.PaliGemma.llm(
-            [prefix_token_embeddings, None], mask=prefix_attn_mask, positions=prefix_positions, adarms_cond=[None, None]
+            [prefix_token_embeddings, None], mask=prefix_attn_mask, positions=prefix_positions, adarms_cond=[None, None],
+            lora_active=False,
         )
         return prefix_out, kv_cache, prefix_mask, prefix_attn_mask, prefix_ar_mask, prefix_token_embeddings
 
@@ -454,9 +666,9 @@ class Pi05(_model.BaseModel):
         Returns:
             Sampled text.
         """
-        
+
         (prefix_out, kv_cache, prefix_mask, _, prefix_ar_mask, prefix_token_embeddings) = prefill_result
-        
+
         batch_size = prefix_token_embeddings.shape[0]
         prefill_size = prefix_token_embeddings.shape[1]
         prefill_len = jnp.sum(prefix_mask, axis=-1)
@@ -567,6 +779,7 @@ class Pi05(_model.BaseModel):
                 current_step=jnp.int32(0),
                 is_finished=is_finished,
                 prefill_size=prefill_size,
+                suffix_offset=0,
                 prefill_len=prefill_len,
                 max_decoding_steps=max_decoding_steps,
                 cache_size=cache_size,
@@ -699,8 +912,62 @@ class Pi05(_model.BaseModel):
             current_step=current_step,
             is_finished=is_finished,
             prefill_size=prefill_size,
+            suffix_offset=0,
             prefill_len=prefill_len,
             max_decoding_steps=max_decoding_steps,
+            cache_size=cache_size,
+        )
+
+    def init_language_adapter_incremental_state(
+        self,
+        prefill_result: tuple,
+        rng: at.KeyArrayLike,
+        seed_tokens: at.Int[at.Array, "s"],
+        *,
+        adapter_active: bool = True,
+    ) -> IncrementalTextState:
+        """Initialize private language state with the same seed used during training."""
+        (_, root_kv_cache, prefix_mask, prefix_attn_mask, _, prefix_token_embeddings) = prefill_result
+        batch_size = prefix_token_embeddings.shape[0]
+        prefill_size = prefix_token_embeddings.shape[1]
+        prefix_len = jnp.sum(prefix_mask, axis=-1)
+        cache_size = prefix_attn_mask.shape[-1]
+        reserved_suffix_tokens = cache_size - prefill_size
+        seed_len = seed_tokens.shape[0]
+        if seed_len > reserved_suffix_tokens:
+            raise ValueError(
+                f"Language seed has {seed_len} tokens but only {reserved_suffix_tokens} suffix slots are reserved"
+            )
+
+        padded_seed = jnp.zeros((batch_size, reserved_suffix_tokens), dtype=seed_tokens.dtype)
+        padded_seed = padded_seed.at[:, :seed_len].set(jnp.broadcast_to(seed_tokens, (batch_size, seed_len)))
+        seed_mask = jnp.arange(reserved_suffix_tokens)[None, :] < seed_len
+        seed_mask = jnp.broadcast_to(seed_mask, padded_seed.shape)
+        seed_logits, private_kv_cache = self.append_language_suffix_block(
+            root_kv_cache,
+            prefix_mask,
+            padded_seed,
+            seed_mask,
+            adapter_active=adapter_active,
+        )
+        last_logits = jax.nn.log_softmax(seed_logits[:, seed_len - 1 : seed_len], axis=-1)
+
+        # A suffix of length L contains the seed inputs plus L-seed_len+1
+        # supervised/generated target positions.
+        max_target_tokens = reserved_suffix_tokens - seed_len + 1
+        if rng.ndim < 2:
+            rng = jax.random.split(rng, batch_size)
+        return IncrementalTextState(
+            rng=rng,
+            last_logits=last_logits,
+            output_tokens=jnp.zeros((batch_size, max_target_tokens), dtype=jnp.int32),
+            kv_cache=private_kv_cache,
+            current_step=jnp.zeros(batch_size, dtype=jnp.int32),
+            is_finished=jnp.zeros(batch_size, dtype=jnp.bool_),
+            prefill_len=prefix_len,
+            prefill_size=prefill_size,
+            suffix_offset=seed_len,
+            max_decoding_steps=max_target_tokens,
             cache_size=cache_size,
         )
 
@@ -711,6 +978,7 @@ class Pi05(_model.BaseModel):
         tokens_to_generate: int = 5,
         PALIGEMMA_EOS_TOKEN: int = -1,
         temperature: float = 0.0,
+        adapter_active: bool = True,
     ) -> tuple[jax.Array, IncrementalTextState, jax.Array]:
         """Generate N tokens from an existing IncrementalTextState.
 
@@ -787,18 +1055,29 @@ class Pi05(_model.BaseModel):
             # Run one LLM forward pass to update KV cache and get next logits
             token_embedding = self.PaliGemma.llm(token, method="embed")
 
-            # Position is per-element: prefill_len[i] + current_step[i]
-            positions = (state.prefill_len + state.current_step)[:, None]
+            # The language adapter may have appended a fixed seed to its
+            # private cache before incremental generation begins.
+            positions = (state.prefill_len + state.suffix_offset + state.current_step)[:, None]
 
             # Mask must account for per-element current_step
             # Valid prefill tokens [0, prefill_len) and decoded tokens [prefill_size, prefill_size + step)
             cache_indices = jnp.arange(state.cache_size)  # [cache_size]
-            mask = (cache_indices[None, None, :] < state.prefill_len[:, None, None]) | ((cache_indices[None, None, :] >= state.prefill_size) & (cache_indices[None, None, :] < state.prefill_size + state.current_step[:, None, None] + 1))
+            mask = (cache_indices[None, None, :] < state.prefill_len[:, None, None]) | (
+                (cache_indices[None, None, :] >= state.prefill_size)
+                & (
+                    cache_indices[None, None, :]
+                    < state.prefill_size + state.suffix_offset + state.current_step[:, None, None] + 1
+                )
+            )
             mask = jnp.broadcast_to(mask, (batch_size, 1, state.cache_size))
 
             (prefix_out, _), new_kv_cache = self.PaliGemma.llm(
-                [token_embedding, None], mask=mask, positions=positions,
-                adarms_cond=[None, None], kv_cache=state.kv_cache,
+                [token_embedding, None],
+                mask=mask,
+                positions=positions,
+                adarms_cond=[None, None],
+                kv_cache=state.kv_cache,
+                lora_active=adapter_active and self.language_adapter == "suffix_lora",
             )
             last_token_embedding = prefix_out[:, -1:]
             new_last_logits = self.PaliGemma.llm(last_token_embedding, method="deembed")
@@ -911,7 +1190,7 @@ class Pi05(_model.BaseModel):
         #  mask [B, prefix_len+max_decoding_steps]
         #  ar_mask [prefix_len+max_decoding_steps]
         return output_tokens, kv_cache, mask, ar_mask
-    
+
     @override
     def sample_actions(
         self,
@@ -944,7 +1223,12 @@ class Pi05(_model.BaseModel):
         prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
         prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
         positions = jnp.cumsum(prefix_mask, axis=1) - 1
-        _, kv_cache = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions)
+        _, kv_cache = self.PaliGemma.llm(
+            [prefix_tokens, None],
+            mask=prefix_attn_mask,
+            positions=positions,
+            lora_active=False,
+        )
 
         def step(carry):
             x_t, time = carry
@@ -1020,7 +1304,7 @@ class Pi05(_model.BaseModel):
             noise = jax.random.normal(rng, (batch_size, self.action_horizon, self.action_dim))
 
         (_, kv_cache, prefix_mask, prefix_full_attn_output_mask, _, _) = prefill_result
-        
+
         # kv_cache length might be longer than prefix_mask if padding was used (e.g. for task generation)
         # prefix_full_attn_output_mask has shape [B, L, KvLen]. We can get KvLen from it.
         kv_len = prefix_full_attn_output_mask.shape[-1]
@@ -1034,22 +1318,22 @@ class Pi05(_model.BaseModel):
             # `suffix_attn_mask` is shape (b, suffix_len, suffix_len) indicating how the suffix tokens can attend to each
             # other
             suffix_attn_mask = make_attn_mask(suffix_mask, suffix_ar_mask)
-            
+
             # `prefix_attn_mask` is shape (b, suffix_len, prefix_len) indicating how the suffix tokens can attend to the
             # prefix tokens.
             # We must handle potential padding in KV cache (KvLen >= PrefixLen)
             padding_len = kv_len - prefix_len
-            
+
             # 1. Create mask for the actual prefix (valid tokens)
             prefix_attn_mask_valid = einops.repeat(prefix_mask, "b p -> b s p", s=suffix_tokens.shape[1])
-            
+
             # 2. Pad to match KV cache size if necessary
             if padding_len > 0:
                 padding_mask = jnp.zeros((batch_size, suffix_tokens.shape[1], padding_len), dtype=jnp.bool_)
                 prefix_attn_mask = jnp.concatenate([prefix_attn_mask_valid, padding_mask], axis=-1)
             else:
                 prefix_attn_mask = prefix_attn_mask_valid
-                
+
             # `combined_mask` is shape (b, suffix_len, KvLen + suffix_len)
             full_attn_mask = jnp.concatenate([prefix_attn_mask, suffix_attn_mask], axis=-1)
             assert full_attn_mask.shape == (
@@ -1160,7 +1444,7 @@ class Pi05(_model.BaseModel):
             return time >= -dt / 2
 
         x_0, _ = jax.lax.while_loop(cond, step, (noise, 1.0))
-        
+
         return (x_0, output_tokens)
 
     def sample_text_actions_shared_kv(
@@ -1189,19 +1473,19 @@ class Pi05(_model.BaseModel):
             Tuple of (actions, output_tokens).
         """
         rng_text, rng_action = jax.random.split(rng)
-        
+
         # 1. Prefill: use left-aligned KV for both text and actions
         prefill_result = self.prefill(observation, align_right=False, max_decoding_steps=max_decoding_steps)
-        
+
         # 2. Text Generation based on prefill results
         output_tokens, kv_cache, mask, ar_mask = self.sample_text_with_kv(
             rng_text, prefill_result, max_decoding_steps=max_decoding_steps, PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, temperature=temperature
         )
-        
+
         batch_size = observation.state.shape[0]
         if noise is None:
             noise = jax.random.normal(rng_action, (batch_size, self.action_horizon, self.action_dim))
-        
+
         # 3. Action Generation based on prefill results
         actions = self.sample_actions_with_kv(
             rng_action, observation, prefill_result, num_steps=num_steps, noise=noise
@@ -1323,17 +1607,17 @@ class Pi05(_model.BaseModel):
             Tuple of (output_tokens, timings).
         """
         t0 = time.time()
-        
+
         prefill_result = self.prefill(observation, align_right=False, max_decoding_steps=max_decoding_steps)
         sync(prefill_result)
         t1 = time.time()
-        
+
         output_tokens, kv_cache, mask, ar_mask = self.sample_text_with_kv(
             rng, prefill_result, max_decoding_steps=max_decoding_steps, PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, temperature=temperature
         )
         sync(output_tokens)
         t2 = time.time()
-        
+
         return output_tokens, {"prefill": t1-t0, "text": t2-t1, "total": t2-t0}
 
     def profile_sample_actions(
@@ -1356,20 +1640,20 @@ class Pi05(_model.BaseModel):
             Tuple of (actions, timings).
         """
         t0 = time.time()
-        
+
         # 1. Prefill
         # Equivalent to sample_actions embedded logic: align_right=False
         prefill_result = self.prefill(observation, align_right=False, max_decoding_steps=0)
         sync(prefill_result)
         t1 = time.time()
-        
+
         # 2. Action Generation
         actions = self.sample_actions_with_kv(
             rng, observation, prefill_result, num_steps=num_steps, noise=noise
         )
         sync(actions)
         t2 = time.time()
-        
+
         return actions, {"prefill": t1 - t0, "actions": t2 - t1, "total": t2 - t0}
 
     def prefile_sample_text_actions_shared_kv(
@@ -1399,30 +1683,30 @@ class Pi05(_model.BaseModel):
         """
         rng_text, rng_action = jax.random.split(rng)
         t0 = time.time()
-        
+
         # 1. Prefill
         prefill_result = self.prefill(observation, align_right=False, max_decoding_steps=max_decoding_steps)
         sync(prefill_result)
         t1 = time.time()
-        
+
         # 2. Text Generation
         output_tokens, kv_cache, mask, ar_mask = self.sample_text_with_kv(
             rng_text, prefill_result, max_decoding_steps=max_decoding_steps, PALIGEMMA_EOS_TOKEN=PALIGEMMA_EOS_TOKEN, temperature=temperature
         )
         sync(output_tokens)
         t2 = time.time()
-        
+
         # 3. Action Generation
         batch_size = observation.state.shape[0]
         if noise is None:
             noise = jax.random.normal(rng_action, (batch_size, self.action_horizon, self.action_dim))
-        
+
         actions = self.sample_actions_with_kv(
             rng_action, observation, prefill_result, num_steps=num_steps, noise=noise
         )
         sync(actions)
         t3 = time.time()
-        
+
         timings = {
             "prefill": t1 - t0,
             "text": t2 - t1,

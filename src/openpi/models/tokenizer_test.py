@@ -11,6 +11,20 @@ def test_tokenize():
     assert masks.shape == (10,)
 
 
+def test_tokenize_language_suffix():
+    tokenizer = _tokenizer.PaligemmaTokenizer(max_len=10)
+    inputs, targets, mask, loss_mask = tokenizer.tokenize_language_suffix(
+        "Memory: ", "The bowl is on the plate.", max_len=16
+    )
+
+    assert inputs.shape == targets.shape == mask.shape == loss_mask.shape == (16,)
+    assert np.all(loss_mask <= mask)
+    assert loss_mask.sum() > 1
+    first_loss = int(np.flatnonzero(loss_mask)[0])
+    assert inputs[first_loss] == tokenizer.tokenize_language_seed("Memory: ")[-1]
+    assert tokenizer.eos_token_id in targets[loss_mask]
+
+
 def test_fast_tokenizer():
     prompt = "Hello, world!"
     state = np.random.rand(5).astype(np.float32)
