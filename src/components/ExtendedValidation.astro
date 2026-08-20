@@ -1,0 +1,123 @@
+---
+type Series = {
+  label?: string;
+  values: number[];
+  className: string;
+};
+
+type Chart = {
+  title: string;
+  subtitle: string;
+  xLabels: string[];
+  series: Series[];
+  note: string;
+};
+
+const charts: Chart[] = [
+  {
+    title: "π₀.₅",
+    subtitle: "Paper · LIBERO · S=10",
+    xLabels: ["5", "10", "20", "30"],
+    series: [{ values: [1.27, 1.60, 2.35, 2.98], className: "series-green" }],
+    note: "N language steps · k=5",
+  },
+  {
+    title: "Xiaomi-Robotics-0",
+    subtitle: "4.7B · native implementation · S=5",
+    xLabels: ["5", "10", "20", "30"],
+    series: [{ values: [1.03, 1.40, 2.31, 3.14], className: "series-blue" }],
+    note: "N language steps · k=5",
+  },
+  {
+    title: "StarVLA Qwen3VL-PI_v3",
+    subtitle: "5.07B · native implementation · S=4",
+    xLabels: ["5", "10", "20", "30"],
+    series: [{ values: [1.07, 1.51, 2.47, 3.41], className: "series-orange" }],
+    note: "N language steps · k=5",
+  },
+  {
+    title: "More heterogeneous experts",
+    subtitle: "StarVLA · shared Qwen3-VL-4B prefix",
+    xLabels: ["2", "3", "4"],
+    series: [
+      { label: "N=5", values: [1.07, 1.21, 1.36], className: "series-blue" },
+      { label: "N=30", values: [3.41, 3.32, 3.48], className: "series-orange" },
+    ],
+    note: "Number of experts · k=5",
+  },
+  {
+    title: "Model-size scaling",
+    subtitle: "StarVLA Qwen3.5 backbones",
+    xLabels: ["0.8B", "2B", "4B", "9B"],
+    series: [{ values: [3.53, 3.44, 3.60, 3.50], className: "series-green" }],
+    note: "N=30 · k=5 · one RTX 4090",
+  },
+];
+
+const chartLeft = 34;
+const chartRight = 258;
+const chartTop = 25;
+const chartBottom = 112;
+const yMin = 1;
+const yMax = 3.7;
+
+function coordinates(values: number[]) {
+  return values.map((value, index) => {
+    const x = values.length === 1
+      ? (chartLeft + chartRight) / 2
+      : chartLeft + (chartRight - chartLeft) * index / (values.length - 1);
+    const y = chartBottom - (value - yMin) / (yMax - yMin) * (chartBottom - chartTop);
+    return { x, y, value };
+  });
+}
+---
+
+<div class="validation-small-multiples">
+  {charts.map((chart, chartIndex) => (
+    <article class:list={["validation-mini-card", chartIndex >= 3 && "wide-mini-card"]}>
+      <div class="mini-card-heading">
+        <h3>{chart.title}</h3>
+        <p>{chart.subtitle}</p>
+      </div>
+      <svg viewBox="0 0 280 148" role="img" aria-label={`${chart.title} OxyGen speedup`}>
+        <g class="mini-grid">
+          {[1, 2, 3].map((tick) => {
+            const y = chartBottom - (tick - yMin) / (yMax - yMin) * (chartBottom - chartTop);
+            return <><line x1={chartLeft} x2={chartRight} y1={y} y2={y} /><text x="27" y={y + 3} text-anchor="end">{tick}×</text></>;
+          })}
+        </g>
+        {chart.series.map((series) => {
+          const points = coordinates(series.values);
+          return (
+            <g class:list={["mini-series", series.className]}>
+              <polyline points={points.map(({ x, y }) => `${x},${y}`).join(" ")} />
+              {points.map(({ x, y, value }) => (
+                <><circle cx={x} cy={y} r="3.5" /><text x={x} y={y - 8} text-anchor="middle" class="point-value">{value.toFixed(2)}×</text></>
+              ))}
+            </g>
+          );
+        })}
+        <g class="mini-x-labels">
+          {chart.xLabels.map((label, index) => {
+            const x = chart.xLabels.length === 1
+              ? (chartLeft + chartRight) / 2
+              : chartLeft + (chartRight - chartLeft) * index / (chart.xLabels.length - 1);
+            return <text x={x} y="132" text-anchor="middle">{label}</text>;
+          })}
+        </g>
+      </svg>
+      <div class="mini-card-footer">
+        <span>{chart.note}</span>
+        {chart.series.length > 1 && (
+          <div class="mini-legend">
+            {chart.series.map((series) => <i class={series.className}>{series.label}</i>)}
+          </div>
+        )}
+      </div>
+    </article>
+  ))}
+</div>
+
+<p class="validation-qualification">
+  StarVLA’s heterogeneous heads were trained separately; these measurements validate system scaling and shared-prefix fan-out, not the quality of a jointly trained multi-expert policy.
+</p>

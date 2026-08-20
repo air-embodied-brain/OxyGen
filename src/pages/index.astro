@@ -1,0 +1,269 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ExtendedValidation from "../components/ExtendedValidation.astro";
+
+const base = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+const links = {
+  paper: "https://arxiv.org/abs/2603.14371",
+  code: "https://github.com/air-embodied-brain/OxyGen",
+  model: "https://huggingface.co/xxxxyu/oxygen-pi05-textual-memory-lora",
+  dataset: "https://huggingface.co/datasets/xxxxyu/libero-textual-memory-annotations",
+};
+
+const authors = [
+  { name: "Xiangyu Li", affiliation: "1", homepage: "https://xxxxyu.github.io" },
+  { name: "Huaizhi Tang", affiliation: "2", note: "*" },
+  { name: "Xin Ding", affiliation: "3", note: "*", homepage: "https://xinding-bot.github.io" },
+  { name: "Weijun Wang", affiliation: "1" },
+  { name: "Ting Cao", affiliation: "1", note: "†", homepage: "https://tingcao952.github.io" },
+  { name: "Yunxin Liu", affiliation: "1", homepage: "https://yunxinliu.github.io" },
+];
+
+const citation = `@article{li2026oxygen,
+  title={OxyGen: Unified KV Cache Management for VLA Inference under Multi-Task Parallelism},
+  author={Li, Xiangyu and Tang, Huaizhi and Ding, Xin and Wang, Weijun and Cao, Ting and Liu, Yunxin},
+  journal={arXiv preprint arXiv:2603.14371},
+  year={2026}
+}`;
+---
+
+<BaseLayout
+  title="OxyGen — Unified KV Cache Management for VLA Inference"
+  description="OxyGen enables efficient concurrent action and language inference for Mixture-of-Transformers VLAs through cross-task KV sharing and cross-frame continuous batching."
+>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="OxyGen home">
+      <span class="wordmark-symbol" aria-hidden="true"><i></i><i></i></span>
+      OxyGen
+    </a>
+    <nav aria-label="Primary navigation">
+      <a href="#demo">Demo</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#resources">Resources</a>
+    </nav>
+    <div class="header-actions">
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">
+        <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"></path></svg>
+      </button>
+      <a class="header-code" href={links.code} target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero section-shell">
+      <div class="hero-copy">
+        <div class="hero-title"><span class="wordmark-symbol" aria-hidden="true"><i></i><i></i></span><h1>OxyGen</h1></div>
+        <h2>Unified KV Cache Management for VLA Inference under Multi-Task Parallelism</h2>
+        <p class="hero-summary">
+          <strong>TL;DR</strong> OxyGen treats the KV cache as a shared resource across experts and control frames, enabling action and language generation to run together without redundant context encoding or blocked control.
+        </p>
+        <div class="authors" aria-label="Authors">
+          {authors.map((author) => (
+            <span class="author">
+              {author.homepage ? (
+                <a href={author.homepage} target="_blank" rel="noreferrer">{author.name}</a>
+              ) : author.name}
+              <sup>{author.affiliation}{author.note}</sup>
+            </span>
+          ))}
+        </div>
+        <div class="affiliations" aria-label="Affiliations">
+          <span><sup>1</sup> Institute for AI Industry Research (AIR), Tsinghua University</span>
+          <span><sup>2</sup> Department of Electronic Engineering, Tsinghua University</span>
+          <span><sup>3</sup> University of Science and Technology of China</span>
+        </div>
+        <p class="author-notes">
+          <span><sup>*</sup> Work done during internships at AIR, Tsinghua University.</span>
+          <span><sup>†</sup> Corresponding author: Ting Cao (<a href="mailto:tingcao@mail.tsinghua.edu.cn">tingcao@mail.tsinghua.edu.cn</a>).</span>
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href={links.paper} target="_blank" rel="noreferrer">Read the paper</a>
+          <a class="button button-secondary" href={links.code} target="_blank" rel="noreferrer">View code</a>
+          <a class="button button-secondary" href="#demo">Watch demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="featured-demo section-shell" id="demo">
+      <div class="section-heading split-heading demo-heading">
+        <div>
+          <p class="eyebrow">LIBERO demo</p>
+          <h2>Concurrent action and<br />textual-memory generation</h2>
+        </div>
+        <p>Measured model inference and 1× simulator timing. OxyGen advances unfinished text requests across frames while the isolated openpi baseline blocks on each request.</p>
+      </div>
+      <div class="main-video-shell">
+        <div class="video-topline">
+          <div><span class="live-dot"></span> Measured rollout</div>
+          <span>model inference + 1× simulator time</span>
+        </div>
+        <video controls playsinline preload="metadata" poster={`${base}posters/white-mug-and-chocolate-pudding.webp`}>
+          <source src={`${base}videos/white-mug-and-chocolate-pudding.mp4`} type="video/mp4" />
+        </video>
+        <div class="video-caption">
+          <p>Put the white mug on the plate and the chocolate pudding to the right of the plate</p>
+          <span>OxyGen vs. isolated openpi baseline</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="paper-strip" aria-label="Paper headline results">
+      <div class="paper-strip-inner">
+        <p class="strip-label">π<sub>0.5</sub> · RTX 4090 &amp; Jetson AGX Thor</p>
+        <div class="headline-metric"><strong>3.7×</strong><span>up to end-to-end speedup</span></div>
+        <div class="headline-metric"><strong>&gt;200</strong><span>language tokens / second</span></div>
+        <div class="headline-metric"><strong>70 Hz</strong><span>action frequency, simultaneously</span></div>
+      </div>
+    </section>
+
+    <section class="section section-shell overview-section" id="method">
+      <div class="section-heading split-heading overview-heading">
+        <div><p class="eyebrow">Challenge and method</p><h2>From isolated execution<br />to unified KV management.</h2></div>
+        <p>Isolated action and language paths repeat the VLM prefix and compete for the same device. OxyGen shares the prefix across experts and batches unfinished language requests across control frames.</p>
+      </div>
+      <figure class="paper-figure teaser-figure">
+        <a class="paper-figure-link teaser-crop" href={`${base}papers/teaser.pdf`} target="_blank" rel="noreferrer"><img src={`${base}figures/teaser.svg`} alt="OxyGen overview: concurrent action and language generation, isolated KV execution, and unified KV management" /></a>
+        <figcaption>OxyGen combines cross-task KV sharing with cross-frame continuous batching to improve action frequency and language throughput.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section results-section" id="results">
+      <div class="section-shell">
+        <div class="section-heading split-heading results-heading">
+          <div>
+            <p class="eyebrow">Paper evaluation</p>
+            <h2>Higher throughput without<br />trading away control.</h2>
+          </div>
+          <p>
+            Evaluated with π<sub>0.5</sub> on RTX 4090 and Jetson AGX Thor across LIBERO, DROID, and ALOHA workloads, including an on-board humanoid deployment.
+          </p>
+        </div>
+        <div class="paper-figure-stack">
+          <figure class="paper-figure result-paper-figure primary-result-figure">
+            <div class="paper-figure-label"><strong>End-to-end tradeoff</strong><span>Main result</span></div>
+            <a class="paper-figure-link" href={`${base}papers/tradeoff-pi05-libero.pdf`} target="_blank" rel="noreferrer"><img src={`${base}figures/tradeoff-pi05-libero.svg`} alt="Action frequency and language throughput tradeoff on RTX 4090 and Jetson AGX Thor" /></a>
+            <figcaption>OxyGen expands the achievable action-frequency and language-throughput frontier, reaching up to 3.7× higher throughput at matched action frequency.</figcaption>
+          </figure>
+          <figure class="paper-figure result-paper-figure">
+            <div class="paper-figure-label"><strong>Ablation</strong><span>π0.5-LIBERO</span></div>
+            <a class="paper-figure-link" href={`${base}papers/ablation-pi05-libero.pdf`} target="_blank" rel="noreferrer"><img src={`${base}figures/ablation-pi05-libero.svg`} alt="Action-frequency ablation comparing OxyGen, OxyGen without batching, parallel execution, and the isolated baseline" /></a>
+            <figcaption>KV sharing improves every operating point; cross-frame batching accounts for the additional gain as language requests become longer.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-shell validation-section" id="validation">
+      <div class="section-heading split-heading validation-heading">
+        <div>
+          <p class="eyebrow">Extended validation</p>
+          <h2>The same system idea<br />transfers to other MoT VLAs.</h2>
+        </div>
+        <p>
+          The π<sub>0.5</sub> curve is from the paper evaluation; Xiaomi-Robotics-0 and StarVLA are later validations using their native implementations on the same RTX 4090. Here, <em>N</em> is the language decoding length and <em>k</em> the decoding steps per request in each frame.
+        </p>
+      </div>
+      <ExtendedValidation />
+    </section>
+
+    <section class="section demo-section" id="textual-memory">
+      <div class="section-shell">
+        <div class="section-heading split-heading memory-heading">
+          <div>
+            <p class="eyebrow">LIBERO textual memory</p>
+            <h2>Action and observation-grounded<br />memory, generated together.</h2>
+          </div>
+          <p>
+            We adapt π<sub>0.5</sub> with suffix-only LoRA to describe completed task progress from the current observation. The action path keeps the base model and shared prefix unchanged.
+          </p>
+        </div>
+        <div class="adaptation-metrics">
+          <div><strong>338,575</strong><span>annotated frames</span></div>
+          <div><strong>87.25%</strong><span>held-out exact match</span></div>
+          <div><strong>8.16 ms</strong><span>median 11-token LoRA overhead</span></div>
+          <div><strong>0</strong><span>action difference with adapter zeroed</span></div>
+        </div>
+
+        <div class="gallery-heading">
+          <h3>More rollouts</h3>
+          <p>Videos load only when played.</p>
+        </div>
+        <div class="video-gallery">
+          <article>
+            <video controls playsinline preload="none" poster={`${base}posters/alphabet-soup-and-tomato-sauce.webp`}>
+              <source src={`${base}videos/alphabet-soup-and-tomato-sauce.mp4`} type="video/mp4" />
+            </video>
+            <h4>Alphabet soup &amp; tomato sauce</h4>
+            <p>Place both objects in the basket.</p>
+          </article>
+          <article>
+            <video controls playsinline preload="none" poster={`${base}posters/moka-pots.webp`}>
+              <source src={`${base}videos/moka-pots.mp4`} type="video/mp4" />
+            </video>
+            <h4>Two moka pots</h4>
+            <p>Place both moka pots on the stove.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-shell resources-section" id="resources">
+      <div class="section-heading split-heading resources-heading">
+        <div><p class="eyebrow">Open resources</p><h2>Reproduce the system.<br />Extend the example.</h2></div>
+        <p>Code, checkpoints, annotations, and the paper are available as separate entry points so each part can be reused independently.</p>
+      </div>
+      <div class="resource-grid">
+        <a href={links.paper} target="_blank" rel="noreferrer">
+          <span class="resource-icon">PDF</span><div><strong>Paper</strong><small>Method and evaluation</small></div>
+        </a>
+        <a href={links.code} target="_blank" rel="noreferrer">
+          <span class="resource-icon">&lt;/&gt;</span><div><strong>Code</strong><small>JAX and PyTorch backends</small></div>
+        </a>
+        <a href={links.model} target="_blank" rel="noreferrer">
+          <span class="resource-icon">HF</span><div><strong>Adapter</strong><small>π<sub>0.5</sub> textual-memory LoRA</small></div>
+        </a>
+        <a href={links.dataset} target="_blank" rel="noreferrer">
+          <span class="resource-icon">DATA</span><div><strong>Dataset</strong><small>LIBERO textual-memory annotations</small></div>
+        </a>
+      </div>
+
+      <div class="citation-block">
+        <div>
+          <p class="eyebrow">Citation</p>
+          <h3>If OxyGen supports your work, please cite:</h3>
+        </div>
+        <pre><code id="citation-text">{citation}</code></pre>
+        <button id="copy-citation" type="button">Copy BibTeX</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div><strong>OxyGen</strong><span>Unified KV cache management for VLA inference</span></div>
+      <p>Built on <a href="https://github.com/Physical-Intelligence/openpi" target="_blank" rel="noreferrer">openpi</a>. Released under Apache 2.0.</p>
+    </div>
+  </footer>
+
+  <script>
+    const themeToggle = document.querySelector<HTMLButtonElement>("#theme-toggle");
+    themeToggle?.addEventListener("click", () => {
+      const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+      document.documentElement.dataset.theme = nextTheme;
+      localStorage.setItem("oxygen-theme", nextTheme);
+    });
+
+    const copyButton = document.querySelector<HTMLButtonElement>("#copy-citation");
+    const citationText = document.querySelector<HTMLElement>("#citation-text");
+    copyButton?.addEventListener("click", async () => {
+      if (!citationText) return;
+      await navigator.clipboard.writeText(citationText.innerText);
+      copyButton.textContent = "Copied";
+      window.setTimeout(() => { copyButton.textContent = "Copy BibTeX"; }, 1600);
+    });
+  </script>
+</BaseLayout>
