@@ -1,6 +1,6 @@
 # OxyGen
 
-This repository contains code for the paper [*OxyGen: Unified KV Cache Management for VLA Inference under Multi-Task Parallelism*](https://arxiv.org/abs/2603.14371).
+This repository contains code for the paper [*OxyGen: Unified KV Cache Management for VLA Inference under Multi-Task Parallelism*](https://arxiv.org/abs/2603.14371) (NeurIPS 2026).
 
 OxyGen optimizes **concurrent multi-task inference** for Mixture-of-Transformers (MoT) Vision-Language-Action (VLA) models such as pi0.5 through unified KV cache management across tasks and control cycles. It targets local deployment on GPUs such as RTX 4090 and Jetson AGX Thor, while also supporting cloud GPUs.
 
@@ -15,6 +15,7 @@ See [LIBERO textual-memory adaptation](language_adaptation/libero/README.md) for
 
 ## News
 
+- **2026-09:** [Paper](https://arxiv.org/abs/2603.14371) accepted to NeurIPS 2026 Main Track as poster. See you in Sydney!
 - **2026-08:** Added suffix-only LoRA training and inference support, plus a LIBERO textual-memory example.
 - **2026-05:** Added PyTorch inference support with primary `torch.compile` optimization, verified on NVIDIA A100 and Jetson AGX Thor.
 - **2026-03:** Initial release with the JAX backend and unified KV cache management for pi0.5 inference.
