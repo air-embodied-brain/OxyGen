@@ -1,4 +1,8 @@
 ---
+import "@fontsource-variable/inter";
+import "@fontsource-variable/inter-tight";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource/instrument-serif/400-italic.css";
 import "../styles/global.css";
 
 interface Props {
@@ -10,19 +14,29 @@ const { title, description } = Astro.props;
 const base = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
+const pageUrl = new URL(base, Astro.site).href;
+const socialImage = new URL(`${base}social-card.png`, Astro.site).href;
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#0e1218" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#07090d" />
+    <link rel="canonical" href={pageUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:image" content={socialImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={socialImage} />
     <script is:inline>
       const savedTheme = localStorage.getItem("oxygen-theme");
-      const preferredTheme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-      document.documentElement.dataset.theme = savedTheme || preferredTheme;
+      document.documentElement.dataset.theme = savedTheme || "dark";
     </script>
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <title>{title}</title>

@@ -1,0 +1,102 @@
+---
+import { tradeoff } from "../data/paper-figures";
+import { links } from "../data/site";
+
+const authors = [
+  { name: "Xiangyu Li", affiliation: "1", homepage: "https://xxxxyu.github.io" },
+  { name: "Huaizhi Tang", affiliation: "2", note: "*" },
+  { name: "Xin Ding", affiliation: "3", note: "*", homepage: "https://xinding-bot.github.io" },
+  { name: "Weijun Wang", affiliation: "1" },
+  { name: "Ting Cao", affiliation: "1", note: "†", homepage: "https://tingcao952.github.io" },
+  { name: "Yunxin Liu", affiliation: "1", homepage: "https://yunxinliu.github.io" },
+];
+
+// π0.5 · LIBERO · RTX 4090 at N=30: OxyGen with k=1 against sequential isolated execution.
+const libero = tradeoff.libero.rtx4090;
+const ours = libero.k1.at(-1)!;
+const base = libero.baseline.at(-1)!;
+const speedup = ours[1] / base[1];
+// The widget animates both clocks at one tenth of their measured rates.
+const SLOWDOWN = 10;
+---
+
+<section class="hero" id="top">
+  <div class="shell hero-grid">
+    <div class="hero-copy">
+      <a class="venue" href="https://neurips.cc/Conferences/2026" target="_blank" rel="noreferrer">
+        <b>NeurIPS 2026</b> Accepted at the main track
+      </a>
+      <h1><span class="o2">Oxy</span>Gen</h1>
+      <p class="paper-title">Unified KV Cache Management for VLA Inference under Multi-Task Parallelism</p>
+      <p class="tagline">
+        Robots that <em class="accent">act</em> and <em class="accent">speak</em> at the same time. OxyGen shares one KV cache across experts and control frames, so action and language no longer wait on each other.
+      </p>
+      <div class="authors" aria-label="Authors">
+        {authors.map((author) => (
+          <span>
+            {author.homepage ? (
+              <a href={author.homepage} target="_blank" rel="noreferrer">{author.name}</a>
+            ) : author.name}
+            <sup>{author.affiliation}{author.note}</sup>
+          </span>
+        ))}
+      </div>
+      <div class="affiliations">
+        <span><sup>1</sup>Institute for AI Industry Research (AIR), Tsinghua University</span>
+        <span><sup>2</sup>Department of Electronic Engineering, Tsinghua University</span>
+        <span><sup>3</sup>University of Science and Technology of China</span>
+      </div>
+      <p class="author-notes">
+        <sup>*</sup>Work done during internships at AIR, Tsinghua University. <sup>†</sup>Corresponding author: <a href="mailto:tingcao@mail.tsinghua.edu.cn">tingcao@mail.tsinghua.edu.cn</a>
+      </p>
+      <div class="hero-actions">
+        <a class="button primary" href={links.paper} target="_blank" rel="noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V9h5.5L13 3.5ZM8 13h8v1.6H8V13Zm0 3.4h8V18H8v-1.6Z"/></svg>
+          Paper
+        </a>
+        <a class="button" href={links.code} target="_blank" rel="noreferrer">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.35 1.09 2.92.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02A9.6 9.6 0 0 1 12 6.84c.85 0 1.7.11 2.5.34 1.9-1.29 2.74-1.02 2.74-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></svg>
+          Code
+        </a>
+        <a class="button" href="#demo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.52.85l10.4-6.5a1 1 0 0 0 0-1.7L9.52 4.65A1 1 0 0 0 8 5.5Z"/></svg>
+          Watch demo
+        </a>
+      </div>
+    </div>
+
+    <div class="clocks" data-clocks data-slowdown={SLOWDOWN} aria-label="Measured action frequency and language throughput">
+      <div class="clocks-head"><span>π<sub>0.5</sub> · RTX 4090 · 30-TOKEN REQUESTS</span><span>SHOWN AT 1/{SLOWDOWN} SPEED</span></div>
+      <div class="clock-group" data-clock data-hz={ours[1]} data-tps={ours[2]}>
+        <div class="clock-title"><span><i></i>OxyGen</span><small>shared KV · batched</small></div>
+        <div class="clock-row">
+          <label>ACTION</label>
+          <div class="tick-lane" style={`--tick-gap: 12px; --tick-duration: ${(4 * SLOWDOWN / ours[1]).toFixed(3)}s`}></div>
+          <output><span data-count={ours[1].toFixed(0)}>{ours[1].toFixed(0)}</span><small>Hz</small></output>
+        </div>
+        <div class="clock-row">
+          <label>LANGUAGE</label>
+          <div class="stream"><span data-stream></span></div>
+          <output><span data-count={ours[2].toFixed(0)}>{ours[2].toFixed(0)}</span><small>tok/s</small></output>
+        </div>
+      </div>
+      <div class="clock-group dim" data-clock data-hz={base[1]} data-tps={base[2]}>
+        <div class="clock-title"><span><i></i>Isolated baseline</span><small>openpi · sequential</small></div>
+        <div class="clock-row">
+          <label>ACTION</label>
+          <div class="tick-lane" style={`--tick-gap: 12px; --tick-duration: ${(4 * SLOWDOWN / base[1]).toFixed(3)}s`}></div>
+          <output><span data-count={base[1].toFixed(0)}>{base[1].toFixed(0)}</span><small>Hz</small></output>
+        </div>
+        <div class="clock-row">
+          <label>LANGUAGE</label>
+          <div class="stream"><span data-stream></span></div>
+          <output><span data-count={base[2].toFixed(0)}>{base[2].toFixed(0)}</span><small>tok/s</small></output>
+        </div>
+      </div>
+      <div class="clocks-foot">
+        <span>Both axes improve together:<br />faster control <em>and</em> more language.</span>
+        <strong>{speedup.toFixed(1)}×</strong>
+      </div>
+    </div>
+  </div>
+</section>

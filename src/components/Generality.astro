@@ -1,0 +1,113 @@
+---
+import { tradeoff } from "../data/paper-figures";
+import { scaling, starvla, xiaomi } from "../data/paper-tables";
+
+// All bars: speedup over isolated execution with 30-token requests.
+// π0.5 values are action-frequency ratios from the LIBERO results (S=10).
+const pi = tradeoff.libero.rtx4090;
+const piK1 = pi.k1.at(-1)![1] / pi.baseline.at(-1)![1];
+const piK5 = pi.k5.at(-1)![1] / pi.baseline.at(-1)![1];
+const n30 = <T extends { N: number }>(rows: T[]) => rows.find((r) => r.N === 30)!;
+
+const tabs = [
+  {
+    id: "models",
+    label: "Across models",
+    groups: [
+      {
+        label: "",
+        rows: [
+          { name: "π0.5", note: "S = 10", k1: piK1, k5: piK5, pi: true },
+          { name: "Xiaomi-Robotics-0", note: "S = 5", k1: n30(xiaomi).k1, k5: n30(xiaomi).k5 },
+          { name: "StarVLA", note: "Qwen3-VL-4B", k1: n30(starvla[2]).k1, k5: n30(starvla[2]).k5 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "experts",
+    label: "More experts",
+    groups: [
+      {
+        label: "StarVLA · shared Qwen3-VL-4B prefix",
+        rows: [
+          { name: "2 experts", note: "language + PI_v3", k1: n30(starvla[2]).k1, k5: n30(starvla[2]).k5 },
+          { name: "3 experts", note: "+ GR00T", k1: n30(starvla[3]).k1, k5: n30(starvla[3]).k5 },
+          { name: "4 experts", note: "+ OFT", k1: n30(starvla[4]).k1, k5: n30(starvla[4]).k5 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "scale",
+    label: "Model size",
+    groups: [
+      {
+        label: "Qwen3.5 backbones via StarVLA · one RTX 4090",
+        rows: ["0.8B", "2B", "4B", "9B"].map((b) => {
+          const r = scaling.find((x) => x.backbone === b && x.tp === 1 && x.N === 30)!;
+          return { name: `Qwen3.5-${b}`, note: "", k1: r.k1, k5: r.k5 };
+        }),
+      },
+      {
+        label: "Tensor parallel · two RTX 4090",
+        rows: [(() => {
+          const r = scaling.find((x) => x.backbone === "9B" && x.tp === 2 && x.N === 30)!;
+          return { name: "Qwen3.5-9B", note: "TP = 2", k1: r.k1, k5: r.k5 };
+        })()],
+      },
+    ],
+  },
+];
+const MAX = 7;
+const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
+---
+
+<div class="gen-layout">
+  <div class="card chart-card reveal" data-generality>
+    <div class="chart-controls">
+      <div class="segmented" role="tablist" aria-label="Comparison">
+        {tabs.map((t, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-tab={t.id}>{t.label}</button>)}
+      </div>
+      <div class="segmented" role="group" aria-label="Decoding steps per frame">
+        <button type="button" aria-pressed="false" data-k="k1">k = 1</button>
+        <button type="button" aria-pressed="true" data-k="k5">k = 5</button>
+      </div>
+    </div>
+    {tabs.map((t, i) => (
+      <div class="bars" data-tab-panel={t.id} hidden={i !== 0} style={`--one: ${pct(1)}`}>
+        {t.groups.map((g) => (
+          <>
+            {g.label && <p class="bar-group-label">{g.label}</p>}
+            {g.rows.map((r) => (
+              <div class="bar-row">
+                <div class="bar-name">{r.name}{r.note && <small>{r.note}</small>}</div>
+                <div class="bar-track">
+                  <div class:list={["bar-fill", "pi" in r && r.pi && "pi"]} style={`--v: ${pct(r.k5)}`} data-k1={pct(r.k1)} data-k5={pct(r.k5)} data-k1-label={`${r.k1.toFixed(2)}×`} data-k5-label={`${r.k5.toFixed(2)}×`}>{r.k5.toFixed(2)}×</div>
+                </div>
+              </div>
+            ))}
+          </>
+        ))}
+      </div>
+    ))}
+    <ul class="fine-print">
+      <li>Speedup over isolated execution on the same hardware, 30-token requests, one new request per frame. Dashed line marks 1×.</li>
+      <li>Xiaomi-Robotics-0 and StarVLA run their native implementations on one RTX 4090. StarVLA's extra action heads were trained separately, so these runs measure system scaling, not a jointly trained policy. Qwen3.5 runs use randomly initialized action heads.</li>
+    </ul>
+  </div>
+  <div class="gen-notes">
+    <div class="card gen-note reveal">
+      <strong class="c-action">6.18×</strong>
+      <p>StarVLA at <i>k</i> = 1, where 30 in-flight requests share each decoding step.</p>
+    </div>
+    <div class="card gen-note reveal">
+      <strong>1.07× → 1.36×</strong>
+      <p>Short 5-token answers (<i>N</i> = <i>k</i> = 5) gain more as StarVLA grows from two to four experts, since more redundant prefill is removed.</p>
+    </div>
+    <div class="card gen-note reveal">
+      <strong>0.92×</strong>
+      <p>The one slowdown: Xiaomi at <i>N</i> = <i>k</i> = 10, where each request finishes in one frame and there is nothing to batch. Every setting with <i>N</i> &gt; <i>k</i> is faster.</p>
+    </div>
+  </div>
+</div>

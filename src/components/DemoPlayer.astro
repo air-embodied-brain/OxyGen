@@ -1,0 +1,43 @@
+---
+import { demos } from "../data/site";
+
+const base = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+const first = demos[0];
+---
+
+<div class="demo" data-demo data-base={base}>
+  <div class="demo-frame">
+    <video
+      controls
+      muted
+      playsinline
+      preload="metadata"
+      poster={`${base}posters/${first.id}.webp`}
+      data-demo-video
+      aria-label={`${first.title}: OxyGen and the isolated baseline side by side`}
+    >
+      <source src={`${base}videos/${first.id}.mp4`} type="video/mp4" />
+    </video>
+  </div>
+  <div class="demo-tabs" role="tablist" aria-label="Demo tasks">
+    {demos.map((demo, index) => (
+      <button
+        class="demo-tab"
+        role="tab"
+        type="button"
+        aria-selected={index === 0 ? "true" : "false"}
+        data-id={demo.id}
+        data-label={demo.title}
+        title={demo.task}
+      >
+        <img src={`${base}posters/${demo.id}.webp`} alt="" loading="lazy" width="76" height="43" />
+        <div>
+          <span>{demo.title}</span>
+          <small>{demo.oxygenS.toFixed(1)} s vs {demo.baselineS.toFixed(1)} s · <b>{(demo.baselineS / demo.oxygenS).toFixed(2)}×</b></small>
+        </div>
+      </button>
+    ))}
+  </div>
+</div>

@@ -1,0 +1,792 @@
+{
+  "_description": "Website chart values recomputed from raw benchmark JSON using the exact aggregation of OxyGen/experiments/analysis/aggregate_metrics.py (warmup excluded; Hz = 10*frames/sum(frame_ms); tok/s = mean per-frame tokens/frame_ms). Same structure as src/data/paper-figures.ts. Values rounded to 2 decimals. Figure values (1 decimal) compared with tolerance 0.15 Hz / 0.15 tok/s.",
+  "generated_by": "OxyGen-website/scripts/data/verify_raw_results.py",
+  "raw_root": "results/eccv_submission_raw/results_eccv",
+  "raw_root_note": "Identical byte-for-byte to results_eccv_merged.zip contents. metadata.gpu = NVIDIA GeForce RTX 4090, JAX 0.5.3.",
+  "num_denoise_steps": 10,
+  "tradeoff": {
+    "libero": {
+      "rtx4090": {
+        "available": true,
+        "matches_figure": false,
+        "series": {
+          "baseline": [
+            [
+              5,
+              49.92,
+              24.96
+            ],
+            [
+              10,
+              37.48,
+              37.48
+            ],
+            [
+              15,
+              30.17,
+              45.25
+            ],
+            [
+              20,
+              25.14,
+              50.28
+            ],
+            [
+              30,
+              19.05,
+              57.16
+            ]
+          ],
+          "parallel": [
+            [
+              5,
+              55.81,
+              27.9
+            ],
+            [
+              10,
+              41.52,
+              41.52
+            ],
+            [
+              15,
+              32.61,
+              48.91
+            ],
+            [
+              20,
+              26.85,
+              53.69
+            ],
+            [
+              30,
+              19.82,
+              59.47
+            ]
+          ],
+          "k1": [
+            [
+              5,
+              96.97,
+              48.5
+            ],
+            [
+              10,
+              90.8,
+              90.81
+            ],
+            [
+              15,
+              86.02,
+              129.03
+            ],
+            [
+              20,
+              79.9,
+              159.84
+            ],
+            [
+              30,
+              70.95,
+              212.89
+            ]
+          ],
+          "k5": [
+            [
+              5,
+              63.18,
+              31.61
+            ],
+            [
+              10,
+              60.08,
+              60.11
+            ],
+            [
+              15,
+              59.53,
+              89.32
+            ],
+            [
+              20,
+              59.11,
+              118.35
+            ],
+            [
+              30,
+              56.87,
+              170.78
+            ]
+          ],
+          "k10": [
+            [
+              10,
+              44.34,
+              44.35
+            ],
+            [
+              20,
+              42.97,
+              85.97
+            ],
+            [
+              30,
+              42.3,
+              126.96
+            ]
+          ]
+        },
+        "sources": {
+          "baseline": [
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode5.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode10.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode15.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode20.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode30.json"
+          ],
+          "parallel": [
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode5.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode10.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode15.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode20.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode30.json"
+          ],
+          "k1": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode5_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode10_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode15_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode20_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode30_step1_uniform_1.json"
+          ],
+          "k5": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode5_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode10_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode15_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode20_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode30_step5_uniform_1.json"
+          ],
+          "k10": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode10_step10_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode20_step10_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode30_step10_uniform_1.json"
+          ]
+        },
+        "diff_vs_figure": {
+          "baseline": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 0.05,
+            "max_rel_hz": 0.0026
+          },
+          "parallel": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 2.77,
+            "max_rel_hz": 0.0019
+          },
+          "k1": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 0.04,
+            "max_rel_hz": 0.0007
+          },
+          "k5": {
+            "max_abs_hz": 0.03,
+            "max_abs_tps": 0.05,
+            "max_rel_hz": 0.0005
+          },
+          "k10": {
+            "max_abs_hz": 0.04,
+            "max_abs_tps": 0.05,
+            "max_rel_hz": 0.0009
+          }
+        }
+      },
+      "thor": {
+        "available": false,
+        "matches_figure": null,
+        "note": "No Jetson AGX Thor raw results found (expected experiments/results_thor_pytorch); figure values retained.",
+        "parallel_pdf_reextracted_bbox_center": [
+          [
+            5,
+            18.92,
+            9.46
+          ],
+          [
+            10,
+            14.38,
+            14.38
+          ],
+          [
+            15,
+            11.42,
+            17.13
+          ],
+          [
+            20,
+            9.38,
+            18.77
+          ],
+          [
+            30,
+            6.99,
+            20.98
+          ]
+        ],
+        "parallel_reextraction_note": "Parallel markers re-read from the PDF with bbox-centre anchoring; the same method on the RTX 4090 panel matches raw tok/s within 0.00. Use these in place of the website's Thor parallel tok/s."
+      }
+    },
+    "droid": {
+      "rtx4090": {
+        "available": true,
+        "matches_figure": false,
+        "series": {
+          "baseline": [
+            [
+              5,
+              49.92,
+              24.96
+            ],
+            [
+              10,
+              37.6,
+              37.6
+            ],
+            [
+              15,
+              30.17,
+              45.26
+            ],
+            [
+              20,
+              25.22,
+              50.44
+            ],
+            [
+              30,
+              19.08,
+              57.25
+            ]
+          ],
+          "parallel": [
+            [
+              5,
+              56.95,
+              28.47
+            ],
+            [
+              10,
+              41.78,
+              41.78
+            ],
+            [
+              15,
+              32.87,
+              49.31
+            ],
+            [
+              20,
+              27.2,
+              54.39
+            ],
+            [
+              30,
+              19.98,
+              59.95
+            ]
+          ],
+          "k1": [
+            [
+              5,
+              96.48,
+              48.26
+            ],
+            [
+              10,
+              89.76,
+              89.85
+            ],
+            [
+              15,
+              84.91,
+              127.47
+            ],
+            [
+              20,
+              80.25,
+              160.57
+            ],
+            [
+              30,
+              71.27,
+              213.87
+            ]
+          ],
+          "k5": [
+            [
+              5,
+              62.35,
+              31.19
+            ],
+            [
+              10,
+              60.79,
+              60.83
+            ],
+            [
+              15,
+              59.38,
+              89.12
+            ],
+            [
+              20,
+              58.62,
+              117.33
+            ],
+            [
+              30,
+              56.75,
+              170.36
+            ]
+          ],
+          "k10": [
+            [
+              10,
+              44.67,
+              44.69
+            ],
+            [
+              20,
+              43.18,
+              86.36
+            ],
+            [
+              30,
+              42.24,
+              126.79
+            ]
+          ]
+        },
+        "sources": {
+          "baseline": [
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_droid/denoise10_decode5.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_droid/denoise10_decode10.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_droid/denoise10_decode15.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_droid/denoise10_decode20.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_droid/denoise10_decode30.json"
+          ],
+          "parallel": [
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_droid/denoise10_decode5.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_droid/denoise10_decode10.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_droid/denoise10_decode15.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_droid/denoise10_decode20.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_droid/denoise10_decode30.json"
+          ],
+          "k1": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode5_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode10_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode15_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode20_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode30_step1_uniform_1.json"
+          ],
+          "k5": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode5_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode10_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode15_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode20_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode30_step5_uniform_1.json"
+          ],
+          "k10": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode10_step10_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode20_step10_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_droid/denoise10_decode30_step10_uniform_1.json"
+          ]
+        },
+        "diff_vs_figure": {
+          "baseline": {
+            "max_abs_hz": 0.03,
+            "max_abs_tps": 0.05,
+            "max_rel_hz": 0.001
+          },
+          "parallel": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 2.78,
+            "max_rel_hz": 0.001
+          },
+          "k1": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 0.05,
+            "max_rel_hz": 0.0006
+          },
+          "k5": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 0.04,
+            "max_rel_hz": 0.0009
+          },
+          "k10": {
+            "max_abs_hz": 0.04,
+            "max_abs_tps": 0.04,
+            "max_rel_hz": 0.0009
+          }
+        }
+      },
+      "thor": {
+        "available": false,
+        "matches_figure": null,
+        "note": "No Jetson AGX Thor raw results found (expected experiments/results_thor_pytorch); figure values retained.",
+        "parallel_pdf_reextracted_bbox_center": [
+          [
+            5,
+            19.1,
+            9.55
+          ],
+          [
+            10,
+            14.47,
+            14.47
+          ],
+          [
+            15,
+            11.46,
+            17.19
+          ],
+          [
+            20,
+            9.46,
+            18.91
+          ],
+          [
+            30,
+            7.01,
+            21.04
+          ]
+        ],
+        "parallel_reextraction_note": "Parallel markers re-read from the PDF with bbox-centre anchoring; the same method on the RTX 4090 panel matches raw tok/s within 0.00. Use these in place of the website's Thor parallel tok/s."
+      }
+    },
+    "aloha": {
+      "rtx4090": {
+        "available": true,
+        "matches_figure": false,
+        "series": {
+          "baseline": [
+            [
+              5,
+              49.94,
+              24.97
+            ],
+            [
+              10,
+              37.39,
+              37.39
+            ],
+            [
+              15,
+              30.17,
+              45.25
+            ],
+            [
+              20,
+              25.31,
+              50.62
+            ],
+            [
+              30,
+              19.07,
+              57.2
+            ]
+          ],
+          "parallel": [
+            [
+              5,
+              55.51,
+              27.75
+            ],
+            [
+              10,
+              41.21,
+              41.21
+            ],
+            [
+              15,
+              32.59,
+              48.88
+            ],
+            [
+              20,
+              26.92,
+              53.83
+            ],
+            [
+              30,
+              19.82,
+              59.47
+            ]
+          ],
+          "k1": [
+            [
+              5,
+              96.55,
+              48.29
+            ],
+            [
+              10,
+              90.26,
+              90.28
+            ],
+            [
+              15,
+              85.39,
+              128.12
+            ],
+            [
+              20,
+              79.97,
+              160.19
+            ],
+            [
+              30,
+              70.66,
+              212.11
+            ]
+          ],
+          "k5": [
+            [
+              5,
+              62.14,
+              31.09
+            ],
+            [
+              10,
+              60.36,
+              60.39
+            ],
+            [
+              15,
+              58.56,
+              87.92
+            ],
+            [
+              20,
+              58.07,
+              116.26
+            ],
+            [
+              30,
+              56.55,
+              169.81
+            ]
+          ],
+          "k10": [
+            [
+              10,
+              43.72,
+              43.73
+            ],
+            [
+              20,
+              42.83,
+              85.69
+            ],
+            [
+              30,
+              41.62,
+              124.9
+            ]
+          ]
+        },
+        "sources": {
+          "baseline": [
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_aloha/denoise10_decode5.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_aloha/denoise10_decode10.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_aloha/denoise10_decode15.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_aloha/denoise10_decode20.json",
+            "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_aloha/denoise10_decode30.json"
+          ],
+          "parallel": [
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_aloha/denoise10_decode5.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_aloha/denoise10_decode10.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_aloha/denoise10_decode15.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_aloha/denoise10_decode20.json",
+            "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_aloha/denoise10_decode30.json"
+          ],
+          "k1": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode5_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode10_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode15_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode20_step1_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode30_step1_uniform_1.json"
+          ],
+          "k5": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode5_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode10_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode15_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode20_step5_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode30_step5_uniform_1.json"
+          ],
+          "k10": [
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode10_step10_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode20_step10_uniform_1.json",
+            "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_aloha/denoise10_decode30_step10_uniform_1.json"
+          ]
+        },
+        "diff_vs_figure": {
+          "baseline": {
+            "max_abs_hz": 0.04,
+            "max_abs_tps": 0.05,
+            "max_rel_hz": 0.0016
+          },
+          "parallel": {
+            "max_abs_hz": 0.02,
+            "max_abs_tps": 2.78,
+            "max_rel_hz": 0.001
+          },
+          "k1": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 0.02,
+            "max_rel_hz": 0.0006
+          },
+          "k5": {
+            "max_abs_hz": 0.05,
+            "max_abs_tps": 0.04,
+            "max_rel_hz": 0.0009
+          },
+          "k10": {
+            "max_abs_hz": 0.03,
+            "max_abs_tps": 0.03,
+            "max_rel_hz": 0.0007
+          }
+        }
+      },
+      "thor": {
+        "available": false,
+        "matches_figure": null,
+        "note": "No Jetson AGX Thor raw results found (expected experiments/results_thor_pytorch); figure values retained.",
+        "parallel_pdf_reextracted_bbox_center": [
+          [
+            5,
+            18.56,
+            9.28
+          ],
+          [
+            10,
+            14.21,
+            14.21
+          ],
+          [
+            15,
+            11.32,
+            16.98
+          ],
+          [
+            20,
+            9.35,
+            18.7
+          ],
+          [
+            30,
+            6.94,
+            20.83
+          ]
+        ],
+        "parallel_reextraction_note": "Parallel markers re-read from the PDF with bbox-centre anchoring; the same method on the RTX 4090 panel matches raw tok/s within 0.00. Use these in place of the website's Thor parallel tok/s."
+      }
+    }
+  },
+  "ablationN": [
+    5,
+    10,
+    15,
+    20,
+    30
+  ],
+  "ablation": {
+    "rtx4090": {
+      "available": true,
+      "matches_figure": true,
+      "baseline": [
+        49.92,
+        37.48,
+        30.17,
+        25.14,
+        19.05
+      ],
+      "parallel": [
+        55.81,
+        41.52,
+        32.61,
+        26.85,
+        19.82
+      ],
+      "no_batching": [
+        68.9,
+        47.19,
+        36.43,
+        29.45,
+        21.31
+      ],
+      "ours": [
+        63.18,
+        60.08,
+        59.53,
+        59.11,
+        56.87
+      ],
+      "upperBound": 68.9,
+      "sources": {
+        "baseline": [
+          "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode5.json",
+          "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode10.json",
+          "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode15.json",
+          "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode20.json",
+          "results/eccv_submission_raw/results_eccv/baseline/pi05_o2_libero/denoise10_decode30.json"
+        ],
+        "parallel": [
+          "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode5.json",
+          "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode10.json",
+          "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode15.json",
+          "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode20.json",
+          "results/eccv_submission_raw/results_eccv/parallel_mps/pi05_o2_libero/denoise10_decode30.json"
+        ],
+        "no_batching": [
+          "results/eccv_submission_raw/results_eccv/shared_kv/pi05_o2_libero/denoise10_decode5.json",
+          "results/eccv_submission_raw/results_eccv/shared_kv/pi05_o2_libero/denoise10_decode10.json",
+          "results/eccv_submission_raw/results_eccv/shared_kv/pi05_o2_libero/denoise10_decode15.json",
+          "results/eccv_submission_raw/results_eccv/shared_kv/pi05_o2_libero/denoise10_decode20.json",
+          "results/eccv_submission_raw/results_eccv/shared_kv/pi05_o2_libero/denoise10_decode30.json"
+        ],
+        "ours": [
+          "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode5_step5_uniform_1.json",
+          "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode10_step5_uniform_1.json",
+          "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode15_step5_uniform_1.json",
+          "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode20_step5_uniform_1.json",
+          "results/eccv_submission_raw/results_eccv/continuous_batching/pi05_o2_libero/denoise10_decode30_step5_uniform_1.json"
+        ],
+        "upperBound": "results/eccv_submission_raw/results_eccv/shared_kv/pi05_o2_libero/denoise10_decode5.json"
+      },
+      "max_abs_diff_hz_vs_figure": {
+        "baseline": 0.05,
+        "parallel": 0.05,
+        "no_batching": 0.05,
+        "ours": 0.03,
+        "upperBound": 0.0
+      },
+      "upperBound_definition": "shared_kv action Hz at N=5 (compute_speedup_ablation.py shared_kv_5_action_freq_hz)"
+    },
+    "thor": {
+      "available": false,
+      "matches_figure": null,
+      "note": "No Thor raw results found; figure values retained."
+    }
+  },
+  "comparison": {
+    "tradeoff.libero.rtx4090": false,
+    "tradeoff.libero.thor": "raw not found",
+    "tradeoff.droid.rtx4090": false,
+    "tradeoff.droid.thor": "raw not found",
+    "tradeoff.aloha.rtx4090": false,
+    "tradeoff.aloha.thor": "raw not found",
+    "ablation.rtx4090": true,
+    "ablation.thor": "raw not found"
+  },
+  "gpus_in_metadata": [
+    "NVIDIA GeForce RTX 4090"
+  ]
+}

@@ -1,0 +1,95 @@
+---
+import { tradeoff, type SeriesKey, type TradeoffPoint } from "../data/paper-figures";
+
+const configs = [
+  { id: "libero", label: "LIBERO" },
+  { id: "droid", label: "DROID" },
+  { id: "aloha", label: "ALOHA" },
+] as const;
+const devices = [
+  { id: "rtx4090", label: "RTX 4090" },
+  { id: "thor", label: "Jetson AGX Thor" },
+] as const;
+const series: { key: SeriesKey; label: string; cls: string }[] = [
+  { key: "baseline", label: "Isolated baseline", cls: "s-baseline" },
+  { key: "parallel", label: "Parallel (MPS)", cls: "s-parallel" },
+  { key: "k10", label: "OxyGen, k = 10", cls: "s-k10" },
+  { key: "k5", label: "OxyGen, k = 5", cls: "s-k5" },
+  { key: "k1", label: "OxyGen, k = 1", cls: "s-k1" },
+];
+
+const W = 720;
+const H = 430;
+const M = { l: 58, r: 20, t: 20, b: 52 };
+const axes = {
+  rtx4090: { x: 110, y: 240, xs: [0, 20, 40, 60, 80, 100], ys: [0, 60, 120, 180, 240] },
+  thor: { x: 50, y: 105, xs: [0, 10, 20, 30, 40, 50], ys: [0, 25, 50, 75, 100] },
+};
+const sx = (dev: keyof typeof axes, v: number) => M.l + (v / axes[dev].x) * (W - M.l - M.r);
+const sy = (dev: keyof typeof axes, v: number) => H - M.b - (v / axes[dev].y) * (H - M.t - M.b);
+
+function headline(pts: Record<SeriesKey, TradeoffPoint[]>) {
+  const ours = pts.k1.at(-1)!;
+  const base = pts.baseline.at(-1)!;
+  return { ours, base, speedup: ours[1] / base[1] };
+}
+---
+
+<div class="card chart-card reveal" data-tradeoff>
+  <div class="chart-controls">
+    <div class="segmented" role="tablist" aria-label="Robot configuration">
+      {configs.map((c, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-config={c.id}>{c.label}</button>)}
+    </div>
+    <div class="segmented" role="tablist" aria-label="Hardware">
+      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
+    </div>
+  </div>
+  <div class="chart-layout">
+    <div class="chart">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Action frequency versus language throughput">
+        {configs.map((c) => devices.map((d) => {
+          const pts = tradeoff[c.id][d.id];
+          const h = headline(pts);
+          const ax = axes[d.id];
+          return (
+            <g data-panel={`${c.id}-${d.id}`} class:list={[!(c.id === "libero" && d.id === "rtx4090") && "off"]} data-speedup={h.speedup.toFixed(1)} data-hz={h.ours[1].toFixed(0)} data-tps={h.ours[2].toFixed(0)} data-base-hz={h.base[1].toFixed(0)} data-base-tps={h.base[2].toFixed(0)}>
+              <g class="grid">
+                {ax.xs.map((v) => <line x1={sx(d.id, v)} x2={sx(d.id, v)} y1={M.t} y2={H - M.b} />)}
+                {ax.ys.map((v) => <line x1={M.l} x2={W - M.r} y1={sy(d.id, v)} y2={sy(d.id, v)} />)}
+              </g>
+              <g class="axis">
+                {ax.xs.map((v) => <text x={sx(d.id, v)} y={H - M.b + 20} text-anchor="middle">{v}</text>)}
+                {ax.ys.map((v) => <text x={M.l - 10} y={sy(d.id, v) + 4} text-anchor="end">{v}</text>)}
+              </g>
+              <text class="axis-title" x={(M.l + W - M.r) / 2} y={H - 8} text-anchor="middle">Action frequency (Hz) →</text>
+              <text class="axis-title" transform={`translate(14 ${(M.t + H - M.b) / 2}) rotate(-90)`} text-anchor="middle">Language throughput (tok/s) →</text>
+              <g class="annot">
+                <line x1={sx(d.id, h.base[1])} y1={sy(d.id, h.base[2])} x2={sx(d.id, h.ours[1])} y2={sy(d.id, h.ours[2])} />
+              </g>
+              {series.map((s) => {
+                const p = pts[s.key];
+                const path = p.map((q, i) => `${i ? "L" : "M"}${sx(d.id, q[1]).toFixed(1)},${sy(d.id, q[2]).toFixed(1)}`).join("");
+                return (
+                  <g class:list={["series", s.cls]}>
+                    <path d={path} pathLength="1" />
+                    {p.map((q) => (
+                      <circle class="pt" cx={sx(d.id, q[1])} cy={sy(d.id, q[2])} r={s.key.startsWith("k") ? 5 : 4} data-tip={`${s.label}\nN = ${q[0]} tokens\n${q[1].toFixed(1)} Hz · ${q[2].toFixed(1)} tok/s`} />
+                    ))}
+                  </g>
+                );
+              })}
+            </g>
+          );
+        }))}
+      </svg>
+    </div>
+    <div class="chart-side">
+      <div class="big"><span data-out="speedup">{headline(tradeoff.libero.rtx4090).speedup.toFixed(1)}</span>×</div>
+      <p>At 30-token requests, OxyGen (<i>k</i> = 1) reaches <b><span data-out="hz">71</span> Hz</b> and <b><span data-out="tps">213</span> tok/s</b>, versus <span data-out="base-hz">19</span> Hz and <span data-out="base-tps">57</span> tok/s for the isolated baseline.</p>
+      <div class="legend">
+        {series.slice().reverse().map((s) => <span><i class:list={["line", s.cls]} style="background: currentColor"></i>{s.label}</span>)}
+      </div>
+    </div>
+  </div>
+  <p class="note">π<sub>0.5</sub>, S = 10 denoising steps, one new request per frame. Each OxyGen curve fixes <i>k</i> decoding steps per frame and sweeps request length N from 5 to 30 tokens; points move up and left as N grows. Values are read from the paper's figures; hover a point for details.</p>
+</div>
