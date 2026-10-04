@@ -11,7 +11,7 @@ const qwen = (backbone: string, tp: number) => scaling.find((r) => r.backbone ==
 
 const groups = [
   {
-    label: "Models · one action expert",
+    label: "Models, one action expert",
     rows: [
       { name: "π0.5", note: "S = 10", k1: pi.k1.at(-1)![1] / pi.baseline.at(-1)![1], k5: pi.k5.at(-1)![1] / pi.baseline.at(-1)![1] },
       { name: "Xiaomi-Robotics-0", note: "S = 5", ...n30(xiaomi) },
@@ -19,14 +19,14 @@ const groups = [
     ],
   },
   {
-    label: "Experts on one shared prefix · StarVLA",
+    label: "More experts on one prefix (StarVLA)",
     rows: [
       { name: "+ GR00T", note: "3 experts", ...n30(starvla[3]) },
       { name: "+ GR00T + OFT", note: "4 experts", ...n30(starvla[4]) },
     ],
   },
   {
-    label: "Backbone size · Qwen3.5 via StarVLA",
+    label: "Backbone size (Qwen3.5 via StarVLA)",
     rows: [
       ...["0.8B", "2B", "4B", "9B"].map((b) => ({ name: `Qwen3.5-${b}`, note: "", ...qwen(b, 1) })),
       { name: "Qwen3.5-9B", note: "two GPUs, TP = 2", ...qwen("9B", 2) },
@@ -35,18 +35,17 @@ const groups = [
 ];
 const MAX = 7;
 const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
+const shortN = starvla[2].find((r) => r.N === 5)!.k5;
+const shortN4 = starvla[4].find((r) => r.N === 5)!.k5;
+const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
 ---
 
-<figure class="fig grid">
-  <figcaption class="fig-caption">
-    <span class="label"><b>Table 1</b></span>
-    <p>Speedup over isolated execution on the same hardware, with 30-token requests and one new request per frame. All runs on RTX 4090.</p>
-    <p>Xiaomi-Robotics-0 and StarVLA use their native implementations. StarVLA's extra heads were trained separately, so these runs measure system scaling, not a jointly trained policy. Qwen3.5 runs use randomly initialized action heads.</p>
-  </figcaption>
-  <div class="fig-body">
+<div class="grid">
+  <figure class="c1-8">
+    <div class="fig-head"><span class="title"><span class="label"><b>Table 1</b></span>Speedup over isolated execution, 30-token requests</span></div>
     <table class="data">
       <thead>
-        <tr><th scope="col" style="text-align: left">Configuration</th><th scope="col" class="k">k = 1</th><th scope="col" class="k">k = 5</th><th scope="col" class="bar-head"><span class="sr-only">Bar</span></th></tr>
+        <tr><th scope="col" style="text-align: left"><span class="sr-only">Configuration</span></th><th scope="col" class="k">k = 1</th><th scope="col" class="k">k = 5</th><th scope="col"><span class="sr-only">Bars</span></th></tr>
       </thead>
       {groups.map((group) => (
         <tbody>
@@ -67,5 +66,21 @@ const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
       <span><i style="background: var(--action)"></i>k = 5</span>
       <span><i style="width: 1px; height: 12px; background: var(--ink)"></i>1×</span>
     </div>
-  </div>
-</figure>
+  </figure>
+
+  <aside class="c9-12">
+    <div class="side-note">
+      <strong>{n30(starvla[2]).k1.toFixed(2)}×</strong>
+      <p>StarVLA at <i>k</i> = 1, the largest single-GPU gain: 30 in-flight requests share every decoding step.</p>
+    </div>
+    <div class="side-note">
+      <strong>{shortN.toFixed(2)}× → {shortN4.toFixed(2)}×</strong>
+      <p>With 5-token answers, nothing is batched across frames. The gain then comes from sharing the prefix, and grows as StarVLA goes from two to four experts.</p>
+    </div>
+    <div class="side-note">
+      <strong>{boundary.toFixed(2)}×</strong>
+      <p>The one slowdown: Xiaomi when each request finishes within a single frame (<i>N</i> = <i>k</i> = 10). Every setting with <i>N</i> &gt; <i>k</i> is faster.</p>
+    </div>
+    <p class="caption">All runs on RTX 4090. Xiaomi-Robotics-0 and StarVLA use their native implementations. StarVLA's extra heads were trained separately, so these runs measure system scaling, not a jointly trained policy; Qwen3.5 runs use randomly initialized action heads.</p>
+  </aside>
+</div>

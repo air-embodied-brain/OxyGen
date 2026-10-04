@@ -1,11 +1,3 @@
-// Memory outputs from the demo rollouts, typed into the masthead band.
-const MEMORIES = [
-  "No relevant task progress is visible yet.",
-  "The alphabet soup is in the basket.",
-  "The white mug is on the plate.",
-  "The first moka pot is on the stove.",
-];
-
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function $all<T extends Element>(selector: string, root: ParentNode = document) {
@@ -44,27 +36,32 @@ function initTheme() {
   });
 }
 
-/** Types memory words at each row's measured token rate, slowed down for reading. */
-function initRates() {
-  const root = document.querySelector<HTMLElement>("[data-rates]");
-  if (!root) return;
-  const slowdown = Number(root.dataset.slowdown ?? 10);
-  const words = MEMORIES.join(" ").split(" ");
-  for (const [index, row] of $all<HTMLElement>(".rate-row", root).entries()) {
-    const target = row.querySelector<HTMLElement>("[data-words]");
-    if (!target) continue;
-    if (reducedMotion) {
-      target.textContent = MEMORIES[index];
-      continue;
+/** Sweeps a playhead across one second of measured actions and tokens, slowed down. */
+function initSecond() {
+  const root = document.querySelector<HTMLElement>("[data-second]");
+  if (!root || reducedMotion) return;
+  const period = Number(root.dataset.slowdown ?? 10) * 1000;
+  const clock = root.querySelector<HTMLElement>("[data-clock]");
+  const runs = $all<HTMLElement>(".run", root).map((run) => ({
+    run,
+    hz: Number(run.dataset.hz),
+    tps: Number(run.dataset.tps),
+    hzOut: run.querySelector<HTMLElement>('[data-count="hz"]'),
+    tpsOut: run.querySelector<HTMLElement>('[data-count="tps"]'),
+  }));
+  const hold = 0.12; // fraction of each loop spent showing the full second
+  const frame = (now: number) => {
+    const t = (now % period) / period;
+    const p = Math.min(1, t / (1 - hold));
+    root.style.setProperty("--p", `${(p * 100).toFixed(2)}%`);
+    if (clock) clock.textContent = p.toFixed(2);
+    for (const r of runs) {
+      if (r.hzOut) r.hzOut.textContent = String(Math.floor(r.hz * p + 1e-6));
+      if (r.tpsOut) r.tpsOut.textContent = String(Math.floor(r.tps * p + 1e-6));
     }
-    let cursor = 0;
-    let text = "";
-    window.setInterval(() => {
-      text = `${text} ${words[cursor % words.length]}`.slice(-110);
-      target.textContent = text.trim();
-      cursor += 1;
-    }, (1000 * slowdown) / Number(row.dataset.tps));
-  }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
 }
 
 function initDemo() {
@@ -112,12 +109,11 @@ function draw(panel: Element) {
   panel.classList.add("drawn");
 }
 
-function drawOnFirstView(root: HTMLElement, panel: () => Element | null) {
+function drawOnFirstView(root: HTMLElement, targets: () => Element[]) {
   const observer = new IntersectionObserver(
     (entries) => {
       if (!entries.some((entry) => entry.isIntersecting)) return;
-      const target = panel();
-      if (target) draw(target);
+      for (const target of targets()) draw(target);
       observer.disconnect();
     },
     { threshold: 0.35 },
@@ -128,37 +124,18 @@ function drawOnFirstView(root: HTMLElement, panel: () => Element | null) {
 function initTradeoff() {
   const root = document.querySelector<HTMLElement>("[data-tradeoff]");
   if (!root) return;
-  const state = { config: "libero", device: "rtx4090" };
-  const configButtons = $all<HTMLButtonElement>("[data-config]", root);
-  const deviceButtons = $all<HTMLButtonElement>("[data-device]", root);
-  const active = () => root.querySelector<HTMLElement>(`[data-panel="${state.config}-${state.device}"]`);
-  const update = () => {
-    for (const panel of $all<HTMLElement>("[data-panel]", root)) {
-      panel.classList.toggle("off", panel !== active());
-    }
-    const panel = active();
-    if (!panel) return;
-    for (const out of $all<HTMLElement>("[data-out]", root)) {
-      const key = out.dataset.out!.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-      out.textContent = panel.dataset[key] ?? "";
-    }
-    draw(panel);
-  };
-  for (const button of configButtons) {
+  const buttons = $all<HTMLButtonElement>("[data-config]", root);
+  const panels = () => $all<HTMLElement>("[data-panel]:not(.off)", root);
+  for (const button of buttons) {
     button.addEventListener("click", () => {
-      state.config = button.dataset.config!;
-      select(configButtons, button);
-      update();
+      select(buttons, button);
+      for (const panel of $all<HTMLElement>("[data-panel]", root)) {
+        panel.classList.toggle("off", panel.dataset.panel !== button.dataset.config);
+      }
+      for (const panel of panels()) draw(panel);
     });
   }
-  for (const button of deviceButtons) {
-    button.addEventListener("click", () => {
-      state.device = button.dataset.device!;
-      select(deviceButtons, button);
-      update();
-    });
-  }
-  drawOnFirstView(root, active);
+  drawOnFirstView(root, panels);
 }
 
 function initAblation() {
@@ -175,7 +152,7 @@ function initAblation() {
       }
     });
   }
-  drawOnFirstView(root, () => root.querySelector("[data-panel]:not(.off)"));
+  drawOnFirstView(root, () => $all("[data-panel]:not(.off)", root));
 }
 
 function initTooltip() {
@@ -210,7 +187,7 @@ function initCitation() {
 export function initPage() {
   initRunningHead();
   initTheme();
-  initRates();
+  initSecond();
   initDemo();
   initTradeoff();
   initAblation();

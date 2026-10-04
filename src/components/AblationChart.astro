@@ -12,16 +12,16 @@ const series = [
   { key: "ours", label: "+ batching = OxyGen", cls: "s-k1" },
 ] as const;
 
-const W = 460;
-const H = 300;
-const M = { l: 34, r: 14, t: 18, b: 40 };
+const W = 560;
+const H = 215;
+const M = { l: 30, r: 14, t: 18, b: 36 };
 const INSET = 14;
 const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l - M.r - 2 * INSET);
 ---
 
-<div data-ablation>
-  <div class="fig-toolbar">
-    <span class="title">Where the gain comes from</span>
+<figure data-ablation>
+  <div class="fig-head">
+    <span class="title"><span class="label"><b>Fig. 4</b></span>Where the gain comes from</span>
     <div class="switch" role="tablist" aria-label="Hardware">
       {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
     </div>
@@ -36,16 +36,16 @@ const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l 
             <g class="gridlines">{d.ticks.slice(1).map((t) => <line x1={M.l} x2={W - M.r} y1={sy(t)} y2={sy(t)} />)}</g>
             <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
             <g class="ticklabels">
-              {d.ticks.slice(1).map((t) => <text x={M.l - 8} y={sy(t) + 4} text-anchor="end">{t}</text>)}
-              {ablationN.map((n, i) => <text x={sx(i)} y={H - M.b + 18} text-anchor="middle">{n}</text>)}
+              {d.ticks.slice(1).map((t) => <text x={M.l - 7} y={sy(t) + 4} text-anchor="end">{t}</text>)}
+              {ablationN.map((n, i) => <text x={sx(i)} y={H - M.b + 16} text-anchor="middle">{n}</text>)}
             </g>
             <text class="axis-title" x={W - M.r} y={H - 4} text-anchor="end">Tokens per language request →</text>
-            <text class="axis-title" x={M.l} y={M.t - 6}>↑ Action frequency (Hz), k = 5</text>
+            <text class="axis-title" x={M.l} y={M.t - 8}>↑ Action frequency (Hz), k = 5</text>
             <line x1={M.l} x2={W - M.r} y1={sy(data.upperBound)} y2={sy(data.upperBound)} stroke="var(--ink)" stroke-dasharray="3 4" stroke-width="1" />
             {series.map((s) => (
               <g class:list={["series", s.cls]}>
                 <path d={data[s.key].map((v, i) => `${i ? "L" : "M"}${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join("")} pathLength="1" />
-                {data[s.key].map((v, i) => <circle cx={sx(i)} cy={sy(v)} r="3" />)}
+                {data[s.key].map((v, i) => <circle cx={sx(i)} cy={sy(v)} r="2.8" />)}
                 {data[s.key].map((v, i) => <circle class="hit" cx={sx(i)} cy={sy(v)} r="10" data-tip={`${s.label}\n${ablationN[i]}-token requests\n${v.toFixed(1)} Hz`} />)}
               </g>
             ))}
@@ -56,6 +56,7 @@ const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l 
   </div>
   <div class="key">
     {series.map((s) => <span class={s.cls}><i class="line" style="background: currentColor"></i>{s.label}</span>)}
-    <span><i class="dash"></i>one-frame decoding bound</span>
+    <span><i class="dash"></i>one frame of decoding only</span>
   </div>
-</div>
+  <figcaption class="caption">LIBERO configuration, <i>k</i> = 5. KV sharing removes the repeated prefill and matters most for short answers; batching keeps action frequency nearly flat as answers grow.</figcaption>
+</figure>

@@ -7,26 +7,23 @@ const base = import.meta.env.BASE_URL.endsWith("/")
 const first = demos[0];
 ---
 
-<figure class="fig grid" data-demo data-base={base}>
-  <figcaption class="fig-caption">
-    <span class="label"><b>Fig. 1</b></span>
-    <p>π<sub>0.5</sub> on LIBERO-10 writes a one-line memory of task progress at every replan. The isolated baseline pauses the arm until each memory is finished; OxyGen keeps the arm moving and completes memories over the next frames.</p>
-    <p>One RTX 4090. Model time is measured; simulation runs at the 20 Hz control rate; playback is 1×. OxyGen decodes <i>k</i> = 1 token per request per frame.</p>
-  </figcaption>
-  <div class="fig-body">
-    <div class="demo-video">
-      <video
-        controls
-        muted
-        playsinline
-        preload="metadata"
-        poster={`${base}posters/${first.id}.webp`}
-        data-demo-video
-        aria-label={`${first.title}: OxyGen and the isolated baseline side by side`}
-      >
-        <source src={`${base}videos/${first.id}.mp4`} type="video/mp4" />
-      </video>
-    </div>
+<figure class="grid" data-demo data-base={base}>
+  <div class="c1-9 demo-video">
+    <video
+      controls
+      muted
+      playsinline
+      preload="metadata"
+      poster={`${base}posters/${first.id}.webp`}
+      data-demo-video
+      aria-label={`${first.title}: OxyGen and the isolated baseline side by side`}
+    >
+      <source src={`${base}videos/${first.id}.mp4`} type="video/mp4" />
+    </video>
+  </div>
+  <figcaption class="c10-12 demo-side">
+    <p class="caption"><b>FIG. 1</b> π<sub>0.5</sub> on LIBERO-10 writes a one-line memory of task progress at every replan. The isolated baseline pauses the arm until each memory is done; OxyGen keeps the arm moving and finishes memories over the next frames.</p>
+    <p class="caption">Watch the timeline under each run: amber is time spent on language.</p>
     <div class="demo-list" role="tablist" aria-label="Demo tasks">
       {demos.map((demo, index) => (
         <button
@@ -38,9 +35,10 @@ const first = demos[0];
           title={demo.task}
         >
           <span>{demo.title}</span>
-          <small>{demo.oxygenS.toFixed(1)} s vs {demo.baselineS.toFixed(1)} s · <b>{(demo.baselineS / demo.oxygenS).toFixed(2)}× sooner</b></small>
+          <small>{demo.oxygenS.toFixed(1)} s vs {demo.baselineS.toFixed(1)} s · <b>{(demo.baselineS / demo.oxygenS).toFixed(2)}×</b></small>
         </button>
       ))}
     </div>
-  </div>
+    <p class="caption">One RTX 4090; measured model time, simulation at 20 Hz, played at 1×. OxyGen decodes <i>k</i> = 1 token per request per frame.</p>
+  </figcaption>
 </figure>

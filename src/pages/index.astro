@@ -24,10 +24,9 @@ const sections = [
 
 // Resource efficiency on RTX 4090 (Appendix tab:overhead).
 const baselineCost = overhead[0];
+const parallelCost = overhead[1];
 const bestCost = overhead.at(-1)!;
-const energyCut = 1 - bestCost.energyJ / baselineCost.energyJ;
-const powerCut = 1 - bestCost.powerW / baselineCost.powerW;
-const memoryAdd = bestCost.memGiB / baselineCost.memGiB - 1;
+const change = (a: number, b: number) => Math.round((b / a - 1) * 100);
 
 // LIBERO success (Appendix tab:quality), drawn on a 90–100% axis.
 const ciScale = (v: number) => ((v - 90) / 10) * 100;
@@ -39,8 +38,8 @@ const pctOfBase = (v: number) => ((v / robotBase) * 100).toFixed(2);
 
 const resources = [
   { href: links.paper, title: "Paper", text: "arXiv preprint, NeurIPS 2026", meta: "arXiv ↗" },
-  { href: links.code, title: "Code", text: "JAX and PyTorch backends built on openpi", meta: "GitHub ↗" },
-  { href: links.blog, title: "Blog post", text: "The design, explained step by step", meta: "xxxxyu.github.io ↗" },
+  { href: links.code, title: "Code", text: "JAX and PyTorch backends on openpi", meta: "GitHub ↗" },
+  { href: links.blog, title: "Blog", text: "The design, explained step by step", meta: "xxxxyu.github.io ↗" },
   { href: links.model, title: "Adapter", text: "π0.5 textual-memory LoRA", meta: "Hugging Face ↗" },
   { href: links.dataset, title: "Dataset", text: "LIBERO textual-memory annotations", meta: "Hugging Face ↗" },
 ];
@@ -50,7 +49,7 @@ const resources = [
   title="OxyGen · Unified KV Cache Management for VLA Inference (NeurIPS 2026)"
   description="OxyGen lets Mixture-of-Transformers VLAs generate actions and language at the same time. Cross-task KV sharing and cross-frame continuous batching give up to 3.7× speedup on RTX 4090 and Jetson AGX Thor."
 >
-  <div class="running-head" data-head>
+  <div class="running-head">
     <div class="page">
       <a class="brand" href="#top">OxyGen</a>
       <span class="current" data-current></span>
@@ -70,7 +69,7 @@ const resources = [
     <div class="stats grid" aria-label="Headline results">
       <div class="stat"><strong>3.7<small>×</small></strong><p>faster than isolated execution, π<sub>0.5</sub> on RTX 4090</p></div>
       <div class="stat"><strong>70<small>Hz</small></strong><p>action frequency while generating over 200 tokens/s of language</p></div>
-      <div class="stat"><strong>−{Math.round(energyCut * 100)}<small>%</small></strong><p>energy per request, with batched language decoding</p></div>
+      <div class="stat"><strong>−78<small>%</small></strong><p>energy per request, with batched language decoding</p></div>
       <div class="stat"><strong>96.8<small>%</small></strong><p>LIBERO success, on par with the official openpi checkpoint</p></div>
     </div>
 
@@ -84,7 +83,7 @@ const resources = [
     <section class="section" id="method" data-title="Method">
       <SectionHead number="2" label="Method">
         <Fragment slot="title">One cache, <em>shared across tasks and time.</em></Fragment>
-        Mixture-of-Transformers VLAs such as π<sub>0.5</sub> already share one backbone between action and language experts, yet existing inference stacks still run each task in isolation. OxyGen manages the KV cache as one resource.
+        Mixture-of-Transformers VLAs such as π<sub>0.5</sub> already share one backbone between action and language experts, yet inference stacks still run each task in isolation. OxyGen manages the KV cache as one resource.
       </SectionHead>
       <Method />
     </section>
@@ -92,42 +91,37 @@ const resources = [
     <section class="section" id="results" data-title="Results">
       <SectionHead number="3" label="Results">
         <Fragment slot="title">Faster actions <em>and</em> more language.</Fragment>
-        Under isolated execution, longer answers mean slower control. OxyGen moves the whole frontier: at matched answer lengths it improves both action frequency and language throughput, by up to 3.7×.
+        Under isolated execution, longer answers mean slower control. OxyGen improves both action frequency and language throughput at every answer length, by up to 3.7×.
       </SectionHead>
-      <TradeoffChart />
 
-      <figure class="fig grid">
-        <figcaption class="fig-caption">
-          <span class="label"><b>Fig. 4</b></span>
-          <p>LIBERO configuration, <i>k</i> = 5. KV sharing removes the repeated prefill and matters most for short answers; batching keeps action frequency nearly flat as answers grow. The dashed line is the frequency with only one frame of decoding.</p>
-        </figcaption>
-        <div class="fig-body pair">
-          <div><AblationChart /></div>
-          <div>
-            <div class="fig-toolbar"><span class="title">Cost per request, RTX 4090</span></div>
-            <table class="data">
-              <thead><tr><th scope="col" style="text-align: left"></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Change</th></tr></thead>
-              <tbody>
-                <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">−{Math.round(energyCut * 100)}%</td></tr>
-                <tr><td class="name">Avg. power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">−{Math.round(powerCut * 100)}%</td></tr>
-                <tr><td class="name">Peak memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{Math.round(memoryAdd * 100)}%</td></tr>
-              </tbody>
-            </table>
-            <p class="note">OxyGen at batch size 4. Running both tasks as parallel processes instead needs {overhead[1].memGiB} GiB and {overhead[1].energyJ} J per request.</p>
-          </div>
+      <div class="unit"><TradeoffChart /></div>
+
+      <div class="unit grid">
+        <div class="c1-7"><AblationChart /></div>
+        <figure class="c9-12">
+          <div class="fig-head"><span class="title">Cost per request, RTX 4090</span></div>
+          <table class="data">
+            <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
+            <tbody>
+              <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">{change(baselineCost.energyJ, bestCost.energyJ)}%</td></tr>
+              <tr><td class="name">Power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">{change(baselineCost.powerW, bestCost.powerW)}%</td></tr>
+              <tr><td class="name">Memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{change(baselineCost.memGiB, bestCost.memGiB)}%</td></tr>
+            </tbody>
+          </table>
+          <figcaption class="caption">OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Running the two tasks as parallel processes instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request.</figcaption>
+        </figure>
+      </div>
+
+      <div class="unit"><Generality /></div>
+
+      <div class="unit grid">
+        <div class="c1-4">
+          <p class="label"><b>Fig. 5</b> Action quality</p>
+          <span class="big-figure">{overall.mean.toFixed(2)}%</span>
+          <p class="caption">Mean LIBERO success over 10 seeds and 20,000 rollouts, with the official π<sub>0.5</sub>-LIBERO checkpoint. openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
         </div>
-      </figure>
-
-      <Generality />
-
-      <figure class="fig grid">
-        <figcaption class="fig-caption">
-          <span class="label"><b>Fig. 5</b></span>
-          <span class="big">{overall.mean.toFixed(2)}%</span>
-          <p>Mean LIBERO success over 10 seeds and 20,000 rollouts with the official π<sub>0.5</sub>-LIBERO checkpoint; openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
-        </figcaption>
-        <div class="fig-body ci">
-          <div class="fig-toolbar"><span class="title">Success rate by suite, 95% confidence interval</span></div>
+        <figure class="c6-12 ci">
+          <div class="fig-head"><span class="title">Success by suite, 95% confidence interval</span></div>
           {quality.map((row) => (
             <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
               <span>{row.suite}</span>
@@ -144,27 +138,28 @@ const resources = [
             <span><i style="width: 9px; height: 9px; border-radius: 50%; background: var(--action)"></i>OxyGen mean and 95% CI</span>
             <span><i style="width: 1.5px; height: 13px; background: var(--ink)"></i>openpi reported</span>
           </div>
-        </div>
-      </figure>
+        </figure>
+      </div>
     </section>
 
     <section class="section" id="robot" data-title="On the robot">
       <SectionHead number="4" label="On the robot">
         <Fragment slot="title">On board <em>a humanoid.</em></Fragment>
+        OxyGen runs π<sub>0.5</sub> on the robot's own Jetson AGX Thor, producing actions and language from the same three camera views.
       </SectionHead>
       <div class="grid">
-        <figure class="plate">
+        <figure class="c1-4 plate">
           <img src={`${base}images/humanoid-jetson-thor.webp`} alt="Humanoid robot with an on-board NVIDIA Jetson AGX Thor" loading="lazy" width="1200" height="1600" />
-          <figcaption><b>Plate 1.</b> The humanoid and its on-board Jetson AGX Thor.</figcaption>
+          <figcaption class="caption"><b>PLATE 1</b> The humanoid and its on-board Jetson AGX Thor.</figcaption>
         </figure>
-        <div class="robot-copy">
+        <div class="c5-12">
           <dl class="specs">
-            <dt>Compute</dt><dd>NVIDIA Jetson AGX Thor, on board</dd>
-            <dt>Model</dt><dd>π<sub>0.5</sub>, actions and language from shared observations</dd>
-            <dt>Input</dt><dd>3 RGB views at 224 × 224</dd>
-            <dt>Workload</dt><dd>H = 10, S = 10, 30-token requests, <i>k</i> = 5</dd>
+            <div><dt>Compute</dt><dd>Jetson AGX Thor, on board</dd></div>
+            <div><dt>Input</dt><dd>3 RGB views, 224 × 224</dd></div>
+            <div><dt>Actions</dt><dd>H = 10, S = 10 denoising steps</dd></div>
+            <div><dt>Language</dt><dd>30-token requests, <i>k</i> = 5</dd></div>
           </dl>
-          <div class="fig-toolbar"><span class="title">Inference per control cycle</span></div>
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Inference per control cycle</span></div>
           <div class="latency">
             <div class="latency-row">
               <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
@@ -178,15 +173,19 @@ const resources = [
               <div class="latency-track">
                 <div class="seg act" style={`width: ${pctOfBase(robot.oxygen.action)}%`}>{robot.oxygen.action}</div>
                 <div class="seg lang" style={`width: ${pctOfBase(robot.oxygen.language)}%`}>{robot.oxygen.language}</div>
-                <span class="window" style={`left: ${pctOfBase(robot.executionWindowMs)}%`}><span>{robot.executionWindowMs} ms action window</span></span>
+                <span class="window" style={`left: ${pctOfBase(robot.executionWindowMs)}%`}><span>{robot.executionWindowMs} ms action execution</span></span>
               </div>
             </div>
           </div>
-          <ul class="robot-facts">
-            <li>Combined inference drops from {robotBase.toFixed(0)} to {robotOurs.toFixed(0)} ms, <b>{(robotBase / robotOurs).toFixed(1)}× shorter</b>.</li>
-            <li>The action path takes {robot.oxygen.action.toFixed(0)} ms, <b>inside the robot's {robot.executionWindowMs} ms execution window</b>; the remaining language work can overlap with motion.</li>
-            <li>The language path is <b>{(robot.baseline.language / robot.oxygen.language).toFixed(1)}× faster</b>, from KV sharing and batching together.</li>
-          </ul>
+          <div class="key" style="margin-top: 34px">
+            <span><i style="background: var(--action)"></i>action path: prefill and denoising</span>
+            <span><i style="background: var(--language)"></i>language path</span>
+          </div>
+          <div class="facts">
+            <div><strong>{(robotBase / robotOurs).toFixed(1)}×</strong><p>shorter combined inference, {robotBase.toFixed(0)} → {robotOurs.toFixed(0)} ms</p></div>
+            <div><strong>{robot.oxygen.action.toFixed(0)} ms</strong><p>action path, inside the {robot.executionWindowMs} ms execution window; language can overlap with motion</p></div>
+            <div><strong>{(robot.baseline.language / robot.oxygen.language).toFixed(1)}×</strong><p>faster language path, from KV sharing and batching together</p></div>
+          </div>
         </div>
       </div>
     </section>
@@ -194,25 +193,26 @@ const resources = [
     <section class="section" id="memory" data-title="Textual memory">
       <SectionHead number="5" label="Application">
         <Fragment slot="title">A robot that <em>keeps notes.</em></Fragment>
-        The demo's language task is textual memory. A rank-16 LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress from the current observation. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.
+        The demo's language task is textual memory: a rank-16 LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.
       </SectionHead>
       <div class="grid">
-        <div class="rail note" style="margin: 0">
-          <span class="label" style="display: block; margin-bottom: 6px"><b>Log</b></span>
-          Memories written by OxyGen in the alphabet-soup rollout of Fig. 1. Task: put both the alphabet soup and the tomato sauce in the basket.
+        <figure class="c1-6">
+          <ol class="memory-log">
+            <li><span>step 50</span><q>No relevant task progress is visible yet.</q></li>
+            <li class="new"><span>step 185</span><q>The alphabet soup is in the basket.</q></li>
+          </ol>
+          <figcaption class="caption">Memories written by OxyGen in the alphabet-soup rollout of Fig. 1 (task: put both the alphabet soup and the tomato sauce in the basket).</figcaption>
+        </figure>
+        <div class="c8-12">
+          <dl class="memory-stats">
+            <div><dt>87.25%</dt><dd>exact match on held-out frames</dd></div>
+            <div><dt>8.16 ms</dt><dd>median adapter cost per memory, vs. a 47.66 ms prefix forward</dd></div>
+            <div><dt>0</dt><dd>change to actions with the adapter zeroed</dd></div>
+            <div><dt>338,575</dt><dd>annotated frames from 2,000 LIBERO demonstrations</dd></div>
+          </dl>
+          <p class="caption">Developed after the main experiments; the paper's latency and quality results do not depend on it. Numbers from the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository, on RTX 4090.</p>
         </div>
-        <ol class="memory-log">
-          <li><span>step 50</span><q>No relevant task progress is visible yet.</q></li>
-          <li class="new"><span>step 185</span><q>The alphabet soup is in the basket.</q></li>
-        </ol>
-        <dl class="memory-stats">
-          <div><dt>87.25%</dt><dd>exact match on held-out frames</dd></div>
-          <div><dt>8.16 ms</dt><dd>median adapter cost per memory, against a 47.66 ms prefix forward</dd></div>
-          <div><dt>0</dt><dd>change to actions with the adapter zeroed</dd></div>
-          <div><dt>338,575</dt><dd>annotated frames from 2,000 LIBERO demonstrations</dd></div>
-        </dl>
       </div>
-      <div class="grid"><p class="note main" style="margin-top: 20px">Developed after the main experiments; it does not change the paper's latency or action-quality results. Numbers from the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository, measured on RTX 4090.</p></div>
     </section>
 
     <section class="section" id="resources" data-title="Resources">
@@ -220,12 +220,12 @@ const resources = [
         <Fragment slot="title">Read it, run it, <em>build on it.</em></Fragment>
       </SectionHead>
       <div class="grid">
-        <ul class="resources">
+        <ul class="c1-6 resources">
           {resources.map((r) => (
             <li><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
           ))}
         </ul>
-        <div class="citation">
+        <div class="c8-12 citation">
           <div class="citation-head"><span class="label"><b>Citation</b></span><button id="copy-citation" type="button">Copy BibTeX</button></div>
           <pre><code id="citation-text">{citation}</code></pre>
         </div>
@@ -233,8 +233,8 @@ const resources = [
     </section>
 
     <footer class="colophon grid">
-      <p>OxyGen · Unified KV cache management for VLA inference</p>
-      <p>Built on <a href="https://github.com/Physical-Intelligence/openpi" target="_blank" rel="noreferrer">openpi</a>. Code released under Apache 2.0.</p>
+      <p class="c1-6">OxyGen · Unified KV cache management for VLA inference</p>
+      <p class="c7-12">Built on <a href="https://github.com/Physical-Intelligence/openpi" target="_blank" rel="noreferrer">openpi</a>. Code released under Apache 2.0.</p>
     </footer>
   </main>
 

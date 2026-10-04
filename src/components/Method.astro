@@ -1,11 +1,11 @@
 ---
 import { ablation } from "../data/paper-figures";
 
-// One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5.
-// Totals are measured mean frame latencies, 10 actions / action frequency, from
-// the LIBERO ablation at N=30 (baseline, shared KV only, OxyGen). Prefix and denoise widths follow the
-// synchronized stage profile (Appendix tab:small-n-profile); the rest of each
-// frame is drawn as language decoding.
+// One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5. Totals are
+// measured mean frame latencies (10 actions / action frequency) from the
+// LIBERO ablation: baseline, shared KV only, OxyGen. Prefix and denoise widths
+// follow the synchronized stage profile (Appendix tab:small-n-profile); the
+// rest of each frame is drawn as language decoding.
 const frameMs = (hz: number) => (10 / hz) * 1000;
 const lab = ablation.rtx4090;
 const PREFIX = 45.1;
@@ -57,24 +57,20 @@ function layout(mode: (typeof modes)[number]) {
 }
 ---
 
-<div class="ideas grid">
-  <div class="idea">
-    <h3><span>i.</span>Cross-task KV sharing</h3>
-    <p>Action and language experts read the same observation. OxyGen encodes it once per frame and lets every expert attend to the shared prefix, instead of prefilling the same images and prompt for each task.</p>
+<div class="grid">
+  <div class="c1-4">
+    <div class="idea">
+      <h3><span>i.</span>Cross-task KV sharing</h3>
+      <p>Action and language experts read the same observation. OxyGen encodes it once per frame and every expert attends to the shared prefix.</p>
+    </div>
+    <div class="idea">
+      <h3><span>ii.</span>Cross-frame continuous batching</h3>
+      <p>Each frame advances every unfinished language request by a fixed budget of <i>k</i> tokens, in one batch. Long answers spread over a few frames; actions keep their pace.</p>
+    </div>
   </div>
-  <div class="idea">
-    <h3><span>ii.</span>Cross-frame continuous batching</h3>
-    <p>Each frame advances every unfinished language request by a fixed budget of <i>k</i> tokens, in a single batch. Long answers spread over a few frames, and actions keep their pace.</p>
-  </div>
-</div>
 
-<figure class="fig grid">
-  <figcaption class="fig-caption">
-    <span class="label"><b>Fig. 2</b></span>
-    <p>One control frame of π<sub>0.5</sub> on an RTX 4090 with 30-token requests, <i>k</i> = 5 decoding steps per frame and one new request per frame. Frame totals are measured; stage widths follow the paper's stage profile.</p>
-    <p>Step-by-step details are in the paper and the blog post.</p>
-  </figcaption>
-  <div class="fig-body">
+  <figure class="c6-12">
+    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 2</b></span>One control frame, three ways</span></div>
     <div class="lanes">
       {modes.map((mode) => (
         <div class="lane">
@@ -100,5 +96,6 @@ function layout(mode: (typeof modes)[number]) {
       <span><i style="background: var(--action)"></i>action denoising</span>
       <span><i style="background: var(--language)"></i>language decoding</span>
     </div>
-  </div>
-</figure>
+    <figcaption class="caption">π<sub>0.5</sub> on an RTX 4090; 30-token requests, <i>k</i> = 5, one new request per frame. Frame totals are measured; stage widths follow the paper's stage profile.</figcaption>
+  </figure>
+</div>

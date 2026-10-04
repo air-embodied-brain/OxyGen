@@ -7,8 +7,8 @@ const configs = [
   { id: "aloha", label: "ALOHA" },
 ] as const;
 const devices = [
-  { id: "rtx4090", label: "RTX 4090" },
-  { id: "thor", label: "Jetson AGX Thor" },
+  { id: "rtx4090", label: "RTX 4090", cls: "c1-6" },
+  { id: "thor", label: "Jetson AGX Thor", cls: "c7-12" },
 ] as const;
 const series: { key: SeriesKey; label: string; short: string; cls: string }[] = [
   { key: "baseline", label: "Isolated baseline", short: "Baseline", cls: "s-baseline" },
@@ -18,9 +18,9 @@ const series: { key: SeriesKey; label: string; short: string; cls: string }[] = 
   { key: "k1", label: "OxyGen, k = 1", short: "OxyGen, k = 1", cls: "s-k1" },
 ];
 
-const W = 760;
-const H = 440;
-const M = { l: 44, r: 96, t: 16, b: 46 };
+const W = 560;
+const H = 320;
+const M = { l: 36, r: 84, t: 22, b: 40 };
 const axes = {
   rtx4090: { x: 110, y: 240, xs: [0, 20, 40, 60, 80, 100], ys: [0, 60, 120, 180, 240] },
   thor: { x: 50, y: 105, xs: [0, 10, 20, 30, 40, 50], ys: [0, 25, 50, 75, 100] },
@@ -28,83 +28,70 @@ const axes = {
 const sx = (dev: keyof typeof axes, v: number) => M.l + (v / axes[dev].x) * (W - M.l - M.r);
 const sy = (dev: keyof typeof axes, v: number) => H - M.b - (v / axes[dev].y) * (H - M.t - M.b);
 
-function headline(pts: Record<SeriesKey, TradeoffPoint[]>) {
-  const ours = pts.k1.at(-1)!;
-  const base = pts.baseline.at(-1)!;
-  return { ours, base, speedup: ours[1] / base[1] };
+function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
+  return pts.k1.at(-1)![1] / pts.baseline.at(-1)![1];
 }
-const first = headline(tradeoff.libero.rtx4090);
 ---
 
-<figure class="fig grid" data-tradeoff>
-  <figcaption class="fig-caption">
-    <span class="label"><b>Fig. 3</b></span>
-    <span class="big"><span data-out="speedup">{first.speedup.toFixed(1)}</span>×</span>
-    <p>At 30-token requests, OxyGen with <i>k</i> = 1 reaches <span data-out="hz">{first.ours[1].toFixed(0)}</span> Hz and <span data-out="tps">{first.ours[2].toFixed(0)}</span> tok/s; the isolated baseline reaches <span data-out="base-hz">{first.base[1].toFixed(0)}</span> Hz and <span data-out="base-tps">{first.base[2].toFixed(0)}</span> tok/s.</p>
-    <p>π<sub>0.5</sub>, 10 denoising steps, one new request per frame. Each OxyGen line fixes <i>k</i> and sweeps request length from 5 to 30 tokens; longer requests move points up and to the left.</p>
-  </figcaption>
-  <div class="fig-body">
-    <div class="fig-toolbar">
-      <span class="title">Action frequency vs. language throughput</span>
-      <div class="toolbar-switches">
-        <div class="switch" role="tablist" aria-label="Robot configuration">
-          {configs.map((c, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-config={c.id}>{c.label}</button>)}
-        </div>
-        <div class="switch" role="tablist" aria-label="Hardware">
-          {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
-        </div>
-      </div>
+<figure data-tradeoff>
+  <div class="fig-head">
+    <span class="title"><span class="label"><b>Fig. 3</b></span>Action frequency vs. language throughput</span>
+    <div class="switch" role="tablist" aria-label="Robot configuration">
+      {configs.map((c, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-config={c.id}>{c.label}</button>)}
     </div>
-    <div class="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Action frequency versus language throughput">
-        {configs.map((c) => devices.map((d) => {
-          const pts = tradeoff[c.id][d.id];
-          const h = headline(pts);
-          const ax = axes[d.id];
-          return (
-            <g data-panel={`${c.id}-${d.id}`} class:list={[!(c.id === "libero" && d.id === "rtx4090") && "off"]} data-speedup={h.speedup.toFixed(1)} data-hz={h.ours[1].toFixed(0)} data-tps={h.ours[2].toFixed(0)} data-base-hz={h.base[1].toFixed(0)} data-base-tps={h.base[2].toFixed(0)}>
-              <g class="gridlines">
-                {ax.ys.slice(1).map((v) => <line x1={M.l} x2={W - M.r} y1={sy(d.id, v)} y2={sy(d.id, v)} />)}
-              </g>
-              <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
-              <g class="ticklabels">
-                {ax.xs.map((v) => <text x={sx(d.id, v)} y={H - M.b + 18} text-anchor="middle">{v}</text>)}
-                {ax.ys.slice(1).map((v) => <text x={M.l - 8} y={sy(d.id, v) + 4} text-anchor="end">{v}</text>)}
-              </g>
-              <text class="axis-title" x={W - M.r} y={H - 6} text-anchor="end">Action frequency (Hz) →</text>
-              <text class="axis-title" x={M.l} y={M.t - 2}>↑ Language throughput (tok/s)</text>
-              <g class="annot">
-                <line x1={sx(d.id, h.base[1])} y1={sy(d.id, h.base[2])} x2={sx(d.id, h.ours[1])} y2={sy(d.id, h.ours[2])} />
-              </g>
-              {series.map((s) => {
-                const p = pts[s.key];
-                const path = p.map((q, i) => `${i ? "L" : "M"}${sx(d.id, q[1]).toFixed(1)},${sy(d.id, q[2]).toFixed(1)}`).join("");
-                // OxyGen lines are labelled at their 5-token end, the baselines below their first point.
-                const end = p[0];
-                const ex = sx(d.id, end[1]);
-                const ey = sy(d.id, end[2]);
-                // On Thor, MPS falls below the sequential baseline, so the two labels swap sides.
-                const parallelBelow = pts.parallel[0][2] < pts.baseline[0][2];
-                const below = (anchor: string) => ({ x: ex + (anchor === "end" ? -6 : 4), y: ey + 18, anchor });
-                const right = { x: ex + 10, y: ey + 4, anchor: "start" };
-                const label =
-                  s.key === "baseline" ? (parallelBelow ? right : below("end"))
-                  : s.key === "parallel" ? below(parallelBelow ? "end" : "start")
-                  : right;
-                return (
-                  <g class:list={["series", s.cls]}>
-                    <path d={path} pathLength="1" />
-                    {p.map((q) => <circle cx={sx(d.id, q[1])} cy={sy(d.id, q[2])} r={s.key === "k1" ? 4 : 3} />)}
-                    <text class="end" x={label.x} y={label.y} text-anchor={label.anchor}>{s.short}</text>
-                    {p.map((q) => <circle class="hit" cx={sx(d.id, q[1])} cy={sy(d.id, q[2])} r="11" data-tip={`${s.label}\n${q[0]}-token requests\n${q[1].toFixed(1)} Hz · ${q[2].toFixed(1)} tok/s`} />)}
-                  </g>
-                );
-              })}
-            </g>
-          );
-        }))}
-      </svg>
-    </div>
-    <p class="note">RTX 4090 values are recomputed from the raw experiment logs; Jetson AGX Thor values are read from the paper's figure. Hover a point for its values.</p>
   </div>
+  <div class="grid">
+    {devices.map((d) => (
+      <div class:list={[d.cls, "chart"]}>
+        {configs.map((c) => {
+          const pts = tradeoff[c.id][d.id];
+          const ax = axes[d.id];
+          const ours = pts.k1.at(-1)!;
+          const base = pts.baseline.at(-1)!;
+          // On Thor, MPS falls below the sequential baseline, so the two labels swap sides.
+          const parallelBelow = pts.parallel[0][2] < pts.baseline[0][2];
+          return (
+            <div data-panel={c.id} class:list={[c.id !== "libero" && "off"]}>
+              <div class="panel-head"><span>{d.label}</span><span class="gain">{gain(pts).toFixed(1)}×<small>at 30-token requests</small></span></div>
+              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${c.label} on ${d.label}: action frequency versus language throughput`}>
+                <g class="gridlines">{ax.ys.slice(1).map((v) => <line x1={M.l} x2={W - M.r} y1={sy(d.id, v)} y2={sy(d.id, v)} />)}</g>
+                <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
+                <g class="ticklabels">
+                  {ax.xs.map((v) => <text x={sx(d.id, v)} y={H - M.b + 16} text-anchor="middle">{v}</text>)}
+                  {ax.ys.slice(1).map((v) => <text x={M.l - 7} y={sy(d.id, v) + 4} text-anchor="end">{v}</text>)}
+                </g>
+                <text class="axis-title" x={W - M.r} y={H - 4} text-anchor="end">Action frequency (Hz) →</text>
+                <text class="axis-title" x={M.l} y={M.t - 8}>↑ Language throughput (tok/s)</text>
+                <g class="annot"><line x1={sx(d.id, base[1])} y1={sy(d.id, base[2])} x2={sx(d.id, ours[1])} y2={sy(d.id, ours[2])} /></g>
+                {series.map((s) => {
+                  const p = pts[s.key];
+                  const path = p.map((q, i) => `${i ? "L" : "M"}${sx(d.id, q[1]).toFixed(1)},${sy(d.id, q[2]).toFixed(1)}`).join("");
+                  // Labels sit at the 5-token end of each line.
+                  const ex = sx(d.id, p[0][1]);
+                  const ey = sy(d.id, p[0][2]);
+                  const below = (anchor: string) => ({ x: ex + (anchor === "end" ? -6 : 4), y: ey + 16, anchor });
+                  const right = { x: ex + 9, y: ey + 4, anchor: "start" };
+                  const label =
+                    s.key === "baseline" ? (parallelBelow ? right : below("end"))
+                    : s.key === "parallel" ? below(parallelBelow ? "end" : "start")
+                    : right;
+                  return (
+                    <g class:list={["series", s.cls]}>
+                      <path d={path} pathLength="1" />
+                      {p.map((q) => <circle cx={sx(d.id, q[1])} cy={sy(d.id, q[2])} r={s.key === "k1" ? 3.5 : 2.6} />)}
+                      <text class="end" x={label.x} y={label.y} text-anchor={label.anchor}>{s.short}</text>
+                      {p.map((q) => <circle class="hit" cx={sx(d.id, q[1])} cy={sy(d.id, q[2])} r="10" data-tip={`${s.label}\n${q[0]}-token requests\n${q[1].toFixed(1)} Hz · ${q[2].toFixed(1)} tok/s`} />)}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          );
+        })}
+      </div>
+    ))}
+  </div>
+  <figcaption class="caption">
+    π<sub>0.5</sub> with 10 denoising steps and one new request per frame. Each OxyGen line fixes <i>k</i> decoding steps per frame and sweeps request length from 5 to 30 tokens, so points move up and to the left. The dotted line joins the baseline and OxyGen (<i>k</i> = 1) at 30 tokens. Values recomputed from the raw logs; hover a point for details.
+  </figcaption>
 </figure>

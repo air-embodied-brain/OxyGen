@@ -5,10 +5,11 @@ interface Props {
 }
 
 const { number, label } = Astro.props;
+const hasDek = Astro.slots.has("default");
 ---
 
-<div class="section-head grid">
+<div class:list={["section-head grid", !hasDek && "solo"]}>
   <p class="label"><b>§ {number}</b> · {label}</p>
   <h2><slot name="title" /></h2>
-  {Astro.slots.has("default") && <p class="dek"><slot /></p>}
+  {hasDek && <p class="dek"><slot /></p>}
 </div>
