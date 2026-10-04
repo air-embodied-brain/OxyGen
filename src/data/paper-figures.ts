@@ -1,6 +1,10 @@
-// Values plotted in the camera-ready paper figures (tradeoff_pi05_o2_*.pdf,
-// combined_ablation_pi05_o2_libero.pdf), recovered from the vector PDFs with
-// scripts/data/extract_paper_figures.py. Tables are copied from the appendix.
+// π0.5 tradeoff and ablation values.
+// RTX 4090: recomputed from the raw ECCV/NeurIPS-submission results
+//   (results/eccv_submission_raw/results_eccv) with scripts/data/verify_raw_results.py,
+//   using the paper's aggregation (warmup excluded, H/T action frequency).
+// Jetson AGX Thor: raw results are not in this workspace; values are read from the
+//   camera-ready vector figures with scripts/data/extract_paper_figures.py
+//   (the same reader reproduces the 4090 raw values within 0.05).
 
 /** [N, action frequency (Hz), language throughput (tok/s)] */
 export type TradeoffPoint = [number, number, number];
@@ -15,16 +19,16 @@ export const tradeoff: Record<
       baseline: [
         [5, 49.9, 25.0],
         [10, 37.5, 37.5],
-        [15, 30.2, 45.3],
+        [15, 30.2, 45.2],
         [20, 25.1, 50.3],
         [30, 19.1, 57.2],
       ],
       parallel: [
-        [5, 55.8, 25.2],
-        [10, 41.5, 38.8],
-        [15, 32.6, 46.2],
-        [20, 26.9, 51.0],
-        [30, 19.8, 56.7],
+        [5, 55.8, 27.9],
+        [10, 41.5, 41.5],
+        [15, 32.6, 48.9],
+        [20, 26.9, 53.7],
+        [30, 19.8, 59.5],
       ],
       k1: [
         [5, 97.0, 48.5],
@@ -55,11 +59,11 @@ export const tradeoff: Record<
         [30, 9.5, 28.5],
       ],
       parallel: [
-        [5, 18.9, 8.4],
-        [10, 14.4, 13.3],
-        [15, 11.4, 16.0],
-        [20, 9.4, 17.7],
-        [30, 7.0, 19.9],
+        [5, 18.9, 9.5],
+        [10, 14.4, 14.4],
+        [15, 11.4, 17.1],
+        [20, 9.4, 18.8],
+        [30, 7.0, 21.0],
       ],
       k1: [
         [5, 42.0, 21.0],
@@ -92,15 +96,15 @@ export const tradeoff: Record<
         [30, 19.1, 57.2],
       ],
       parallel: [
-        [5, 57.0, 25.7],
-        [10, 41.8, 39.0],
-        [15, 32.9, 46.6],
-        [20, 27.2, 51.7],
-        [30, 20.0, 57.2],
+        [5, 57.0, 28.5],
+        [10, 41.8, 41.8],
+        [15, 32.9, 49.3],
+        [20, 27.2, 54.4],
+        [30, 20.0, 60.0],
       ],
       k1: [
         [5, 96.5, 48.3],
-        [10, 89.8, 89.9],
+        [10, 89.8, 89.8],
         [15, 84.9, 127.5],
         [20, 80.2, 160.6],
         [30, 71.3, 213.9],
@@ -127,11 +131,11 @@ export const tradeoff: Record<
         [30, 9.5, 28.5],
       ],
       parallel: [
-        [5, 19.1, 8.5],
-        [10, 14.5, 13.4],
-        [15, 11.5, 16.1],
-        [20, 9.5, 17.8],
-        [30, 7.0, 19.9],
+        [5, 19.1, 9.6],
+        [10, 14.5, 14.5],
+        [15, 11.5, 17.2],
+        [20, 9.5, 18.9],
+        [30, 7.0, 21.0],
       ],
       k1: [
         [5, 40.8, 20.4],
@@ -159,16 +163,16 @@ export const tradeoff: Record<
       baseline: [
         [5, 49.9, 25.0],
         [10, 37.4, 37.4],
-        [15, 30.2, 45.3],
+        [15, 30.2, 45.2],
         [20, 25.3, 50.6],
         [30, 19.1, 57.2],
       ],
       parallel: [
-        [5, 55.5, 25.0],
-        [10, 41.2, 38.5],
-        [15, 32.6, 46.1],
-        [20, 26.9, 51.1],
-        [30, 19.8, 56.7],
+        [5, 55.5, 27.8],
+        [10, 41.2, 41.2],
+        [15, 32.6, 48.9],
+        [20, 26.9, 53.8],
+        [30, 19.8, 59.5],
       ],
       k1: [
         [5, 96.5, 48.3],
@@ -199,11 +203,11 @@ export const tradeoff: Record<
         [30, 9.4, 28.2],
       ],
       parallel: [
-        [5, 18.6, 8.2],
-        [10, 14.2, 13.1],
-        [15, 11.3, 15.9],
-        [20, 9.3, 17.6],
-        [30, 6.9, 19.7],
+        [5, 18.6, 9.3],
+        [10, 14.2, 14.2],
+        [15, 11.3, 17.0],
+        [20, 9.3, 18.7],
+        [30, 6.9, 20.8],
       ],
       k1: [
         [5, 40.5, 20.2],

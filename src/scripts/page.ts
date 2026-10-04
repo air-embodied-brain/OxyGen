@@ -1,3 +1,4 @@
+// Memory outputs from the demo rollouts, typed into the masthead band.
 const MEMORIES = [
   "No relevant task progress is visible yet.",
   "The alphabet soup is in the basket.",
@@ -5,80 +6,64 @@ const MEMORIES = [
   "The first moka pot is on the stove.",
 ];
 
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 function $all<T extends Element>(selector: string, root: ParentNode = document) {
   return Array.from(root.querySelectorAll<T>(selector));
 }
 
-function setSelected(buttons: HTMLElement[], active: HTMLElement, attr = "aria-selected") {
+function select(buttons: HTMLElement[], active: HTMLElement, attr = "aria-selected") {
   for (const button of buttons) button.setAttribute(attr, String(button === active));
 }
 
-function initHeader() {
-  const header = document.querySelector<HTMLElement>("[data-header]");
-  const onScroll = () => header?.classList.toggle("scrolled", window.scrollY > 12);
-  onScroll();
-  window.addEventListener("scroll", onScroll, { passive: true });
-
-  const links = $all<HTMLAnchorElement>(".site-nav a");
-  const sections = links
-    .map((link) => document.querySelector<HTMLElement>(link.getAttribute("href")!))
-    .filter((section): section is HTMLElement => Boolean(section));
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        for (const link of links) link.classList.toggle("active", link.getAttribute("href") === `#${entry.target.id}`);
-      }
-    },
-    { rootMargin: "-45% 0px -50% 0px" },
-  );
-  for (const section of sections) observer.observe(section);
+/** Highlights the current section in the running head. */
+function initRunningHead() {
+  const links = $all<HTMLAnchorElement>(".running-head nav a");
+  const current = document.querySelector<HTMLElement>("[data-current]");
+  const sections = $all<HTMLElement>("section[data-title]");
+  const update = () => {
+    const line = window.innerHeight * 0.3;
+    let active: HTMLElement | undefined;
+    for (const section of sections) {
+      if (section.getBoundingClientRect().top <= line) active = section;
+    }
+    if (current) current.textContent = active ? `§ ${sections.indexOf(active) + 1} · ${active.dataset.title}` : "";
+    for (const link of links) {
+      link.classList.toggle("active", Boolean(active) && link.hash === `#${active!.id}`);
+    }
+  };
+  update();
+  window.addEventListener("scroll", update, { passive: true });
 }
 
 function initTheme() {
   document.querySelector("#theme-toggle")?.addEventListener("click", () => {
-    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     localStorage.setItem("oxygen-theme", next);
   });
 }
 
-function initReveal() {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add("in-view");
-        observer.unobserve(entry.target);
-      }
-    },
-    { rootMargin: "0px 0px -12% 0px", threshold: 0.05 },
-  );
-  for (const element of $all(".reveal")) observer.observe(element);
-}
-
-/** Types memory text into each hero stream at its measured token rate, slowed for legibility. */
-function initClocks() {
-  const root = document.querySelector<HTMLElement>("[data-clocks]");
+/** Types memory words at each row's measured token rate, slowed down for reading. */
+function initRates() {
+  const root = document.querySelector<HTMLElement>("[data-rates]");
   if (!root) return;
   const slowdown = Number(root.dataset.slowdown ?? 10);
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  for (const [index, clock] of $all<HTMLElement>("[data-clock]", root).entries()) {
-    const target = clock.querySelector<HTMLElement>("[data-stream]");
+  const words = MEMORIES.join(" ").split(" ");
+  for (const [index, row] of $all<HTMLElement>(".rate-row", root).entries()) {
+    const target = row.querySelector<HTMLElement>("[data-words]");
     if (!target) continue;
-    const words = MEMORIES.join(" ").split(" ");
-    if (reduced) {
+    if (reducedMotion) {
       target.textContent = MEMORIES[index];
       continue;
     }
-    const interval = (1000 * slowdown) / Number(clock.dataset.tps);
     let cursor = 0;
     let text = "";
     window.setInterval(() => {
-      text = `${text} ${words[cursor % words.length]}`.slice(-90);
+      text = `${text} ${words[cursor % words.length]}`.slice(-110);
       target.textContent = text.trim();
       cursor += 1;
-    }, interval);
+    }, (1000 * slowdown) / Number(row.dataset.tps));
   }
 }
 
@@ -86,8 +71,8 @@ function initDemo() {
   const root = document.querySelector<HTMLElement>("[data-demo]");
   if (!root) return;
   const video = root.querySelector<HTMLVideoElement>("[data-demo-video]")!;
-  const tabs = $all<HTMLButtonElement>(".demo-tab", root);
-  const portrait = window.matchMedia("(max-width: 720px)");
+  const tabs = $all<HTMLButtonElement>("[role=tab]", root);
+  const portrait = window.matchMedia("(max-width: 680px)");
   const load = (tab: HTMLButtonElement) => {
     const name = `${tab.dataset.id}${portrait.matches ? "-vertical" : ""}`;
     video.poster = `${root.dataset.base}posters/${name}.webp`;
@@ -101,12 +86,12 @@ function initDemo() {
   for (const tab of tabs) {
     tab.addEventListener("click", () => {
       if (tab.getAttribute("aria-selected") === "true") return;
-      setSelected(tabs, tab);
+      select(tabs, tab);
       load(tab);
       void video.play().catch(() => undefined);
     });
   }
-  // Start muted playback once the demo scrolls into view.
+  if (reducedMotion) return;
   const observer = new IntersectionObserver(
     (entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
@@ -114,15 +99,30 @@ function initDemo() {
         observer.disconnect();
       }
     },
-    { threshold: 0.5 },
+    { threshold: 0.6 },
   );
-  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) observer.observe(video);
+  observer.observe(video);
 }
 
-function replay(panel: Element) {
-  panel.classList.remove("draw");
+/** Draws a chart panel's lines once. */
+function draw(panel: Element) {
+  if (reducedMotion) return;
+  panel.classList.remove("drawn");
   void (panel as HTMLElement).getBoundingClientRect();
-  panel.classList.add("draw");
+  panel.classList.add("drawn");
+}
+
+function drawOnFirstView(root: HTMLElement, panel: () => Element | null) {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      const target = panel();
+      if (target) draw(target);
+      observer.disconnect();
+    },
+    { threshold: 0.35 },
+  );
+  observer.observe(root);
 }
 
 function initTradeoff() {
@@ -131,41 +131,34 @@ function initTradeoff() {
   const state = { config: "libero", device: "rtx4090" };
   const configButtons = $all<HTMLButtonElement>("[data-config]", root);
   const deviceButtons = $all<HTMLButtonElement>("[data-device]", root);
+  const active = () => root.querySelector<HTMLElement>(`[data-panel="${state.config}-${state.device}"]`);
   const update = () => {
-    let active: HTMLElement | undefined;
     for (const panel of $all<HTMLElement>("[data-panel]", root)) {
-      const on = panel.dataset.panel === `${state.config}-${state.device}`;
-      panel.classList.toggle("off", !on);
-      if (on) active = panel;
+      panel.classList.toggle("off", panel !== active());
     }
-    if (!active) return;
+    const panel = active();
+    if (!panel) return;
     for (const out of $all<HTMLElement>("[data-out]", root)) {
       const key = out.dataset.out!.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-      out.textContent = active.dataset[key] ?? "";
+      out.textContent = panel.dataset[key] ?? "";
     }
-    replay(active);
+    draw(panel);
   };
   for (const button of configButtons) {
     button.addEventListener("click", () => {
       state.config = button.dataset.config!;
-      setSelected(configButtons, button);
+      select(configButtons, button);
       update();
     });
   }
   for (const button of deviceButtons) {
     button.addEventListener("click", () => {
       state.device = button.dataset.device!;
-      setSelected(deviceButtons, button);
+      select(deviceButtons, button);
       update();
     });
   }
-  const observer = new IntersectionObserver((entries) => {
-    if (entries.some((entry) => entry.isIntersecting)) {
-      update();
-      observer.disconnect();
-    }
-  }, { threshold: 0.3 });
-  observer.observe(root);
+  drawOnFirstView(root, active);
 }
 
 function initAblation() {
@@ -174,49 +167,15 @@ function initAblation() {
   const buttons = $all<HTMLButtonElement>("[data-device]", root);
   for (const button of buttons) {
     button.addEventListener("click", () => {
-      setSelected(buttons, button);
+      select(buttons, button);
       for (const panel of $all<HTMLElement>("[data-panel]", root)) {
         const on = panel.dataset.panel === button.dataset.device;
         panel.classList.toggle("off", !on);
-        if (on) replay(panel);
+        if (on) draw(panel);
       }
     });
   }
-}
-
-function initGenerality() {
-  const root = document.querySelector<HTMLElement>("[data-generality]");
-  if (!root) return;
-  const tabButtons = $all<HTMLButtonElement>("[data-tab]", root);
-  const kButtons = $all<HTMLButtonElement>("[data-k]", root);
-  let k = "k5";
-  const applyK = () => {
-    for (const bar of $all<HTMLElement>(".bar-fill", root)) {
-      bar.style.setProperty("--v", bar.dataset[k]!);
-      bar.textContent = bar.dataset[`${k}Label`] ?? "";
-    }
-  };
-  for (const button of tabButtons) {
-    button.addEventListener("click", () => {
-      setSelected(tabButtons, button);
-      for (const panel of $all<HTMLElement>("[data-tab-panel]", root)) {
-        const on = panel.dataset.tabPanel === button.dataset.tab;
-        panel.hidden = !on;
-        if (on) {
-          panel.classList.remove("in-view");
-          void panel.offsetWidth;
-          panel.classList.add("in-view");
-        }
-      }
-    });
-  }
-  for (const button of kButtons) {
-    button.addEventListener("click", () => {
-      k = button.dataset.k!;
-      setSelected(kButtons, button, "aria-pressed");
-      applyK();
-    });
-  }
+  drawOnFirstView(root, () => root.querySelector("[data-panel]:not(.off)"));
 }
 
 function initTooltip() {
@@ -249,14 +208,12 @@ function initCitation() {
 }
 
 export function initPage() {
-  initHeader();
+  initRunningHead();
   initTheme();
-  initReveal();
-  initClocks();
+  initRates();
   initDemo();
   initTradeoff();
   initAblation();
-  initGenerality();
   initTooltip();
   initCitation();
 }

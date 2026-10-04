@@ -2,55 +2,51 @@
 import { ablation, ablationN } from "../data/paper-figures";
 
 const devices = [
-  { id: "rtx4090", label: "RTX 4090", max: 80 },
-  { id: "thor", label: "Jetson AGX Thor", max: 35 },
+  { id: "rtx4090", label: "RTX 4090", max: 75, ticks: [0, 25, 50, 75] },
+  { id: "thor", label: "Jetson AGX Thor", max: 35, ticks: [0, 10, 20, 30] },
 ] as const;
 const series = [
   { key: "baseline", label: "Isolated baseline", cls: "s-baseline" },
   { key: "parallel", label: "Parallel (MPS)", cls: "s-parallel" },
   { key: "no_batching", label: "+ KV sharing", cls: "s-nobatch" },
-  { key: "ours", label: "+ batching (OxyGen)", cls: "s-k1" },
+  { key: "ours", label: "+ batching = OxyGen", cls: "s-k1" },
 ] as const;
 
-const W = 620;
-const rowH = 58;
-const barH = 10;
-const M = { l: 46, r: 16, t: 8, b: 40 };
-const H = M.t + rowH * ablationN.length + M.b;
-const sx = (max: number, v: number) => M.l + (v / max) * (W - M.l - M.r);
+const W = 460;
+const H = 300;
+const M = { l: 34, r: 14, t: 18, b: 40 };
+const INSET = 14;
+const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l - M.r - 2 * INSET);
 ---
 
-<div class="card chart-card reveal" data-ablation>
-  <div class="mini-head">
-    <h3>Where the speedup comes from</h3>
-    <div class="segmented" role="tablist" aria-label="Hardware">
+<div data-ablation>
+  <div class="fig-toolbar">
+    <span class="title">Where the gain comes from</span>
+    <div class="switch" role="tablist" aria-label="Hardware">
       {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
     </div>
   </div>
-  <p class="card-copy">KV sharing removes the repeated prefill and helps most for short answers. Batching keeps action frequency nearly flat as answers grow longer.</p>
   <div class="chart">
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Action frequency by configuration and request length">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Action frequency by request length for each execution mode">
       {devices.map((d, di) => {
         const data = ablation[d.id];
-        const ticks = d.id === "rtx4090" ? [0, 20, 40, 60, 80] : [0, 10, 20, 30];
+        const sy = (v: number) => H - M.b - (v / d.max) * (H - M.t - M.b);
         return (
           <g data-panel={d.id} class:list={[di !== 0 && "off"]}>
-            <g class="grid">{ticks.map((t) => <line x1={sx(d.max, t)} x2={sx(d.max, t)} y1={M.t} y2={H - M.b + 4} />)}</g>
-            <g class="axis">
-              {ticks.map((t) => <text x={sx(d.max, t)} y={H - M.b + 20} text-anchor="middle">{t}</text>)}
-              {ablationN.map((n, i) => <text x={M.l - 12} y={M.t + i * rowH + rowH / 2 + 4} text-anchor="end">N={n}</text>)}
+            <g class="gridlines">{d.ticks.slice(1).map((t) => <line x1={M.l} x2={W - M.r} y1={sy(t)} y2={sy(t)} />)}</g>
+            <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
+            <g class="ticklabels">
+              {d.ticks.slice(1).map((t) => <text x={M.l - 8} y={sy(t) + 4} text-anchor="end">{t}</text>)}
+              {ablationN.map((n, i) => <text x={sx(i)} y={H - M.b + 18} text-anchor="middle">{n}</text>)}
             </g>
-            <text class="axis-title" x={(M.l + W - M.r) / 2} y={H - 4} text-anchor="middle">Action frequency (Hz) →</text>
-            <line x1={sx(d.max, data.upperBound)} x2={sx(d.max, data.upperBound)} y1={M.t} y2={H - M.b + 4} stroke="var(--text)" stroke-dasharray="5 4" opacity="0.5" />
-            {ablationN.map((n, i) => (
-              <g>
-                {series.map((s, si) => {
-                  const v = data[s.key][i];
-                  const y = M.t + i * rowH + 6 + si * (barH + 2);
-                  return (
-                    <rect class={`bar ${s.cls}`} x={M.l} y={y} width={sx(d.max, v) - M.l} height={barH} rx="2" data-tip={`${s.label}\nN = ${n} tokens · k = 5\n${v.toFixed(1)} Hz`} style={`--d: ${(i * 0.06 + si * 0.03).toFixed(2)}s`} />
-                  );
-                })}
+            <text class="axis-title" x={W - M.r} y={H - 4} text-anchor="end">Tokens per language request →</text>
+            <text class="axis-title" x={M.l} y={M.t - 6}>↑ Action frequency (Hz), k = 5</text>
+            <line x1={M.l} x2={W - M.r} y1={sy(data.upperBound)} y2={sy(data.upperBound)} stroke="var(--ink)" stroke-dasharray="3 4" stroke-width="1" />
+            {series.map((s) => (
+              <g class:list={["series", s.cls]}>
+                <path d={data[s.key].map((v, i) => `${i ? "L" : "M"}${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join("")} pathLength="1" />
+                {data[s.key].map((v, i) => <circle cx={sx(i)} cy={sy(v)} r="3" />)}
+                {data[s.key].map((v, i) => <circle class="hit" cx={sx(i)} cy={sy(v)} r="10" data-tip={`${s.label}\n${ablationN[i]}-token requests\n${v.toFixed(1)} Hz`} />)}
               </g>
             ))}
           </g>
@@ -58,8 +54,8 @@ const sx = (max: number, v: number) => M.l + (v / max) * (W - M.l - M.r);
       })}
     </svg>
   </div>
-  <div class="legend">
-    {series.map((s) => <span><i class={s.cls} style="background: currentColor"></i>{s.label}</span>)}
-    <span><i class="line" style="background: var(--text); opacity: .5"></i>one-frame decoding bound</span>
+  <div class="key">
+    {series.map((s) => <span class={s.cls}><i class="line" style="background: currentColor"></i>{s.label}</span>)}
+    <span><i class="dash"></i>one-frame decoding bound</span>
   </div>
 </div>

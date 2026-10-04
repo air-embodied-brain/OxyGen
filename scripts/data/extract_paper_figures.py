@@ -87,8 +87,6 @@ def tradeoff(path):
                 continue
             r = d["rect"]
             cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
-            if name == "parallel":  # triangle marker: centroid sits at 2/3 height
-                cy = r.y0 + (r.y1 - r.y0) * 2 / 3
             if not inside(cx) or r.width > 12:
                 continue
             series.setdefault(name, []).append((round(fx(cx), 2), round(fy(cy), 1)))

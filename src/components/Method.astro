@@ -1,100 +1,104 @@
 ---
-import { links } from "../data/site";
+import { ablation } from "../data/paper-figures";
 
-// One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5 (paper §4.3).
-// Totals are measured frame latencies; prefix and denoise widths use the
-// synchronized stage profile (Appendix tab:small-n-profile), and the rest of
-// each frame is shown as language decoding.
+// One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5.
+// Totals are measured mean frame latencies, 10 actions / action frequency, from
+// the LIBERO ablation at N=30 (baseline, shared KV only, OxyGen). Prefix and denoise widths follow the
+// synchronized stage profile (Appendix tab:small-n-profile); the rest of each
+// frame is drawn as language decoding.
+const frameMs = (hz: number) => (10 / hz) * 1000;
+const lab = ablation.rtx4090;
 const PREFIX = 45.1;
 const DENOISE = 20.4;
 const modes = [
   {
-    id: "isolated",
     label: "Isolated",
     note: "openpi baseline",
-    total: 524.4,
+    total: frameMs(lab.baseline.at(-1)!),
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "prefill repeat", ms: PREFIX, text: "prefill again" },
-      { kind: "decode", text: "decode 30 tokens, one request" },
+      { kind: "prefill repeat", ms: PREFIX, text: "prefill" },
+      { kind: "decode", text: "decode 30 tokens for one request" },
     ],
   },
   {
-    id: "shared",
     label: "+ KV sharing",
-    note: "one prefill, two experts",
-    total: 469.3,
+    note: "one prefill for both experts",
+    total: frameMs(lab.no_batching.at(-1)!),
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode", text: "decode 30 tokens, one request" },
+      { kind: "decode", text: "decode 30 tokens for one request" },
     ],
   },
   {
-    id: "oxygen",
     label: "+ cross-frame batching",
     note: "OxyGen",
-    total: 175.8,
+    total: frameMs(lab.ours.at(-1)!),
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode batched", text: "5 steps × 6 requests" },
+      { kind: "decode", text: "5 steps × 6 requests" },
     ],
   },
 ];
-const scale = 540;
+const SCALE = 550;
+const axis = [0, 100, 200, 300, 400, 500];
 function layout(mode: (typeof modes)[number]) {
   const fixed = mode.blocks.reduce((sum, block) => sum + (block.ms ?? 0), 0);
   let cursor = 0;
-  return mode.blocks.map((block, index) => {
+  return mode.blocks.map((block) => {
     const ms = block.ms ?? mode.total - fixed;
-    const item = { ...block, left: (cursor / scale) * 100, width: (ms / scale) * 100, delay: index * 0.12 };
+    const item = { ...block, left: (cursor / SCALE) * 100, width: (ms / SCALE) * 100 };
     cursor += ms;
     return item;
   });
 }
 ---
 
-<div class="method-grid">
-  <article class="card idea reveal">
-    <h3><span>01</span>Cross-task KV sharing</h3>
-    <p>Action and language experts read the same observation prefix. OxyGen computes it once per frame and lets every expert attend to it, instead of prefilling the same images and prompt for each task.</p>
-  </article>
-  <article class="card idea reveal">
-    <h3><span>02</span>Cross-frame continuous batching</h3>
-    <p>Each frame advances every unfinished language request by a fixed budget of <i>k</i> tokens, in one batch. Long answers spread over a few frames, and actions keep their pace.</p>
-  </article>
+<div class="ideas grid">
+  <div class="idea">
+    <h3><span>i.</span>Cross-task KV sharing</h3>
+    <p>Action and language experts read the same observation. OxyGen encodes it once per frame and lets every expert attend to the shared prefix, instead of prefilling the same images and prompt for each task.</p>
+  </div>
+  <div class="idea">
+    <h3><span>ii.</span>Cross-frame continuous batching</h3>
+    <p>Each frame advances every unfinished language request by a fixed budget of <i>k</i> tokens, in a single batch. Long answers spread over a few frames, and actions keep their pace.</p>
+  </div>
 </div>
 
-<div class="card frame-diagram reveal" data-frames>
-  <div class="frame-diagram-head">
-    <div class="mini-head" style="margin: 0">
-      <h3>One control frame, three ways</h3>
-      <span>π<sub>0.5</sub> · RTX 4090 · N=30, k=5</span>
+<figure class="fig grid">
+  <figcaption class="fig-caption">
+    <span class="label"><b>Fig. 2</b></span>
+    <p>One control frame of π<sub>0.5</sub> on an RTX 4090 with 30-token requests, <i>k</i> = 5 decoding steps per frame and one new request per frame. Frame totals are measured; stage widths follow the paper's stage profile.</p>
+    <p>Step-by-step details are in the paper and the blog post.</p>
+  </figcaption>
+  <div class="fig-body">
+    <div class="lanes">
+      {modes.map((mode) => (
+        <div class="lane">
+          <div class="lane-name">{mode.label}<small>{mode.note}</small></div>
+          <div class="lane-track">
+            {layout(mode).map((block) => (
+              <div class:list={["block", block.kind]} style={`left: ${block.left}%; width: ${block.width}%`}>
+                {block.width > 8 ? block.text : ""}
+              </div>
+            ))}
+          </div>
+          <div class="lane-total">{mode.total.toFixed(0)} ms<small>{((10 / mode.total) * 1000).toFixed(0)} Hz actions</small></div>
+        </div>
+      ))}
+      <div class="lane-axis" aria-hidden="true">
+        <span></span>
+        <div>{axis.map((ms) => <span style={`left: ${(ms / SCALE) * 100}%`}>{ms}</span>)}</div>
+        <span>ms</span>
+      </div>
+    </div>
+    <div class="key">
+      <span><i style="background: var(--baseline)"></i>observation prefill</span>
+      <span><i style="background: var(--action)"></i>action denoising</span>
+      <span><i style="background: var(--language)"></i>language decoding</span>
     </div>
   </div>
-  <div class="lane-stack">
-    {modes.map((mode) => (
-      <div class="lane" data-lane={mode.id}>
-        <div class="lane-label">{mode.label}<small>{mode.note}</small></div>
-        <div class="lane-track">
-          {layout(mode).map((block) => (
-            <div class:list={["block", block.kind]} style={`left: ${block.left}%; width: ${block.width}%; --delay: ${block.delay}s`}>
-              {block.width > 9 ? block.text : ""}
-            </div>
-          ))}
-        </div>
-        <div class="lane-total">{mode.total.toFixed(0)} ms<small>{(10 / mode.total * 1000).toFixed(0)} Hz actions</small></div>
-      </div>
-    ))}
-  </div>
-  <div class="legend">
-    <span><i style="background: var(--baseline)"></i>observation prefill</span>
-    <span><i style="background: var(--action)"></i>action denoising</span>
-    <span><i style="background: var(--language)"></i>language decoding</span>
-  </div>
-  <p class="note">
-    π<sub>0.5</sub>-LIBERO on one RTX 4090, 30-token language requests, <i>k</i> = 5 steps per frame, one new request per frame. Frame totals are measured; stage widths are drawn from the paper's stage profile. For the full design, see the <a href="#resources">paper</a> or the <a href={links.blog} target="_blank" rel="noreferrer">blog post</a>.
-  </p>
-</div>
+</figure>
