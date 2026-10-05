@@ -39,7 +39,8 @@ function initTheme() {
 /** Counts the headline numbers up from zero once, on first load. */
 function initCountUp() {
   const targets = $all<HTMLElement>("[data-count-up]");
-  if (reducedMotion || !targets.length) return;
+  // The count-up is short and carries no flashing, so it also runs under reduced motion.
+  if (!targets.length) return;
   const items = targets.map((el) => {
     const text = el.textContent ?? "0";
     return { el, text, value: Number(text), decimals: (text.split(".")[1] ?? "").length };
@@ -160,8 +161,14 @@ function initCitation() {
   button?.addEventListener("click", async () => {
     if (!text) return;
     await navigator.clipboard.writeText(text.innerText);
-    button.textContent = "Copied";
-    window.setTimeout(() => (button.textContent = "Copy BibTeX"), 1600);
+    const label = button.querySelector("span");
+    if (!label) return;
+    label.textContent = "Copied";
+    button.classList.add("done");
+    window.setTimeout(() => {
+      label.textContent = "Copy BibTeX";
+      button.classList.remove("done");
+    }, 1600);
   });
 }
 

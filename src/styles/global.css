@@ -1501,29 +1501,7 @@ table.data td.bar {
 }
 
 
-.citation .fig-head button {
-  font-family: var(--sans);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--muted);
-  border-bottom: 1px solid var(--hair);
-}
 
-.citation .fig-head button:hover {
-  color: var(--ink);
-  border-color: var(--ink);
-}
-
-.citation pre {
-  margin: 0;
-  padding: 2px 0 12px;
-  border-bottom: 1px solid var(--hair);
-  white-space: pre-wrap;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.65;
-  color: var(--ink-soft);
-}
 
 .colophon {
   margin-top: var(--section-gap);
@@ -1549,8 +1527,7 @@ table.data td.bar {
     scroll-behavior: auto;
   }
 
-  .chart .drawn path,
-  .marks .tape {
+  .chart .drawn path {
     animation: none;
     stroke-dasharray: none;
   }
@@ -1857,4 +1834,78 @@ table.data td.bar {
   fill: var(--action);
   font-size: calc(12px * var(--s, 1));
   font-weight: 700;
+}
+
+/* ------------------------------------------------------------- citation */
+
+:root {
+  --sheet: #fffefb;
+}
+
+:root[data-theme="dark"] {
+  --sheet: #1c1c18;
+}
+
+.citation .fig-head {
+  align-items: center;
+}
+
+.copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.copy svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.copy:hover,
+.copy.done {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.citation pre {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--hair);
+  background: var(--sheet);
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+/* Fig. 2: legend under diagram i, captions of i and ii start on one line. */
+.design > .grid {
+  align-items: start;
+}
+
+.design-key {
+  margin-top: 12px;
+}
+
+.design > .grid > .caption {
+  margin-top: 14px;
+}
+
+@media (max-width: 1000px) {
+  .design > .grid > .c1-6:not(.caption) { order: 1; }
+  .design > .grid > .caption.c1-6 { order: 2; }
+  .design > .grid > .c7-12:not(.caption) { order: 3; }
+  .design > .grid > .caption.c7-12 { order: 4; margin-top: 14px; }
 }

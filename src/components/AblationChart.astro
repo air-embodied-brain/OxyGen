@@ -14,7 +14,8 @@ const series = [
 
 const W = 528;
 const H = 250;
-const M = { l: 30, r: 14, t: 22, b: 40 };
+// Same plot margins as Fig. 4, so the two figures' axes line up.
+const M = { l: 36, r: 84, t: 22, b: 40 };
 const INSET = 14;
 const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l - M.r - 2 * INSET);
 const N = ablationN.at(-1);

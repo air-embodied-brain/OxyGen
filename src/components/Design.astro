@@ -81,7 +81,12 @@ const steady = B; // first frame where the batch is full (0-based)
           </g>
         </svg>
       </div>
-      <p class="caption">The backbone encodes each new observation once. The action expert denoises over the shared prefix KV, and a new language request starts from the same prefill instead of computing it again. Isolated execution repeats the prefill for every task.</p>
+      <div class="key design-key">
+        <span><i style="background: var(--baseline)"></i>prefill</span>
+        <span><i style="background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--ink-soft)"></i>prefix KV</span>
+        <span><i style="background: var(--action)"></i>action chunk</span>
+        <span><i style="background: var(--language)"></i>language tokens</span>
+      </div>
     </div>
 
     <div class="c7-12">
@@ -126,13 +131,9 @@ const steady = B; // first frame where the batch is full (0-based)
           <text class="dg-small" x={LW + steady * colW + colW / 2} y={TOP + ROW * FRAMES + 18} text-anchor="middle">one batched pass</text>
         </svg>
       </div>
-      <p class="caption">Each request needs N = {N} tokens; every frame advances all unfinished requests by k = {K} in one batch. After warm-up, {B} requests from different frames share each decoding pass, while actions keep their per-frame pace. Finished requests are evicted.</p>
     </div>
-  </div>
-  <div class="key">
-    <span><i style="background: var(--baseline)"></i>prefill</span>
-    <span><i style="background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--ink-soft)"></i>prefix KV</span>
-    <span><i style="background: var(--action)"></i>action chunk</span>
-    <span><i style="background: var(--language)"></i>language tokens</span>
+
+    <p class="caption c1-6">The backbone encodes each new observation once. The action expert denoises over the shared prefix KV, and a new language request starts from the same prefill instead of computing it again. Isolated execution repeats the prefill for every task.</p>
+    <p class="caption c7-12">Each request needs N = {N} tokens; every frame advances all unfinished requests by k = {K} in one batch. After warm-up, {B} requests from different frames share each decoding pass, while actions keep their per-frame pace. Finished requests are evicted.</p>
   </div>
 </figure>
