@@ -82,3 +82,24 @@ export const robot = {
   oxygen: { action: 198.0, language: 195.4 },
   executionWindowMs: 333,
 };
+
+/** Appendix, tab:small-n-profile. Synchronized stage profile, π0.5-LIBERO, S=10, RTX 4090 (ms, rounded mean over N=1–5). */
+export const stageProfile = { prefixMs: 45.1, denoiseMs: 20.4 };
+
+/** Main text §4.5 and Appendix, tab:quality: evaluation protocol for the LIBERO success rates. */
+export const qualityProtocol = { seeds: 10, rollouts: 20000 };
+
+/**
+ * Textual-memory adapter (post-paper application). Source: OxyGen repository
+ * language_adaptation/libero/README.md ("Reference results") and the Hugging Face
+ * model card xxxxyu/oxygen-pi05-textual-memory-lora. RTX 4090.
+ */
+export const memoryAdapter = {
+  rank: 16,
+  exactMatchPct: 87.25,
+  adapterMs: 8.16,
+  prefixForwardMs: 47.66,
+  actionDiff: 0,
+  annotatedFrames: 338575,
+  demonstrations: 2000,
+};

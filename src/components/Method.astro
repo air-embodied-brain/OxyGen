@@ -1,5 +1,6 @@
 ---
-import { ablation } from "../data/paper-figures";
+import { ablation, ablationN } from "../data/paper-figures";
+import { stageProfile } from "../data/paper-tables";
 
 // One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5. Totals are
 // measured mean frame latencies (10 actions / action frequency) from the
@@ -8,8 +9,10 @@ import { ablation } from "../data/paper-figures";
 // rest of each frame is drawn as language decoding.
 const frameMs = (hz: number) => (10 / hz) * 1000;
 const lab = ablation.rtx4090;
-const PREFIX = 45.1;
-const DENOISE = 20.4;
+const PREFIX = stageProfile.prefixMs;
+const DENOISE = stageProfile.denoiseMs;
+const N = ablationN.at(-1)!;
+const K = 5;
 const modes = [
   {
     label: "Isolated",
@@ -19,7 +22,7 @@ const modes = [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
       { kind: "prefill repeat", ms: PREFIX, text: "prefill" },
-      { kind: "decode", text: "decode 30 tokens for one request" },
+      { kind: "decode", text: `decode ${N} tokens for one request` },
     ],
   },
   {
@@ -29,7 +32,7 @@ const modes = [
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode", text: "decode 30 tokens for one request" },
+      { kind: "decode", text: `decode ${N} tokens for one request` },
     ],
   },
   {
@@ -39,7 +42,7 @@ const modes = [
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode", text: "batch of 6" },
+      { kind: "decode", text: `batch of ${N / K}` },
     ],
   },
 ];

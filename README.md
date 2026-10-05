@@ -13,16 +13,7 @@ Run `npm run build` before submitting changes. The GitHub Actions workflow build
 
 ## Data provenance
 
-Every number on the page comes from the camera-ready paper unless noted.
-
-- `src/data/paper-tables.ts`: values copied from the paper's tables (main text and appendix).
-- `src/data/paper-figures.ts`: values plotted in the paper's tradeoff and ablation figures, recovered from the vector PDFs with `scripts/data/extract_paper_figures.py` (requires `pymupdf`):
-
-  ```bash
-  python scripts/data/extract_paper_figures.py <paper-repo>/figures/experiments out.json
-  ```
-
-- Textual-memory numbers come from the OxyGen repository (`language_adaptation/libero/README.md`) and the Hugging Face model card. The page labels them as a post-paper application.
+Every measured number on the page lives in `src/data/` and is traced to its paper location and raw evidence in [DATA_SOURCES.md](DATA_SOURCES.md), which also explains how to replace results after a re-run.
 
 ## Demo videos
 

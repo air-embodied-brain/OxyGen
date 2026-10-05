@@ -8,7 +8,8 @@ import TradeoffChart from "../components/TradeoffChart.astro";
 import AblationChart from "../components/AblationChart.astro";
 import Generality from "../components/Generality.astro";
 import { citation, links } from "../data/site";
-import { overhead, quality, robot } from "../data/paper-tables";
+import { memoryAdapter as mem, overhead, quality, qualityProtocol, robot } from "../data/paper-tables";
+import { tradeoff } from "../data/paper-figures";
 
 const base = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
@@ -27,6 +28,11 @@ const baselineCost = overhead[0];
 const parallelCost = overhead[1];
 const bestCost = overhead.at(-1)!;
 const change = (a: number, b: number) => Math.round((b / a - 1) * 100);
+
+// Headline numbers: π0.5 · LIBERO · RTX 4090 with 30-token requests, OxyGen k = 1.
+const headline = tradeoff.libero.rtx4090;
+const peak = headline.k1.at(-1)!;
+const peakSpeedup = peak[1] / headline.baseline.at(-1)![1];
 
 // LIBERO success (Appendix tab:quality), drawn on a 90–100% axis.
 const ciScale = (v: number) => ((v - 90) / 10) * 100;
@@ -67,10 +73,10 @@ const resources = [
 
   <main class="page">
     <div class="stats grid" aria-label="Headline results">
-      <div class="stat"><strong>3.7<small>×</small></strong><p>faster than isolated execution, π<sub>0.5</sub> on RTX 4090</p></div>
-      <div class="stat"><strong>70<small>Hz</small></strong><p>action frequency while generating over 200 tokens/s of language</p></div>
-      <div class="stat"><strong>−78<small>%</small></strong><p>energy per request, with batched language decoding</p></div>
-      <div class="stat"><strong>96.8<small>%</small></strong><p>LIBERO success, on par with the official openpi checkpoint</p></div>
+      <div class="stat"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster than isolated execution, π<sub>0.5</sub> on RTX 4090</p></div>
+      <div class="stat"><strong><span data-count-up>{Math.floor(peak[1])}</span><small>Hz</small></strong><p>action frequency while generating over {Math.floor(peak[2] / 100) * 100} tokens/s of language</p></div>
+      <div class="stat"><strong>−<span data-count-up>{-change(baselineCost.energyJ, bestCost.energyJ)}</span><small>%</small></strong><p>energy per request, with batched language decoding</p></div>
+      <div class="stat"><strong><span data-count-up>{overall.mean.toFixed(1)}</span><small>%</small></strong><p>LIBERO success, on par with the official openpi checkpoint</p></div>
     </div>
 
     <section class="section" id="demo" data-title="Demo">
@@ -91,7 +97,7 @@ const resources = [
     <section class="section" id="results" data-title="Results">
       <SectionHead number="3" label="Results">
         <Fragment slot="title">Faster actions <em>and</em> more language.</Fragment>
-        Under isolated execution, longer answers mean slower control. OxyGen improves both action frequency and language throughput at every answer length, by up to 3.7×.
+        Under isolated execution, longer answers mean slower control. OxyGen improves both action frequency and language throughput at every answer length, by up to {peakSpeedup.toFixed(1)}×.
       </SectionHead>
 
       <div class="unit"><TradeoffChart /></div>
@@ -137,7 +143,7 @@ const resources = [
         <div class="c9-12">
           <div class="fig-head"><span class="title">Overall success</span></div>
           <span class="big-figure">{overall.mean.toFixed(2)}%</span>
-          <p class="caption">Mean over 10 seeds and 20,000 rollouts with the official π<sub>0.5</sub>-LIBERO checkpoint; openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
+          <p class="caption">Mean over {qualityProtocol.seeds} seeds and {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts with the official π<sub>0.5</sub>-LIBERO checkpoint; openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
         </div>
       </div>
     </section>
@@ -204,12 +210,12 @@ const resources = [
           <p class="caption">Developed after the main experiments; the paper's latency and quality results do not depend on it. Numbers from the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository, on RTX 4090.</p>
         </figure>
         <div class="c8-12">
-          <p class="memory-intro">The demo's language task is textual memory: a rank-16 LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.</p>
+          <p class="memory-intro">The demo's language task is textual memory: a rank-{mem.rank} LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.</p>
           <dl class="memory-stats">
-            <div><dt>87.25%</dt><dd>exact match on held-out frames</dd></div>
-            <div><dt>8.16 ms</dt><dd>median adapter cost per memory, vs. a 47.66 ms prefix forward</dd></div>
-            <div><dt>0</dt><dd>change to actions with the adapter zeroed</dd></div>
-            <div><dt>338,575</dt><dd>annotated frames from 2,000 LIBERO demonstrations</dd></div>
+            <div><dt>{mem.exactMatchPct}%</dt><dd>exact match on held-out frames</dd></div>
+            <div><dt>{mem.adapterMs} ms</dt><dd>median adapter cost per memory, vs. a {mem.prefixForwardMs} ms prefix forward</dd></div>
+            <div><dt>{mem.actionDiff}</dt><dd>change to actions with the adapter zeroed</dd></div>
+            <div><dt>{mem.annotatedFrames.toLocaleString("en-US")}</dt><dd>annotated frames from {mem.demonstrations.toLocaleString("en-US")} LIBERO demonstrations</dd></div>
           </dl>
 
         </div>
