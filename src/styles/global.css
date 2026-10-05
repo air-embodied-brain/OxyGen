@@ -738,7 +738,7 @@ dd {
 /* ---------------------------------------------------------------- demo */
 
 .demo-video {
-  background: #07090d;
+  background: var(--paper);
 }
 
 .demo-video video {

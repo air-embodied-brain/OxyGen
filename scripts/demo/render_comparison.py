@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1920, 1080
 FPS = 30
@@ -23,25 +23,30 @@ VIEW_ASPECT = 3 / 4  # simulator view height / width
 CONTROL_DT = 0.05
 HOLD_S = 2.0
 
-BG = (7, 9, 13)
-CARD = (13, 17, 23)
-CARD_LINE = (30, 37, 48)
-TEXT = (236, 240, 245)
-MUTED = (132, 142, 156)
-FAINT = (64, 73, 86)
-ACTION = (63, 224, 255)
-LANGUAGE = (255, 181, 71)
-COMPUTE = (120, 132, 150)
-OXYGEN = ACTION
-BASELINE = (176, 184, 196)
+# Colors follow the project page (src/styles/global.css). --theme picks one.
+THEMES = {
+    "light": {
+        "paper": (250, 248, 243), "deep": (241, 237, 228), "ink": (23, 22, 15),
+        "soft": (61, 59, 52), "muted": (110, 106, 96), "faint": (162, 157, 145),
+        "hair": (226, 221, 210), "action": (11, 111, 134), "compute": (142, 137, 125),
+        "language": (176, 106, 16), "base": (142, 137, 125),
+    },
+}
+T = THEMES["light"]
 
 FONT_DIR = Path(__file__).resolve().parent / "fonts"
 
 
-def font(name: str, size: int, weight: int | None = None) -> ImageFont.FreeTypeFont:
+def font(name: str, size: int, **axes: float) -> ImageFont.FreeTypeFont:
+    """Load a (variable) font and set named axes, e.g. weight=600, opsz=24."""
     f = ImageFont.truetype(str(FONT_DIR / name), size)
-    if weight is not None:
-        f.set_variation_by_axes([min(max(size, 14), 32), weight] if name == "Inter.ttf" else [weight])
+    if axes:
+        names = {"Weight": "weight", "Optical Size": "opsz", "Optical size": "opsz"}
+        values = []
+        for axis in f.get_variation_axes():
+            key = names.get(axis["name"].decode(), "")
+            values.append(axes.get(key, axis["default"]))
+        f.set_variation_by_axes(values)
     return f
 
 
@@ -61,7 +66,7 @@ class Segment:
 class Side:
     label: str
     sublabel: str
-    color: tuple
+    color: str  # "ours" or "base"
     frames: np.ndarray
     steps: list[int]
     segments: list[Segment] = field(default_factory=list)
@@ -144,134 +149,136 @@ def requests_at(side: Side, t: float) -> dict[str, dict]:
 
 
 class Painter:
+    """Editorial layout: hairline rules and type, no boxes, matching the project page."""
+
     def __init__(self) -> None:
-        self.title = font("InterTight.ttf", 40, 640)
-        self.sub = font("Inter.ttf", 20, 450)
-        self.clock = font("JBM.ttf", 44, 500)
-        self.clock_unit = font("JBM.ttf", 22, 400)
-        self.label = font("JBM.ttf", 15, 600)
-        self.memory = font("Inter.ttf", 27, 500)
-        self.pill = font("JBM.ttf", 16, 600)
-        self.badge = font("InterTight.ttf", 30, 640)
-        self.legend = font("Inter.ttf", 17, 450)
+        self.name = font("SourceSans3.woff2", 17, weight=700)
+        self.sub = font("SourceSans3.woff2", 19, weight=450)
+        self.clock = font("LibreBaskerville.woff2", 46, weight=400)
+        self.unit = font("SourceSans3.woff2", 20, weight=500)
+        self.label = font("SourceSans3.woff2", 14, weight=650)
+        self.status = font("SourceSans3.woff2", 17, weight=650)
+        self.done = font("LibreBaskerville.woff2", 30, weight=400)
+        self.legend = font("SourceSans3.woff2", 16, weight=450)
+        self.memory = font("SourceSerif4-Italic.woff2", 29, weight=400, opsz=28)
+
+    @staticmethod
+    def tracked(draw, xy, text, fnt, fill, tracking=1.6):
+        """Small caps style: letter-spaced uppercase label."""
+        x, y = xy
+        for ch in text.upper():
+            draw.text((x, y), ch, font=fnt, fill=fill)
+            x += draw.textlength(ch, font=fnt) + tracking
+        return x
 
     def render(self, sides: list[Side], t: float, total: float) -> Image.Image:
-        canvas = Image.new("RGB", (W, H), BG)
+        canvas = Image.new("RGB", (W, H), T["paper"])
         draw = ImageDraw.Draw(canvas)
-        margin, gap = (48, 32) if W > H else (36, 28)
-        for i, side in enumerate(sides):
-            if W > H:
-                pane_w = (W - 2 * margin - gap) // 2
-                self.pane(canvas, draw, side, margin + i * (pane_w + gap), 40, pane_w, H - 80, t, total)
-            else:
-                pane_h = (H - 2 * margin - gap) // 2
-                self.pane(canvas, draw, side, margin, margin + i * (pane_h + gap), W - 2 * margin, pane_h, t, total)
+        if W > H:
+            margin, gap = 64, 56
+            pane_w = (W - 2 * margin - gap) // 2
+            for i, side in enumerate(sides):
+                self.pane(canvas, draw, side, margin + i * (pane_w + gap), 52, pane_w, t, total)
+        else:
+            margin, gap = 48, 56
+            pane_h = (H - 2 * margin - gap) // 2
+            for i, side in enumerate(sides):
+                self.pane(canvas, draw, side, margin, margin + i * (pane_h + gap), W - 2 * margin, t, total)
         return canvas
 
-    def pane(self, canvas, draw, side: Side, x, y, w, h, t, total) -> None:
-        draw.rounded_rectangle((x, y, x + w, y + h), radius=28, fill=CARD, outline=CARD_LINE, width=2)
-        pad = 32
+    def pane(self, canvas, draw, side: Side, x, y, w, t, total) -> None:
+        ours = side.color == "ours"
+        accent = T["action"] if ours else T["base"]
         local_t = min(t, side.duration)
         finished = t >= side.duration
-        # Header
-        draw.ellipse((x + pad, y + 38, x + pad + 14, y + 52), fill=side.color)
-        draw.text((x + pad + 28, y + 24), side.label, font=self.title, fill=TEXT)
-        draw.text((x + pad + 28, y + 74), side.sublabel, font=self.sub, fill=MUTED)
-        clock = f"{local_t:5.1f}"
+
+        # Header: a strong rule, name in tracked caps, configuration, wall clock.
+        draw.rectangle((x, y, x + w, y + 1), fill=T["ink"])
+        draw.rectangle((x, y + 24, x + 10, y + 34), fill=accent)
+        self.tracked(draw, (x + 20, y + 19), side.label, self.name, T["ink"])
+        draw.text((x, y + 48), side.sublabel, font=self.sub, fill=T["muted"])
+        clock = f"{local_t:4.1f}"
         cw = draw.textlength(clock, font=self.clock)
-        uw = draw.textlength(" s", font=self.clock_unit)
-        cx = x + w - pad - cw - uw
-        draw.text((cx, y + 28), clock, font=self.clock, fill=side.color if finished else TEXT)
-        draw.text((cx + cw, y + 46), " s", font=self.clock_unit, fill=MUTED)
-        # Simulator view, cropped to 4:3
-        view_y = y + 124
-        view_w = w - 2 * pad
-        aspect = VIEW_ASPECT
-        view_h = int(view_w * aspect)
+        uw = draw.textlength(" s", font=self.unit)
+        draw.text((x + w - cw - uw, y + 14), clock, font=self.clock, fill=T["action"] if finished and ours else T["ink"])
+        draw.text((x + w - uw, y + 34), " s", font=self.unit, fill=T["muted"])
+
+        # Simulator view.
+        view_y = y + 92
+        view_h = int(w * VIEW_ASPECT)
         frame = frame_at(side, local_t)
         src = frame.shape[0]
-        crop_h = int(src * aspect)
+        crop_h = int(src * VIEW_ASPECT)
         top = int((src - crop_h) * 0.75)
-        img = Image.fromarray(frame[top : top + crop_h]).resize((view_w, view_h), Image.LANCZOS)
+        img = Image.fromarray(frame[top : top + crop_h]).resize((w, view_h), Image.LANCZOS)
         seg = phase_at(side, local_t) if not finished else None
         waiting = seg is not None and seg.kind != "move"
         if waiting:
-            img = Image.blend(img, Image.new("RGB", img.size, (0, 0, 0)), 0.16)
-        mask = Image.new("L", img.size, 0)
-        ImageDraw.Draw(mask).rounded_rectangle((0, 0, view_w, view_h), radius=18, fill=255)
-        canvas.paste(img, (x + pad, view_y), mask)
-        # Status pill
+            img = Image.blend(img, Image.new("RGB", img.size, T["paper"]), 0.22)
+        canvas.paste(img, (x, view_y))
+
+        # Status line under the view.
+        sy = view_y + view_h + 14
         if finished:
-            text, color = "TASK COMPLETE", side.color
-        elif waiting:
-            if seg.kind == "action":
-                text, color = "WAITING · ACTION INFERENCE", COMPUTE
-            elif side.color == OXYGEN:
-                text, color = "WAITING · BATCHED LANGUAGE", LANGUAGE
-            else:
-                text, color = "WAITING · BLOCKING LANGUAGE", LANGUAGE
-        else:
-            text, color = "ROBOT MOVING", ACTION
-        tw = draw.textlength(text, font=self.pill)
-        px, py = x + pad + 20, view_y + view_h - 56
-        draw.rounded_rectangle((px, py, px + tw + 52, py + 36), radius=18, fill=(8, 10, 14))
-        draw.ellipse((px + 16, py + 12, px + 28, py + 24), fill=color)
-        draw.text((px + 38, py + 8), text, font=self.pill, fill=color)
-        if finished:
-            badge = f"Done in {side.duration:.1f} s"
+            text = f"Done in {side.duration:.1f} s"
             if side.speedup and t >= total:
-                badge += f" · {side.speedup:.2f}× sooner"
-            bw = draw.textlength(badge, font=self.badge)
-            bx, by = x + pad + view_w - bw - 60, view_y + 24
-            draw.rounded_rectangle((bx, by, bx + bw + 40, by + 58), radius=29, fill=side.color)
-            draw.text((bx + 20, by + 10), badge, font=self.badge, fill=BG)
-        # Timeline on a shared scale
-        tl_y = view_y + view_h + 34
-        draw.text((x + pad, tl_y), "WALL-CLOCK TIMELINE", font=self.label, fill=MUTED)
+                text += f", {side.speedup:.2f}× sooner"
+            draw.text((x, sy - 4), text, font=self.done, fill=T["action"] if ours else T["ink"])
+        else:
+            if not waiting:
+                text, color = "Robot moving", T["action"]
+            elif seg.kind == "action":
+                text, color = "Waiting for action inference", T["compute"]
+            elif ours:
+                text, color = "Waiting for batched language", T["language"]
+            else:
+                text, color = "Waiting for blocking language", T["language"]
+            draw.rectangle((x, sy + 6, x + 10, sy + 16), fill=color)
+            self.tracked(draw, (x + 20, sy + 2), text, self.status, color, 1.2)
         idle = sum(max(0.0, min(s.end, local_t) - s.start) for s in side.segments if s.kind != "move")
-        idle_text = f"ROBOT IDLE {idle:4.1f} s"
-        iw = draw.textlength(idle_text, font=self.label)
-        draw.text((x + pad + view_w - iw, tl_y), idle_text, font=self.label, fill=TEXT)
-        bar_y = tl_y + 28
-        bar_h = 22
-        bar_w = view_w
-        draw.rounded_rectangle((x + pad, bar_y, x + pad + bar_w, bar_y + bar_h), radius=6, fill=(20, 25, 33))
-        scale = bar_w / total
-        colors = {"move": ACTION, "action": COMPUTE, "language": LANGUAGE}
+        idle_text = f"robot idle {idle:4.1f} s"
+        iw = draw.textlength(idle_text, font=self.sub)
+        draw.text((x + w - iw, sy + 1), idle_text, font=self.sub, fill=T["soft"])
+
+        # Wall-clock timeline on a shared scale.
+        bar_y = sy + 48
+        bar_h = 12
+        draw.rectangle((x, bar_y, x + w, bar_y + bar_h), fill=T["deep"])
+        scale = w / total
+        colors = {"move": T["action"], "action": T["compute"], "language": T["language"]}
         for s in side.segments:
             if s.start >= local_t:
                 break
-            x0 = x + pad + s.start * scale
-            x1 = x + pad + min(s.end, local_t) * scale
+            x0 = x + s.start * scale
+            x1 = x + min(s.end, local_t) * scale
             if x1 - x0 >= 0.5:
                 draw.rectangle((x0, bar_y, x1, bar_y + bar_h), fill=colors[s.kind])
         if not finished:
-            head = x + pad + local_t * scale
-            draw.rectangle((head - 1, bar_y - 6, head + 1, bar_y + bar_h + 6), fill=TEXT)
-        # Legend
-        lx = x + pad
-        ly = bar_y + bar_h + 14
-        for name, color in (("robot moving", ACTION), ("action inference", COMPUTE), ("language inference", LANGUAGE)):
-            draw.rounded_rectangle((lx, ly + 5, lx + 14, ly + 17), radius=3, fill=color)
-            draw.text((lx + 22, ly), name, font=self.legend, fill=MUTED)
-            lx += 22 + draw.textlength(name, font=self.legend) + 30
-        # Memory
-        mem_y = ly + 54
+            head = x + local_t * scale
+            draw.rectangle((head, bar_y - 5, head + 1, bar_y + bar_h + 5), fill=T["ink"])
+        lx, ly = x, bar_y + bar_h + 10
+        for name, color in (("robot moving", T["action"]), ("action inference", T["compute"]), ("language inference", T["language"])):
+            draw.rectangle((lx, ly + 6, lx + 12, ly + 15), fill=color)
+            draw.text((lx + 18, ly), name, font=self.legend, fill=T["muted"])
+            lx += 18 + draw.textlength(name, font=self.legend) + 26
+
+        # Textual memory: latest finished line, in-flight requests as ticks.
+        my = ly + 44
+        draw.rectangle((x, my, x + w, my), fill=T["hair"])
         reqs = requests_at(side, local_t)
         active = [] if finished else [r for r in reqs.values() if not r["finished"]]
         done = [r for r in reqs.values() if r["finished"]]
-        draw.text((x + pad, mem_y), "TEXTUAL MEMORY", font=self.label, fill=MUTED)
+        self.tracked(draw, (x, my + 12), "Textual memory", self.label, T["muted"])
         info = f"{len(active)} request{'s' if len(active) != 1 else ''} decoding"
-        iw = draw.textlength(info, font=self.label)
-        draw.text((x + pad + view_w - iw, mem_y), info, font=self.label, fill=LANGUAGE if active else FAINT)
-        # in-flight requests as token bars
-        bx = x + pad + view_w - iw - 24
-        for r in sorted(active, key=lambda r: r["born"])[:14]:
-            hgt = min(18, 3 + r["tokens"] * 1.6)
-            draw.rounded_rectangle((bx - 6, mem_y + 18 - hgt, bx, mem_y + 18), radius=2, fill=LANGUAGE)
-            bx -= 11
+        iw = draw.textlength(info, font=self.legend)
+        draw.text((x + w - iw, my + 9), info, font=self.legend, fill=T["language"] if active else T["faint"])
+        bx = x + w - iw - 16
+        for r in sorted(active, key=lambda r: r["born"])[:16]:
+            hgt = min(16, 3 + r["tokens"] * 1.4)
+            draw.rectangle((bx - 3, my + 28 - hgt, bx, my + 28), fill=T["language"])
+            bx -= 8
         latest = max(done, key=lambda r: r["done_at"] or 0)["text"] if done else "—"
-        draw.text((x + pad, mem_y + 32), f"“{latest}”" if done else latest, font=self.memory, fill=TEXT if done else FAINT)
+        draw.text((x, my + 40), f"“{latest}”" if done else latest, font=self.memory, fill=T["ink"] if done else T["faint"])
 
 
 def main() -> None:
@@ -294,9 +301,9 @@ def main() -> None:
 
     sides = [
         build_side(args.oxygen_run, args.episode, args.oxygen_frames, label="OxyGen",
-                   sublabel=f"shared KV cache · cross-frame batching · k={args.k}", color=OXYGEN),
+                   sublabel=f"shared KV cache, cross-frame batching, k = {args.k}", color="ours"),
         build_side(args.baseline_run, args.episode, args.baseline_frames, label="Isolated baseline",
-                   sublabel="separate prefill · language blocks actions", color=BASELINE),
+                   sublabel="separate prefill, language blocks actions", color="base"),
     ]
     total = max(s.duration for s in sides)
     sides[0].speedup = sides[1].duration / sides[0].duration
