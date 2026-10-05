@@ -36,30 +36,23 @@ function initTheme() {
   });
 }
 
-/** Sweeps a playhead across one second of measured actions and tokens, slowed down. */
-function initSecond() {
-  const root = document.querySelector<HTMLElement>("[data-second]");
-  if (!root || reducedMotion) return;
-  const period = Number(root.dataset.slowdown ?? 10) * 1000;
-  const clock = root.querySelector<HTMLElement>("[data-clock]");
-  const runs = $all<HTMLElement>(".run", root).map((run) => ({
-    run,
-    hz: Number(run.dataset.hz),
-    tps: Number(run.dataset.tps),
-    hzOut: run.querySelector<HTMLElement>('[data-count="hz"]'),
-    tpsOut: run.querySelector<HTMLElement>('[data-count="tps"]'),
-  }));
-  const hold = 0.12; // fraction of each loop spent showing the full second
+/** Counts the headline numbers up from zero once, on first load. */
+function initCountUp() {
+  const targets = $all<HTMLElement>("[data-count-up]");
+  if (reducedMotion || !targets.length) return;
+  const items = targets.map((el) => {
+    const text = el.textContent ?? "0";
+    return { el, text, value: Number(text), decimals: (text.split(".")[1] ?? "").length };
+  });
+  const duration = 1400;
+  const start = performance.now();
   const frame = (now: number) => {
-    const t = (now % period) / period;
-    const p = Math.min(1, t / (1 - hold));
-    root.style.setProperty("--p", `${(p * 100).toFixed(2)}%`);
-    if (clock) clock.textContent = p.toFixed(2);
-    for (const r of runs) {
-      if (r.hzOut) r.hzOut.textContent = String(Math.floor(r.hz * p + 1e-6));
-      if (r.tpsOut) r.tpsOut.textContent = String(Math.floor(r.tps * p + 1e-6));
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    for (const item of items) {
+      item.el.textContent = t < 1 ? (item.value * eased).toFixed(item.decimals) : item.text;
     }
-    requestAnimationFrame(frame);
+    if (t < 1) requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
@@ -140,19 +133,7 @@ function initTradeoff() {
 
 function initAblation() {
   const root = document.querySelector<HTMLElement>("[data-ablation]");
-  if (!root) return;
-  const buttons = $all<HTMLButtonElement>("[data-device]", root);
-  for (const button of buttons) {
-    button.addEventListener("click", () => {
-      select(buttons, button);
-      for (const panel of $all<HTMLElement>("[data-panel]", root)) {
-        const on = panel.dataset.panel === button.dataset.device;
-        panel.classList.toggle("off", !on);
-        if (on) draw(panel);
-      }
-    });
-  }
-  drawOnFirstView(root, () => $all("[data-panel]:not(.off)", root));
+  if (root) drawOnFirstView(root, () => $all(".chart svg", root));
 }
 
 function initTooltip() {
@@ -190,7 +171,9 @@ function initChartText() {
   const observer = new ResizeObserver(() => {
     for (const svg of svgs) {
       const width = svg.getBoundingClientRect().width;
-      if (width > 0) svg.style.setProperty("--s", String(svg.viewBox.baseVal.width / width));
+      // Schematics keep their proportions: their labels sit inside drawn boxes.
+      const scale = svg.viewBox.baseVal.width / width;
+      if (width > 0) svg.style.setProperty("--s", String(svg.closest(".design") ? Math.min(scale, 1) : scale));
     }
   });
   for (const svg of svgs) observer.observe(svg);
@@ -200,7 +183,7 @@ export function initPage() {
   initChartText();
   initRunningHead();
   initTheme();
-  initSecond();
+  initCountUp();
   initDemo();
   initTradeoff();
   initAblation();

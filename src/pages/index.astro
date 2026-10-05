@@ -102,27 +102,14 @@ const resources = [
 
       <div class="unit"><TradeoffChart /></div>
 
-      <div class="unit grid">
-        <div class="c1-8"><AblationChart /></div>
-        <figure class="c9-12">
-          <div class="fig-head"><span class="title">Cost per request, RTX 4090</span></div>
-          <table class="data">
-            <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
-            <tbody>
-              <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">{change(baselineCost.energyJ, bestCost.energyJ)}%</td></tr>
-              <tr><td class="name">Power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">{change(baselineCost.powerW, bestCost.powerW)}%</td></tr>
-              <tr><td class="name">Memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{change(baselineCost.memGiB, bestCost.memGiB)}%</td></tr>
-            </tbody>
-          </table>
-          <figcaption class="caption">OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Running the two tasks as parallel processes instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request.</figcaption>
-        </figure>
-      </div>
+      <div class="unit"><AblationChart /></div>
 
       <div class="unit"><Generality /></div>
 
       <div class="unit grid">
-        <figure class="c1-8 ci">
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 5</b></span>LIBERO success by suite, 95% confidence interval</span></div>
+        <figure class="c1-7 ci">
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Action quality on LIBERO</span></div>
+          <div class="panel-head"><span>Mean success, 95% CI</span><span class="gain">{overall.mean.toFixed(2)}%<small>openpi: {overall.openpi}%</small></span></div>
           {quality.map((row) => (
             <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
               <span>{row.suite}</span>
@@ -139,12 +126,21 @@ const resources = [
             <span><i style="width: 9px; height: 9px; border-radius: 50%; background: var(--action)"></i>OxyGen mean and 95% CI</span>
             <span><i style="width: 1.5px; height: 13px; background: var(--ink)"></i>openpi reported</span>
           </div>
+          <figcaption class="caption">{qualityProtocol.seeds} seeds, {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts, official π<sub>0.5</sub>-LIBERO checkpoint. OxyGen changes the schedule, not the policy.</figcaption>
         </figure>
-        <div class="c9-12">
-          <div class="fig-head"><span class="title">Overall success</span></div>
-          <span class="big-figure">{overall.mean.toFixed(2)}%</span>
-          <p class="caption">Mean over {qualityProtocol.seeds} seeds and {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts with the official π<sub>0.5</sub>-LIBERO checkpoint; openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
-        </div>
+        <figure class="c8-12">
+          <div class="fig-head"><span class="title">Cost per request, RTX 4090</span></div>
+          <div class="panel-head"><span>Energy per request</span><span class="gain">{change(baselineCost.energyJ, bestCost.energyJ)}%<small>vs. baseline</small></span></div>
+          <table class="data">
+            <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
+            <tbody>
+              <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">{change(baselineCost.energyJ, bestCost.energyJ)}%</td></tr>
+              <tr><td class="name">Power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">{change(baselineCost.powerW, bestCost.powerW)}%</td></tr>
+              <tr><td class="name">Memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{change(baselineCost.memGiB, bestCost.memGiB)}%</td></tr>
+            </tbody>
+          </table>
+          <figcaption class="caption">OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Running the two tasks as parallel processes instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request.</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -165,7 +161,7 @@ const resources = [
             <div><dt>Actions</dt><dd>H = 10, S = 10 denoising steps</dd></div>
             <div><dt>Language</dt><dd>30-token requests, <i>k</i> = 5</dd></div>
           </dl>
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Inference per control cycle</span></div>
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 7</b></span>Inference per control cycle</span></div>
           <div class="latency">
             <div class="latency-row">
               <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
@@ -199,25 +195,27 @@ const resources = [
     <section class="section" id="memory" data-title="Textual memory">
       <SectionHead number="5" label="Application">
         <Fragment slot="title">A robot that <em>keeps notes.</em></Fragment>
+        The demo's language task is textual memory: a rank-{mem.rank} LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.
       </SectionHead>
       <div class="grid">
-        <figure class="c1-6">
+        <figure class="c1-7">
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 8</b></span>Memories written during Fig. 1</span></div>
           <ol class="memory-log">
+            <li class="task"><span>task</span><p>Put both the alphabet soup and the tomato sauce in the basket.</p></li>
             <li><span>step 50</span><q>No relevant task progress is visible yet.</q></li>
             <li class="new"><span>step 185</span><q>The alphabet soup is in the basket.</q></li>
           </ol>
-          <figcaption class="caption">Memories written by OxyGen in the alphabet-soup rollout of Fig. 1 (task: put both the alphabet soup and the tomato sauce in the basket).</figcaption>
-          <p class="caption">Developed after the main experiments; the paper's latency and quality results do not depend on it. Numbers from the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository, on RTX 4090.</p>
+          <figcaption class="caption">From the OxyGen run of the alphabet-soup demo. The adapter was developed after the main experiments; the paper's latency and quality results do not depend on it.</figcaption>
         </figure>
         <div class="c8-12">
-          <p class="memory-intro">The demo's language task is textual memory: a rank-{mem.rank} LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.</p>
+          <div class="fig-head"><span class="title">Adapter, RTX 4090</span></div>
           <dl class="memory-stats">
             <div><dt>{mem.exactMatchPct}%</dt><dd>exact match on held-out frames</dd></div>
-            <div><dt>{mem.adapterMs} ms</dt><dd>median adapter cost per memory, vs. a {mem.prefixForwardMs} ms prefix forward</dd></div>
+            <div><dt>{mem.adapterMs} ms</dt><dd>median cost per memory, vs. a {mem.prefixForwardMs} ms prefix forward</dd></div>
             <div><dt>{mem.actionDiff}</dt><dd>change to actions with the adapter zeroed</dd></div>
-            <div><dt>{mem.annotatedFrames.toLocaleString("en-US")}</dt><dd>annotated frames from {mem.demonstrations.toLocaleString("en-US")} LIBERO demonstrations</dd></div>
+            <div><dt>{mem.annotatedFrames.toLocaleString("en-US")}</dt><dd>annotated frames, {mem.demonstrations.toLocaleString("en-US")} demonstrations</dd></div>
           </dl>
-
+          <p class="caption">From the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository.</p>
         </div>
       </div>
     </section>
@@ -227,13 +225,16 @@ const resources = [
         <Fragment slot="title">Read it, run it, <em>build on it.</em></Fragment>
       </SectionHead>
       <div class="grid">
-        <ul class="c1-6 resources">
-          {resources.map((r) => (
-            <li><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
-          ))}
-        </ul>
-        <div class="c8-12 citation">
-          <div class="citation-head"><span class="label"><b>Citation</b></span><button id="copy-citation" type="button">Copy BibTeX</button></div>
+        <div class="c1-6">
+          <div class="fig-head"><span class="title">Links</span></div>
+          <ul class="resources">
+            {resources.map((r) => (
+              <li><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
+            ))}
+          </ul>
+        </div>
+        <div class="c7-12 citation">
+          <div class="fig-head"><span class="title">Citation</span><button id="copy-citation" type="button">Copy BibTeX</button></div>
           <pre><code id="citation-text">{citation}</code></pre>
         </div>
       </div>

@@ -2,8 +2,8 @@
 import { ablation, ablationN } from "../data/paper-figures";
 
 const devices = [
-  { id: "rtx4090", label: "RTX 4090", max: 75, ticks: [0, 25, 50, 75] },
-  { id: "thor", label: "Jetson AGX Thor", max: 35, ticks: [0, 10, 20, 30] },
+  { id: "rtx4090", label: "RTX 4090", max: 75, ticks: [0, 25, 50, 75], cls: "c1-6" },
+  { id: "thor", label: "Jetson AGX Thor", max: 35, ticks: [0, 10, 20, 30], cls: "c7-12" },
 ] as const;
 const series = [
   { key: "baseline", label: "Isolated baseline", cls: "s-baseline" },
@@ -12,27 +12,27 @@ const series = [
   { key: "ours", label: "+ batching = OxyGen", cls: "s-k1" },
 ] as const;
 
-const W = 712;
-const H = 240;
-const M = { l: 30, r: 14, t: 18, b: 36 };
+const W = 528;
+const H = 250;
+const M = { l: 30, r: 14, t: 22, b: 40 };
 const INSET = 14;
 const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l - M.r - 2 * INSET);
+const N = ablationN.at(-1);
 ---
 
 <figure data-ablation>
   <div class="fig-head">
-    <span class="title"><span class="label"><b>Fig. 4</b></span>Where the gain comes from</span>
-    <div class="switch" role="tablist" aria-label="Hardware">
-      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
-    </div>
+    <span class="title"><span class="label"><b>Fig. 5</b></span>Where the gain comes from</span>
   </div>
-  <div class="chart">
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Action frequency by request length for each execution mode">
-      {devices.map((d, di) => {
-        const data = ablation[d.id];
-        const sy = (v: number) => H - M.b - (v / d.max) * (H - M.t - M.b);
-        return (
-          <g data-panel={d.id} class:list={[di !== 0 && "off"]}>
+  <div class="grid">
+    {devices.map((d) => {
+      const data = ablation[d.id];
+      const sy = (v: number) => H - M.b - (v / d.max) * (H - M.t - M.b);
+      const gain = data.ours.at(-1)! / data.baseline.at(-1)!;
+      return (
+        <div class:list={[d.cls, "chart"]}>
+          <div class="panel-head"><span>{d.label}</span><span class="gain">{gain.toFixed(1)}×<small>at {N}-token requests</small></span></div>
+          <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${d.label}: action frequency by request length for each execution mode`}>
             <g class="gridlines">{d.ticks.slice(1).map((t) => <line x1={M.l} x2={W - M.r} y1={sy(t)} y2={sy(t)} />)}</g>
             <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
             <g class="ticklabels">
@@ -40,7 +40,7 @@ const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l 
               {ablationN.map((n, i) => <text x={sx(i)} y={H - M.b + 16} text-anchor="middle">{n}</text>)}
             </g>
             <text class="axis-title" x={W - M.r} y={H - 4} text-anchor="end">Tokens per language request →</text>
-            <text class="axis-title" x={M.l} y={M.t - 8}>↑ Action frequency (Hz), k = 5</text>
+            <text class="axis-title" x={M.l} y={M.t - 8}>↑ Action frequency (Hz)</text>
             <line x1={M.l} x2={W - M.r} y1={sy(data.upperBound)} y2={sy(data.upperBound)} stroke="var(--ink)" stroke-dasharray="3 4" stroke-width="1" />
             {series.map((s) => (
               <g class:list={["series", s.cls]}>
@@ -49,14 +49,14 @@ const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l 
                 {data[s.key].map((v, i) => <circle class="hit" cx={sx(i)} cy={sy(v)} r="10" data-tip={`${s.label}\n${ablationN[i]}-token requests\n${v.toFixed(1)} Hz`} />)}
               </g>
             ))}
-          </g>
-        );
-      })}
-    </svg>
+          </svg>
+        </div>
+      );
+    })}
   </div>
   <div class="key">
     {series.map((s) => <span class={s.cls}><i class="line" style="background: currentColor"></i>{s.label}</span>)}
     <span><i class="dash"></i>one frame of decoding only</span>
   </div>
-  <figcaption class="caption">LIBERO configuration, <i>k</i> = 5. KV sharing removes the repeated prefill and matters most for short answers; batching keeps action frequency nearly flat as answers grow.</figcaption>
+  <figcaption class="caption">LIBERO configuration, <i>k</i> = 5 decoding steps per frame. KV sharing removes the repeated prefill and matters most for short answers; batching keeps action frequency nearly flat as answers grow. The gain compares OxyGen with the isolated baseline at the longest requests.</figcaption>
 </figure>

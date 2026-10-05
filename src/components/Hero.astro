@@ -12,12 +12,14 @@ const authors = [
 ];
 
 // π0.5 · LIBERO · RTX 4090 with 30-token requests: OxyGen (k = 1) and sequential
-// isolated execution. Each lane draws one second at the measured rate; the
-// playhead sweeps that second ten times slower than real time.
+// isolated execution. Each lane is a tape of marks at the measured rate that
+// scrolls one window's width every SLOWDOWN × WINDOW seconds.
 const libero = tradeoff.libero.rtx4090;
 const ours = libero.k1.at(-1)!;
 const base = libero.baseline.at(-1)!;
 const SLOWDOWN = 10;
+// Each lane spans half a second, so even 213 tok/s stays legible as marks.
+const WINDOW = 0.5;
 const runs = [
   { cls: "ours", name: "OxyGen", note: "shared KV, batched decoding", hz: ours[1], tps: ours[2] },
   { cls: "base", name: "Isolated baseline", note: "openpi, sequential", hz: base[1], tps: base[2] },
@@ -61,28 +63,28 @@ const runs = [
         Robots increasingly need to act and talk at once. OxyGen lets a vision-language-action model share one KV cache across its action and language experts and across control frames, so neither task waits for the other.
       </p>
 
-      <figure class="second" data-second data-slowdown={SLOWDOWN} aria-label="Actions and language tokens produced in one second">
+      <figure class="second" style={`--period: ${SLOWDOWN * WINDOW}s`} aria-label="Actions and language tokens produced per second by OxyGen and the isolated baseline">
         <div class="second-head">
-          <span class="label"><b>One second</b> of inference</span>
-          <span class="clock"><span data-clock>1.00</span> s</span>
+          <span class="label"><b>Inference</b>, live</span>
+          <span class="clock">0.5 s shown · 1/{SLOWDOWN} speed</span>
         </div>
         {runs.map((run) => (
           <div class:list={["run", run.cls]} data-hz={run.hz} data-tps={run.tps}>
             <div class="run-name">{run.name}<small>{run.note}</small></div>
             <div class="lane-row">
               <span>Actions</span>
-              <div class="marks act" style={`--n: ${run.hz.toFixed(2)}`}><i class="dim"></i><i class="lit"></i><i class="head"></i></div>
-              <output><span data-count="hz">{run.hz.toFixed(0)}</span><small>Hz</small></output>
+              <div class="marks act" style={`--n: ${(run.hz * WINDOW).toFixed(2)}`}><i class="tape"></i></div>
+              <output><span data-count-up>{run.hz.toFixed(0)}</span><small>Hz</small></output>
             </div>
             <div class="lane-row">
               <span>Tokens</span>
-              <div class="marks tokens" style={`--n: ${run.tps.toFixed(2)}`}><i class="dim"></i><i class="lit"></i><i class="head"></i></div>
-              <output><span data-count="tps">{run.tps.toFixed(0)}</span><small>tok/s</small></output>
+              <div class="marks tokens" style={`--n: ${(run.tps * WINDOW).toFixed(2)}`}><i class="tape"></i></div>
+              <output><span data-count-up>{run.tps.toFixed(0)}</span><small>tok/s</small></output>
             </div>
           </div>
         ))}
         <figcaption class="caption">
-          Each mark is one action or one language token, on the same time scale. Measured with π<sub>0.5</sub> on an RTX 4090 and 30-token requests; the playhead runs at 1/{SLOWDOWN} speed.
+          Each mark is one action or one language token. Both tapes move at the same speed, so the spacing shows the measured rates: π<sub>0.5</sub> on an RTX 4090 with 30-token requests, slowed ten times.
         </figcaption>
       </figure>
     </div>

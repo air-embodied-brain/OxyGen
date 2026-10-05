@@ -1,6 +1,7 @@
 ---
 import { ablation, ablationN } from "../data/paper-figures";
 import { stageProfile } from "../data/paper-tables";
+import Design from "./Design.astro";
 
 // One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5. Totals are
 // measured mean frame latencies (10 actions / action frequency) from the
@@ -60,20 +61,11 @@ function layout(mode: (typeof modes)[number]) {
 }
 ---
 
-<div class="grid">
-  <div class="c1-4">
-    <div class="idea">
-      <h3><span>i.</span>Cross-task KV sharing</h3>
-      <p>Action and language experts read the same observation. OxyGen encodes it once per frame and every expert attends to the shared prefix.</p>
-    </div>
-    <div class="idea">
-      <h3><span>ii.</span>Cross-frame continuous batching</h3>
-      <p>Each frame advances every unfinished language request by a fixed budget of <i>k</i> tokens, in one batch. Long answers spread over a few frames; actions keep their pace.</p>
-    </div>
-  </div>
+<Design />
 
-  <figure class="c6-12">
-    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 2</b></span>One control frame, three ways</span></div>
+<div class="grid unit">
+  <figure class="c1-8">
+    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>What it buys: one control frame, three ways</span></div>
     <div class="lanes">
       {modes.map((mode) => (
         <div class="lane">
@@ -101,4 +93,19 @@ function layout(mode: (typeof modes)[number]) {
     </div>
     <figcaption class="caption">π<sub>0.5</sub> on an RTX 4090; 30-token requests, <i>k</i> = 5, one new request per frame. Frame totals are measured; stage widths follow the paper's stage profile.</figcaption>
   </figure>
+  <aside class="c9-12">
+    <div class="fig-head"><span class="title">Per frame</span></div>
+    <div class="side-note">
+      <strong>{(modes[0].total / modes[2].total).toFixed(1)}× shorter</strong>
+      <p>{modes[0].total.toFixed(0)} → {modes[2].total.toFixed(0)} ms per frame, so actions update {((10 / modes[2].total) * 1000).toFixed(0)} instead of {((10 / modes[0].total) * 1000).toFixed(0)} times per second.</p>
+    </div>
+    <div class="side-note">
+      <strong>−{(modes[0].total - modes[1].total).toFixed(0)} ms</strong>
+      <p>from sharing the prefix: the second prefill disappears.</p>
+    </div>
+    <div class="side-note">
+      <strong>−{(modes[1].total - modes[2].total).toFixed(0)} ms</strong>
+      <p>from batching: {N / K} requests share each decoding step, so each frame decodes only {K} steps.</p>
+    </div>
+  </aside>
 </div>

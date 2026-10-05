@@ -507,22 +507,15 @@ dd {
   color: var(--muted);
 }
 
-/* Marks share one time scale: n marks per second across the lane width.
-   The colored layer is revealed by the playhead (--p). */
+/* A tape of marks at the measured rate (n per lane width = one window),
+   scrolling one lane width per --period. Both runs move at the same speed. */
 .marks {
   position: relative;
   height: 14px;
-}
-
-.marks i {
-  position: absolute;
-  inset: 0;
-  background-image: linear-gradient(90deg, var(--mark) 0 var(--w), transparent var(--w));
-  background-size: calc(100% / var(--n)) 100%;
-}
-
-.marks {
+  overflow: hidden;
   --w: 1.5px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
 }
 
 .marks.tokens {
@@ -530,22 +523,19 @@ dd {
   --w: 1px;
 }
 
-.marks .dim {
-  --mark: var(--hair);
+.marks .tape {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 200%;
+  background-image: linear-gradient(90deg, var(--c) 0 var(--w), transparent var(--w));
+  background-size: calc(50% / var(--n)) 100%;
+  animation: tape var(--period, 10s) linear infinite;
 }
 
-.marks .lit {
-  --mark: var(--c);
-  clip-path: inset(0 calc(100% - var(--p, 100%)) 0 0);
-}
-
-.marks .head {
-  left: var(--p, 100%);
-  right: auto;
-  width: 1px;
-  background: var(--ink);
-  top: -3px;
-  bottom: -3px;
+@keyframes tape {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .run .marks.act {
@@ -1403,7 +1393,14 @@ table.data td.bar {
 }
 
 .memory-log li:first-child {
-  border-top: 1px solid var(--rule);
+  padding-top: 2px;
+}
+
+.memory-log li.task p {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 14.5px;
+  color: var(--ink-soft);
 }
 
 .memory-log span {
@@ -1436,12 +1433,12 @@ table.data td.bar {
 }
 
 .memory-stats div {
-  padding: 8px 0 12px;
-  border-top: 1px solid var(--rule);
+  padding: 2px 0 12px;
 }
 
 .memory-stats div:nth-child(n + 3) {
-  border-top-color: var(--hair);
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
 }
 
 .memory-stats dt {
@@ -1464,7 +1461,10 @@ table.data td.bar {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--rule);
+}
+
+.resources li:first-child a {
+  padding-top: 2px;
 }
 
 .resources a {
@@ -1500,15 +1500,8 @@ table.data td.bar {
   color: var(--action);
 }
 
-.citation-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--rule);
-}
 
-.citation-head button {
+.citation .fig-head button {
   font-family: var(--sans);
   font-size: 12.5px;
   font-weight: 600;
@@ -1516,14 +1509,14 @@ table.data td.bar {
   border-bottom: 1px solid var(--hair);
 }
 
-.citation-head button:hover {
+.citation .fig-head button:hover {
   color: var(--ink);
   border-color: var(--ink);
 }
 
 .citation pre {
   margin: 0;
-  padding: 12px 0;
+  padding: 2px 0 12px;
   border-bottom: 1px solid var(--hair);
   white-space: pre-wrap;
   font-family: var(--mono);
@@ -1556,7 +1549,8 @@ table.data td.bar {
     scroll-behavior: auto;
   }
 
-  .chart .drawn path {
+  .chart .drawn path,
+  .marks .tape {
     animation: none;
     stroke-dasharray: none;
   }
@@ -1759,4 +1753,108 @@ table.data td.bar {
 
 .stat p {
   margin-top: 6px;
+}
+
+/* --------------------------------------------------------- design figure */
+
+.design .caption {
+  max-width: 62ch;
+}
+
+.roman {
+  margin-right: 4px;
+  font-family: var(--serif);
+  color: var(--action);
+}
+
+.design .panel-head {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.chart .dg-frame {
+  fill: var(--paper);
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+}
+
+.chart .dg-img {
+  fill: var(--paper-deep);
+  stroke: var(--muted);
+  stroke-width: 0.8;
+}
+
+.chart .dg-text-line {
+  stroke: var(--faint);
+  stroke-width: 2;
+}
+
+.chart .dg-prefill {
+  fill: var(--baseline);
+}
+
+.chart .dg-kv {
+  fill: var(--paper-deep);
+  stroke: var(--ink-soft);
+  stroke-width: 0.8;
+}
+
+.chart .dg-slot {
+  fill: none;
+  stroke: var(--language);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 1.5;
+}
+
+.chart .dg-action {
+  fill: var(--action);
+}
+
+.chart .dg-token {
+  fill: var(--language);
+}
+
+.chart .dg-batch {
+  fill: color-mix(in srgb, var(--language) 10%, transparent);
+  stroke: var(--language);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart .dg-link {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+
+.chart .dg-head {
+  fill: var(--ink-soft);
+}
+
+.chart .dg-label {
+  fill: var(--ink);
+  font-size: calc(13px * var(--s, 1));
+  font-weight: 600;
+}
+
+.chart .dg-small {
+  fill: var(--muted);
+  font-size: calc(11.5px * var(--s, 1));
+}
+
+.chart .dg-on-dark {
+  fill: var(--paper);
+  font-size: calc(13px * var(--s, 1));
+  font-weight: 600;
+}
+
+.chart .dg-on-dark-small {
+  fill: var(--paper);
+  font-size: calc(11.5px * var(--s, 1));
+}
+
+.chart .dg-done {
+  fill: var(--action);
+  font-size: calc(12px * var(--s, 1));
+  font-weight: 700;
 }
