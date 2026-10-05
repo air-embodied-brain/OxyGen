@@ -36,26 +36,109 @@ function initTheme() {
   });
 }
 
-/** Counts the headline numbers up from zero once, on first load. */
+/**
+ * Counts the headline numbers up from zero once, on first load. The display
+ * face has proportional digits, so each number gets a box as wide as the widest
+ * value it will show; the unit after it stays still while the digits change,
+ * then the box eases to the final width.
+ */
 function initCountUp() {
   const targets = $all<HTMLElement>("[data-count-up]");
-  // The count-up is short and carries no flashing, so it also runs under reduced motion.
   if (!targets.length) return;
+  const duration = 1400;
+  const steps = 90;
+  const ease = (t: number) => 1 - Math.pow(1 - t, 3);
   const items = targets.map((el) => {
     const text = el.textContent ?? "0";
-    return { el, text, value: Number(text), decimals: (text.split(".")[1] ?? "").length };
+    const value = Number(text);
+    const decimals = (text.split(".")[1] ?? "").length;
+    const probe = el.cloneNode() as HTMLElement;
+    probe.removeAttribute("data-count-up");
+    probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";
+    el.after(probe);
+    let widest = 0;
+    for (let i = 0; i <= steps; i += 1) {
+      probe.textContent = (value * ease(i / steps)).toFixed(decimals);
+      widest = Math.max(widest, probe.getBoundingClientRect().width);
+    }
+    probe.textContent = text;
+    const final = probe.getBoundingClientRect().width;
+    probe.remove();
+    el.style.width = `${Math.ceil(widest)}px`;
+    return { el, text, value, decimals, final };
   });
-  const duration = 1400;
   const start = performance.now();
   const frame = (now: number) => {
     const t = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - t, 3);
     for (const item of items) {
-      item.el.textContent = t < 1 ? (item.value * eased).toFixed(item.decimals) : item.text;
+      item.el.textContent = t < 1 ? (item.value * ease(t)).toFixed(item.decimals) : item.text;
     }
-    if (t < 1) requestAnimationFrame(frame);
+    if (t < 1) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    for (const item of items) {
+      item.el.style.transition = "width 0.35s ease";
+      item.el.style.width = `${Math.ceil(item.final)}px`;
+    }
   };
   requestAnimationFrame(frame);
+}
+
+/**
+ * Fig. 2: the left panel walks through one frame (observe, prefill, shared KV,
+ * fan-out); each loop the right panel's window slides to the next frame and
+ * shows which requests decode together. Both share one clock.
+ */
+function initDesign() {
+  const root = document.querySelector<HTMLElement>("[data-design]");
+  if (!root) return;
+  const frames = Number(root.dataset.frames);
+  const batch = Number(root.dataset.batch);
+  const cycle = 2600;
+  root.style.setProperty("--cycle", `${cycle}ms`);
+  const label = root.querySelector<SVGTextElement>("[data-frame-label]");
+  const slider = root.querySelector<SVGGElement>("[data-slider]");
+  const batchLabel = root.querySelector<SVGTextElement>("[data-batch-label]");
+  const cells = $all<SVGElement>(".dg-cell", root);
+  const col = Number(slider?.dataset.col ?? 0);
+  let frame = 0;
+  const show = (f: number) => {
+    if (label) label.textContent = f === 0 ? "frame t" : `frame t+${f}`;
+    slider?.style.setProperty("--x", `${f * col}px`);
+    if (batchLabel) batchLabel.textContent = `batch of ${Math.min(f + 1, batch)}`;
+    for (const cell of cells) cell.classList.toggle("future", Number(cell.dataset.f) > f);
+  };
+  const clock = root.querySelector<SVGElement>(".ring-1");
+  let playing = false;
+  const step = () => {
+    frame += 1;
+    if (frame >= frames) {
+      // Fade the window out, rewind while hidden, then fade back in.
+      slider?.classList.add("reset");
+      window.setTimeout(() => {
+        frame = 0;
+        show(frame);
+        slider?.classList.remove("reset");
+      }, 400);
+      return;
+    }
+    show(frame);
+  };
+  // The left panel's CSS animation is the clock: each loop advances one frame.
+  clock?.addEventListener("animationiteration", step);
+  const observer = new IntersectionObserver((entries) => {
+    const visible = entries.some((e) => e.isIntersecting);
+    if (visible && !playing) {
+      playing = true;
+      root.classList.add("playing");
+      show(frame);
+    } else if (!visible && playing) {
+      playing = false;
+      root.classList.remove("playing");
+    }
+  });
+  observer.observe(root);
 }
 
 function initDemo() {
@@ -191,6 +274,7 @@ export function initPage() {
   initRunningHead();
   initTheme();
   initCountUp();
+  initDesign();
   initDemo();
   initTradeoff();
   initAblation();

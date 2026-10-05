@@ -12,8 +12,9 @@ const authors = [
 ];
 
 // π0.5 · LIBERO · RTX 4090 with 30-token requests: OxyGen (k = 1) and sequential
-// isolated execution. Each lane is a tape of marks at the measured rate that
-// scrolls one window's width every SLOWDOWN × WINDOW seconds.
+// isolated execution. Each lane shows WINDOW seconds of marks at the measured
+// rate. Every tape moves at the same speed (one window per SLOWDOWN × WINDOW s);
+// each loop shifts by exactly one mark, so the repeat is seamless.
 const libero = tradeoff.libero.rtx4090;
 const ours = libero.k1.at(-1)!;
 const base = libero.baseline.at(-1)!;
@@ -73,12 +74,12 @@ const runs = [
             <div class="run-name">{run.name}<small>{run.note}</small></div>
             <div class="lane-row">
               <span>Actions</span>
-              <div class="marks act" style={`--n: ${(run.hz * WINDOW).toFixed(2)}`}><i class="tape"></i></div>
+              <div class="marks act" style={`--n: ${(run.hz * WINDOW).toFixed(3)}; --dur: ${(SLOWDOWN / run.hz).toFixed(4)}s`}><i class="tape"></i></div>
               <output><span data-count-up>{run.hz.toFixed(0)}</span><small>Hz</small></output>
             </div>
             <div class="lane-row">
               <span>Tokens</span>
-              <div class="marks tokens" style={`--n: ${(run.tps * WINDOW).toFixed(2)}`}><i class="tape"></i></div>
+              <div class="marks tokens" style={`--n: ${(run.tps * WINDOW).toFixed(3)}; --dur: ${(SLOWDOWN / run.tps).toFixed(4)}s`}><i class="tape"></i></div>
               <output><span data-count-up>{run.tps.toFixed(0)}</span><small>tok/s</small></output>
             </div>
           </div>

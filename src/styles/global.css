@@ -526,17 +526,19 @@ dd {
 .marks .tape {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 200%;
+  /* one window plus one mark, so a shift of one mark wraps cleanly */
+  width: calc(100% + 100% / var(--n));
   background-image: linear-gradient(90deg, var(--c) 0 var(--w), transparent var(--w));
-  background-size: calc(50% / var(--n)) 100%;
-  animation: tape var(--period, 10s) linear infinite;
+  background-size: calc(100% / (var(--n) + 1)) 100%;
+  animation: tape var(--dur, 1s) linear infinite;
 }
 
 @keyframes tape {
   to {
-    transform: translateX(-50%);
+    transform: translateX(calc(-100% / (var(--n) + 1)));
   }
 }
+
 
 .run .marks.act {
   --c: var(--action);
@@ -1908,4 +1910,77 @@ table.data td.bar {
   .design > .grid > .caption.c1-6 { order: 2; }
   .design > .grid > .c7-12:not(.caption) { order: 3; }
   .design > .grid > .caption.c7-12 { order: 4; margin-top: 14px; }
+}
+
+/* Count-up numbers keep a fixed box so the unit after them does not move. */
+[data-count-up] {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------- Fig. 2 animation */
+
+.chart .dg-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  opacity: 0;
+}
+
+.chart .dg-frame-no {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Each stage is lit for about a quarter of the frame, in order. */
+.design.playing .dg-ring { animation: var(--cycle) linear infinite; }
+.design.playing .ring-1 { animation-name: ring-a; }
+.design.playing .ring-2 { animation-name: ring-b; }
+.design.playing .ring-3 { animation-name: ring-c; }
+.design.playing .ring-4 { animation-name: ring-d; }
+
+@keyframes ring-a { 0%, 2% { opacity: 0; } 5%, 20% { opacity: 1; } 24%, 100% { opacity: 0; } }
+@keyframes ring-b { 0%, 22% { opacity: 0; } 26%, 42% { opacity: 1; } 46%, 100% { opacity: 0; } }
+@keyframes ring-c { 0%, 44% { opacity: 0; } 48%, 64% { opacity: 1; } 68%, 100% { opacity: 0; } }
+@keyframes ring-d { 0%, 66% { opacity: 0; } 70%, 92% { opacity: 1; } 96%, 100% { opacity: 0; } }
+
+/* the prefix KV rows are written during the prefill stage */
+.design.playing .dg-kvrow {
+  animation: kvrow var(--cycle) linear infinite;
+  animation-delay: calc(var(--i) * var(--cycle) * 0.025);
+}
+
+@keyframes kvrow {
+  0%, 22% { opacity: 0.25; }
+  30%, 92% { opacity: 1; }
+  100% { opacity: 0.25; }
+}
+
+/* the new request decodes its first k tokens at the end of the frame */
+.design.playing .dg-slot-k {
+  animation: slot var(--cycle) linear infinite;
+}
+
+@keyframes slot {
+  0%, 74% { fill: transparent; }
+  78%, 94% { fill: var(--language); }
+  100% { fill: transparent; }
+}
+
+
+/* right: the sliding window shows the batch of the current frame */
+.chart .dg-slider {
+  transform: translateX(var(--x));
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+}
+
+.chart .dg-cell {
+  transition: opacity 0.4s ease;
+}
+
+.design.playing .dg-cell.future {
+  opacity: 0.12;
+}
+
+.design.playing .dg-slider.reset {
+  opacity: 0;
 }

@@ -20,18 +20,27 @@ const rows = Array.from({ length: FRAMES }, (_, r) => r);
 const steady = B; // first frame where the batch is full (0-based)
 ---
 
-<figure class="design unit">
+<figure class="design unit" data-design data-frames={FRAMES} data-batch={B}>
   <div class="fig-head"><span class="title"><span class="label"><b>Fig. 2</b></span>How OxyGen manages the KV cache</span></div>
   <div class="grid">
     <div class="c1-6">
       <div class="panel-head"><span><i class="roman">i.</i> Within a frame: one prefill, shared by every expert</span></div>
       <div class="chart">
-        <svg viewBox={`0 14 ${W} ${H}`} role="img" aria-label="Per-frame flow: the observation is prefilled once, and the shared prefix KV cache feeds the action expert and a new language request">
+        <svg data-flow viewBox={`0 14 ${W} ${H}`} role="img" aria-label="Per-frame flow: the observation is prefilled once, and the shared prefix KV cache feeds the action expert and a new language request">
           <defs>
             <marker id="dg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L8,4 L0,8 z" class="dg-head" />
             </marker>
           </defs>
+
+          <text class="dg-label dg-frame-no" x="0" y="34" data-frame-label>frame t</text>
+
+          <!-- highlight rings, lit in turn as the frame is processed -->
+          <rect class="dg-ring ring-1" x="-3" y="75" width="84" height="78" />
+          <rect class="dg-ring ring-2" x="111" y="75" width="82" height="78" />
+          <rect class="dg-ring ring-3" x="223" y="75" width="70" height="72" />
+          <rect class="dg-ring ring-4" x="341" y="19" width="178" height="66" />
+          <rect class="dg-ring ring-4" x="341" y="143" width="178" height="72" />
 
           <!-- observation -->
           <g transform="translate(0 78)">
@@ -42,7 +51,7 @@ const steady = B; // first frame where the batch is full (0-based)
             <text class="dg-small" x="0" y="88">observation</text>
             <text class="dg-small" x="0" y="102">3 views, prompt</text>
           </g>
-          <line class="dg-link" x1="84" y1="114" x2="110" y2="114" marker-end="url(#dg-arrow)" />
+          <line class="dg-link link-2" x1="84" y1="114" x2="110" y2="114" marker-end="url(#dg-arrow)" />
 
           <!-- backbone prefill -->
           <g transform="translate(114 78)">
@@ -51,18 +60,18 @@ const steady = B; // first frame where the batch is full (0-based)
             <text class="dg-on-dark" x="38" y="47" text-anchor="middle">prefill</text>
             <text class="dg-small" x="38" y="88" text-anchor="middle">once per frame</text>
           </g>
-          <line class="dg-link" x1="196" y1="114" x2="222" y2="114" marker-end="url(#dg-arrow)" />
+          <line class="dg-link link-3" x1="196" y1="114" x2="222" y2="114" marker-end="url(#dg-arrow)" />
 
           <!-- shared prefix KV -->
           <g transform="translate(226 78)">
-            {[0, 1, 2, 3, 4, 5].map((i) => <rect class="dg-kv" x="0" y={i * 12} width="64" height="9" />)}
+            {[0, 1, 2, 3, 4, 5].map((i) => <rect class="dg-kv dg-kvrow" x="0" y={i * 12} width="64" height="9" style={`--i: ${i}`} />)}
             <text class="dg-label" x="32" y="88" text-anchor="middle">prefix KV</text>
             <text class="dg-small" x="32" y="102" text-anchor="middle">shared, read-only</text>
           </g>
 
           <!-- fan-out -->
-          <path class="dg-link" d="M296,104 C318,104 318,52 340,52" marker-end="url(#dg-arrow)" />
-          <path class="dg-link" d="M296,124 C318,124 318,176 340,176" marker-end="url(#dg-arrow)" />
+          <path class="dg-link link-4" d="M296,104 C318,104 318,52 340,52" marker-end="url(#dg-arrow)" />
+          <path class="dg-link link-4" d="M296,124 C318,124 318,176 340,176" marker-end="url(#dg-arrow)" />
 
           <!-- action expert -->
           <g transform="translate(344 22)">
@@ -76,7 +85,7 @@ const steady = B; // first frame where the batch is full (0-based)
             <rect class="dg-frame" x="0" y="0" width="172" height="66" />
             <text class="dg-label" x="12" y="20">New language request</text>
             <rect class="dg-kv" x="12" y="30" width="44" height="16" />
-            {Array.from({ length: N }, (_, i) => <rect class="dg-slot" x={60 + i * 8.6} y="30" width="6.6" height="16" />)}
+            {Array.from({ length: N }, (_, i) => <rect class:list={["dg-slot", i < K && "dg-slot-k"]} x={60 + i * 8.6} y="30" width="6.6" height="16" style={`--i: ${i}`} />)}
             <text class="dg-small" x="12" y="59">prefix KV + room for N tokens</text>
           </g>
         </svg>
@@ -92,31 +101,34 @@ const steady = B; // first frame where the batch is full (0-based)
     <div class="c7-12">
       <div class="panel-head"><span><i class="roman">ii.</i> Across frames: unfinished requests decode together</span></div>
       <div class="chart">
-        <svg viewBox={`0 0 ${W} ${TOP + ROW * FRAMES + 30}`} role="img" aria-label={`Cross-frame batching: each request needs ${N} tokens, advances ${K} per frame, so ${B} requests decode together in every frame`}>
+        <svg data-window viewBox={`0 0 ${W} ${TOP + ROW * FRAMES + 30}`} role="img" aria-label={`Cross-frame batching: each request needs ${N} tokens, advances ${K} per frame, so ${B} requests decode together in every frame`}>
           <!-- frame header and action lane -->
           {rows.map((f) => (
             <g>
               <text class="dg-small" x={LW + f * colW + colW / 2} y="12" text-anchor="middle">{f === 0 ? "frame t" : `t+${f}`}</text>
-              <rect class="dg-action" x={LW + f * colW + 6} y="20" width={colW - 12} height="8" />
+              <rect class="dg-action dg-cell" data-f={f} x={LW + f * colW + 6} y="20" width={colW - 12} height="8" />
             </g>
           ))}
           <text class="dg-small" x="0" y="28">actions</text>
 
           <!-- steady-state column -->
-          <rect class="dg-batch" x={LW + steady * colW + 2} y={TOP - 6} width={colW - 4} height={ROW * FRAMES + 6} />
+          <g class="dg-slider" data-slider data-col={colW} style={`--x: ${steady * colW}px`}>
+            <rect class="dg-batch" x={LW + 2} y={TOP - 6} width={colW - 4} height={ROW * FRAMES + 6} />
+            <text class="dg-small" x={LW + colW / 2} y={TOP + ROW * FRAMES + 18} text-anchor="middle" data-batch-label>batch of {B}</text>
+          </g>
 
           {rows.map((r) => {
             const y = TOP + r * ROW;
             return (
               <g>
-                <text class="dg-small" x="0" y={y + 14}>{r === 0 ? "request t" : `t+${r}`}</text>
+                <text class="dg-small dg-cell" data-f={r} data-row x="0" y={y + 14}>{r === 0 ? "request t" : `t+${r}`}</text>
                 {Array.from({ length: B }, (_, j) => {
                   const f = r + j;
                   if (f >= FRAMES) return null;
                   const x0 = LW + f * colW + 6;
                   const w = colW - 12;
                   return (
-                    <g>
+                    <g class="dg-cell" data-f={f}>
                       {j === 0 && <rect class="dg-kv" x={x0} y={y + 3} width="8" height="13" />}
                       {Array.from({ length: K }, (_, t) => (
                         <rect class="dg-token" x={x0 + (j === 0 ? 11 : 0) + t * ((w - (j === 0 ? 11 : 0)) / K)} y={y + 3} width={(w - (j === 0 ? 11 : 0)) / K - 2.5} height="13" />
@@ -128,7 +140,6 @@ const steady = B; // first frame where the batch is full (0-based)
               </g>
             );
           })}
-          <text class="dg-small" x={LW + steady * colW + colW / 2} y={TOP + ROW * FRAMES + 18} text-anchor="middle">one batched pass</text>
         </svg>
       </div>
     </div>

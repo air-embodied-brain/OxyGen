@@ -213,8 +213,6 @@ class Painter:
         img = Image.fromarray(frame[top : top + crop_h]).resize((w, view_h), Image.LANCZOS)
         seg = phase_at(side, local_t) if not finished else None
         waiting = seg is not None and seg.kind != "move"
-        if waiting:
-            img = Image.blend(img, Image.new("RGB", img.size, T["paper"]), 0.22)
         canvas.paste(img, (x, view_y))
 
         # Status line under the view.

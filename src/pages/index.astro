@@ -130,12 +130,12 @@ const resources = [
         </figure>
         <figure class="c8-12">
           <div class="fig-head"><span class="title">Cost per request, RTX 4090</span></div>
-          <div class="panel-head"><span>Energy per request</span><span class="gain">{change(baselineCost.energyJ, bestCost.energyJ)}%<small>vs. baseline</small></span></div>
+          <div class="panel-head"><span>Energy per request</span><span class="gain">−{-change(baselineCost.energyJ, bestCost.energyJ)}%<small>vs. baseline</small></span></div>
           <table class="data">
             <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
             <tbody>
-              <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">{change(baselineCost.energyJ, bestCost.energyJ)}%</td></tr>
-              <tr><td class="name">Power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">{change(baselineCost.powerW, bestCost.powerW)}%</td></tr>
+              <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">−{-change(baselineCost.energyJ, bestCost.energyJ)}%</td></tr>
+              <tr><td class="name">Power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">−{-change(baselineCost.powerW, bestCost.powerW)}%</td></tr>
               <tr><td class="name">Memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{change(baselineCost.memGiB, bestCost.memGiB)}%</td></tr>
             </tbody>
           </table>
