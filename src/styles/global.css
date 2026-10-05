@@ -48,7 +48,7 @@
   --gutter: clamp(20px, 4vw, 40px);
   --gap: 24px;
   --head-h: 52px;
-  --section-gap: clamp(56px, 6.5vw, 84px);
+  --section-gap: clamp(40px, 4.2vw, 56px);
   --block-gap: clamp(36px, 4vw, 52px);
 }
 
@@ -532,7 +532,7 @@ dd {
 /* --------------------------------------------------------- headline stats */
 
 .stats {
-  margin-top: clamp(36px, 4.5vw, 56px);
+  margin-top: clamp(32px, 3.5vw, 44px);
 }
 
 .stat {
@@ -693,8 +693,9 @@ dd {
   border-top: 1px solid var(--hair);
 }
 
-.side-note:first-child {
-  border-top-color: var(--rule);
+.fig-head + .side-note {
+  padding-top: 2px;
+  border-top: 0;
 }
 
 .side-note strong {
@@ -1135,7 +1136,7 @@ table.data td.bar {
 
 .big-figure {
   display: block;
-  margin-top: 6px;
+  margin-top: 10px;
   font-size: clamp(56px, 6vw, 80px);
   font-weight: 500;
   line-height: 1;

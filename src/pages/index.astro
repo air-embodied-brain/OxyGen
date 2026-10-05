@@ -97,7 +97,7 @@ const resources = [
       <div class="unit"><TradeoffChart /></div>
 
       <div class="unit grid">
-        <div class="c1-7"><AblationChart /></div>
+        <div class="c1-8"><AblationChart /></div>
         <figure class="c9-12">
           <div class="fig-head"><span class="title">Cost per request, RTX 4090</span></div>
           <table class="data">
@@ -115,13 +115,8 @@ const resources = [
       <div class="unit"><Generality /></div>
 
       <div class="unit grid">
-        <div class="c1-4">
-          <p class="label"><b>Fig. 5</b> Action quality</p>
-          <span class="big-figure">{overall.mean.toFixed(2)}%</span>
-          <p class="caption">Mean LIBERO success over 10 seeds and 20,000 rollouts, with the official π<sub>0.5</sub>-LIBERO checkpoint. openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
-        </div>
-        <figure class="c6-12 ci">
-          <div class="fig-head"><span class="title">Success by suite, 95% confidence interval</span></div>
+        <figure class="c1-8 ci">
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 5</b></span>LIBERO success by suite, 95% confidence interval</span></div>
           {quality.map((row) => (
             <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
               <span>{row.suite}</span>
@@ -139,6 +134,11 @@ const resources = [
             <span><i style="width: 1.5px; height: 13px; background: var(--ink)"></i>openpi reported</span>
           </div>
         </figure>
+        <div class="c9-12">
+          <div class="fig-head"><span class="title">Overall success</span></div>
+          <span class="big-figure">{overall.mean.toFixed(2)}%</span>
+          <p class="caption">Mean over 10 seeds and 20,000 rollouts with the official π<sub>0.5</sub>-LIBERO checkpoint; openpi reports {overall.openpi}%. OxyGen changes the schedule, not the policy.</p>
+        </div>
       </div>
     </section>
 
