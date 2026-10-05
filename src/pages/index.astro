@@ -193,7 +193,6 @@ const resources = [
     <section class="section" id="memory" data-title="Textual memory">
       <SectionHead number="5" label="Application">
         <Fragment slot="title">A robot that <em>keeps notes.</em></Fragment>
-        The demo's language task is textual memory: a rank-16 LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.
       </SectionHead>
       <div class="grid">
         <figure class="c1-6">
@@ -202,15 +201,17 @@ const resources = [
             <li class="new"><span>step 185</span><q>The alphabet soup is in the basket.</q></li>
           </ol>
           <figcaption class="caption">Memories written by OxyGen in the alphabet-soup rollout of Fig. 1 (task: put both the alphabet soup and the tomato sauce in the basket).</figcaption>
+          <p class="caption">Developed after the main experiments; the paper's latency and quality results do not depend on it. Numbers from the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository, on RTX 4090.</p>
         </figure>
         <div class="c8-12">
+          <p class="memory-intro">The demo's language task is textual memory: a rank-16 LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.</p>
           <dl class="memory-stats">
             <div><dt>87.25%</dt><dd>exact match on held-out frames</dd></div>
             <div><dt>8.16 ms</dt><dd>median adapter cost per memory, vs. a 47.66 ms prefix forward</dd></div>
             <div><dt>0</dt><dd>change to actions with the adapter zeroed</dd></div>
             <div><dt>338,575</dt><dd>annotated frames from 2,000 LIBERO demonstrations</dd></div>
           </dl>
-          <p class="caption">Developed after the main experiments; the paper's latency and quality results do not depend on it. Numbers from the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository, on RTX 4090.</p>
+
         </div>
       </div>
     </section>

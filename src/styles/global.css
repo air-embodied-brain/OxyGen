@@ -41,15 +41,46 @@
 }
 
 :root {
+  --display: "Libre Baskerville", Georgia, serif;
   --serif: "Source Serif 4 Variable", "Source Serif Pro", Georgia, serif;
-  --sans: "Inter Tight Variable", "Helvetica Neue", Arial, sans-serif;
+  --sans: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono Variable", ui-monospace, monospace;
-  --page: 1200px;
+  --page: 1080px;
   --gutter: clamp(20px, 4vw, 40px);
   --gap: 24px;
   --head-h: 52px;
   --section-gap: clamp(40px, 4.2vw, 56px);
   --block-gap: clamp(36px, 4vw, 52px);
+}
+
+@font-face {
+  font-family: "Libre Baskerville";
+  src: url("../fonts/LibreBaskerville-VariableFont_wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Libre Baskerville";
+  font-style: italic;
+  src: url("../fonts/LibreBaskerville-Italic-VariableFont_wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fonts/SourceSans3VF-Upright.ttf.woff2") format("woff2");
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: italic;
+  src: url("../fonts/SourceSans3VF-Italic.ttf.woff2") format("woff2");
+  font-weight: 200 900;
+  font-display: swap;
 }
 
 *,
@@ -931,12 +962,12 @@ dd {
 .chart .ticklabels text {
   fill: var(--muted);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--s, 1));
 }
 
 .chart .axis-title {
   fill: var(--muted);
-  font-size: 11.5px;
+  font-size: calc(12.5px * var(--s, 1));
 }
 
 .chart .series path {
@@ -952,7 +983,7 @@ dd {
 }
 
 .chart .series .end {
-  font-size: 12px;
+  font-size: calc(13px * var(--s, 1));
   font-weight: 600;
   stroke: none;
 }
@@ -1391,6 +1422,13 @@ table.data td.bar {
   color: var(--language);
 }
 
+.memory-intro {
+  margin: 0 0 22px;
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
 .memory-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1608,11 +1646,6 @@ table.data td.bar {
     font-size: 0;
   }
 
-  .chart .ticklabels text,
-  .chart .axis-title,
-  .chart .series .end {
-    font-size: 18px;
-  }
 
   table.data td.bar {
     display: none;
@@ -1645,4 +1678,85 @@ table.data td.bar {
     grid-column: 1 / -1;
     grid-row: 2;
   }
+}
+
+/* ------------------------------------------------------- display face */
+
+/* Libre Baskerville, as on the author's homepage, for the masthead,
+   headings and display numerals. */
+.masthead h1,
+.section-head h2,
+.stat strong,
+.big-figure,
+.side-note strong,
+.panel-head .gain,
+.facts strong,
+.memory-stats dt,
+.running-head .brand,
+.resources strong,
+.lane-total,
+.latency-row h4 span,
+.lane-row output {
+  font-family: var(--display);
+  font-weight: 400;
+}
+
+.masthead h1 {
+  font-size: clamp(68px, 10vw, 132px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.running-head .brand {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.section-head h2 {
+  font-size: clamp(27px, 2.8vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.stat strong {
+  font-size: clamp(40px, 4.2vw, 54px);
+  letter-spacing: -0.035em;
+}
+
+.big-figure {
+  font-size: clamp(48px, 5vw, 64px);
+  letter-spacing: -0.035em;
+}
+
+.side-note strong,
+.facts strong,
+.memory-stats dt {
+  font-size: 25px;
+  letter-spacing: -0.02em;
+}
+
+.panel-head .gain {
+  font-size: 25px;
+}
+
+.lane-total,
+.lane-row output {
+  font-size: 15px;
+}
+
+.latency-row h4 span {
+  font-size: 19px;
+}
+
+.resources strong {
+  font-size: 17px;
+}
+
+/* The headline numbers lead straight into the first section. */
+.stats + .section {
+  margin-top: clamp(24px, 2.6vw, 32px);
+}
+
+.stat p {
+  margin-top: 6px;
 }

@@ -184,7 +184,20 @@ function initCitation() {
   });
 }
 
+/** Keeps SVG chart text at fixed pixel sizes however wide the chart is drawn. */
+function initChartText() {
+  const svgs = $all<SVGSVGElement>(".chart svg");
+  const observer = new ResizeObserver(() => {
+    for (const svg of svgs) {
+      const width = svg.getBoundingClientRect().width;
+      if (width > 0) svg.style.setProperty("--s", String(svg.viewBox.baseVal.width / width));
+    }
+  });
+  for (const svg of svgs) observer.observe(svg);
+}
+
 export function initPage() {
+  initChartText();
   initRunningHead();
   initTheme();
   initSecond();

@@ -39,7 +39,7 @@ const modes = [
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode", text: "5 steps × 6 requests" },
+      { kind: "decode", text: "batch of 6" },
     ],
   },
 ];
@@ -78,7 +78,7 @@ function layout(mode: (typeof modes)[number]) {
           <div class="lane-track">
             {layout(mode).map((block) => (
               <div class:list={["block", block.kind]} style={`left: ${block.left}%; width: ${block.width}%`}>
-                {block.width > 8 ? block.text : ""}
+                {block.width > 10 ? block.text : ""}
               </div>
             ))}
           </div>
