@@ -1,0 +1,7 @@
+.envs/
+assets/
+outputs/
+__pycache__/
+*.egg-info/
+build/
+dist/

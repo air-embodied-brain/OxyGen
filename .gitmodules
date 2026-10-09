@@ -1,0 +1,3 @@
+[submodule "model_extensions/third_party/starvla"]
+	path = model_extensions/third_party/starvla
+	url = https://github.com/starVLA/starVLA.git

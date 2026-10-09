@@ -1,0 +1,111 @@
+{
+  "XiaomiRobotics/Xiaomi-Robotics-0-LIBERO": {
+    "revision": "fc04bbdcc53e498695cfad95d1199091396ef55b",
+    "files": {
+      "added_tokens.json": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680",
+      "chat_template.jinja": "3636d0f0bd6bef02654cdffdc447b79cb2cef8ab02cc75267345946291a489e4",
+      "config.json": "7dae2731c0946f5496aec395981895eff999b7e276c2d60589e078e55bef6f91",
+      "configuration_mibot.py": "8bc3ee9c34766036fffa2d6b9485043b792148f169cf7d30423a42ddb7c54b2a",
+      "merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+      "modeling_mibot.py": "bcf26ea6e7da0714a5a61834337504a13f28d6b43ed9c4ff0fc93bb6a43c2a38",
+      "preprocessor_config.json": "39bb8c8d0bb143aab226386915bcd0dfffacc5ea937847ebbf32ece6070ee8f9",
+      "processing_mibot.py": "554e49f626c637c30f2f035363ff0f40d7d2de76722cc3a6c32fa25fd7bda42c",
+      "processor_config.json": "6a526f4eba58413920d4d68b5c3044181ad71244e2b78d66a1d05de2687b387b",
+      "special_tokens_map.json": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+      "tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+      "tokenizer_config.json": "c12d8db5bd1973f5cfc377a4bfb1565a4055d52441e0f014cc7daa2e30cc3ae9",
+      "video_preprocessor_config.json": "7d70cb4441c7358d5d3209dcb557e1d872defeab59067eba73c04a438736d012",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  },
+  "StarVLA/Qwen3VL-PI_v3-Bridge-RT_1": {
+    "revision": "72618cfb5084e020b30ad6fd77c288da0c41ed39",
+    "files": {
+      "config.full.yaml": "85ff9fba2c9426d35f12efabfd52b9ef4633d91d084421952b391809ea73b33f",
+      "config.yaml": "f266bd2de5b9fb7078c8314954e98f72476a36a8944e3f380096ba5b1256901b",
+      "dataset_statistics.json": "9925e884e37ca807061b5d41206bcf72814300e7effb5b4edc067dc821fca004"
+    }
+  },
+  "StarVLA/Qwen3VL-GR00T-Bridge-RT-1": {
+    "revision": "8ddb8116d5bd2953931619cfa9d60f278aeebceb",
+    "files": {
+      "config.json": "9efddc3c21039fa473823080a939dfa686050a8a2d4a4cb1b01b1a06913fccf5",
+      "config.yaml": "01e092e9a3a9380885f1a27953048e7ed1ef7f6c99ea1984d289d1358e4ba85f",
+      "dataset_statistics.json": "83aa32682dd0b600e570936bfb63fd5d30b51d165e3d174a7ff3fc69d9fc276b"
+    }
+  },
+  "StarVLA/Qwen3VL-OFT-Bridge-RT-1": {
+    "revision": "1c814bc494cd95c844535fffed2a890838651dd6",
+    "files": {
+      "config.json": "6a6b0dd11ec26f88aca711a8886ecb619bbb895846a6353df53f04ece682b318",
+      "config.yaml": "6c074974697115284b1624dda5230f3dd27e1d9a373db73006467004ed859c2a",
+      "dataset_statistics.json": "83aa32682dd0b600e570936bfb63fd5d30b51d165e3d174a7ff3fc69d9fc276b"
+    }
+  },
+  "Qwen/Qwen3-VL-4B-Instruct": {
+    "revision": "ebb281ec70b05090aa6165b016eac8ec08e71b17",
+    "files": {
+      "chat_template.json": "6f8a6a55027e3da5160105556cda5dd69f6423f1c32645f6730d32de7773d0c4",
+      "config.json": "edac7703329133edfc53e46ac0081835144c99d7eebf28b71c732694d435224d",
+      "generation_config.json": "8469742d1fce0de951c8909b26a2c0c0d8490837ce476efb114da9e0cefc4d44",
+      "merges.txt": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+      "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+      "tokenizer.json": "a5d85b6dcc535e6b93115a9ef287e6132fdbf30270da6218194ba742261173c7",
+      "tokenizer_config.json": "c2da771801886ad9ae98181793ffd3dfb7f1af30f6f7c6a4e15d7dbba52e2399",
+      "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  },
+  "Qwen/Qwen3.5-0.8B": {
+    "revision": "2fc06364715b967f1860aea9cf38778875588b17",
+    "files": {
+      "chat_template.jinja": "273d8e0e683b885071fb17e08d71e5f2a5ddfb5309756181681de4f5a1822d80",
+      "config.json": "b90b86f35c8e6925ef74ee04d0e758f0a845c83a42089ad82bbaa948de9b4204",
+      "merges.txt": "a9d356d7bdf1ef4949e3e748e95b8e10ad9d4e2e838eddc38a0a7b6b94d1db8d",
+      "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+      "tokenizer_config.json": "49e2b6e395f959f077f1e992b338919c0d4a9732fc6e613995e06557f843500c",
+      "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+      "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+    }
+  },
+  "Qwen/Qwen3.5-2B": {
+    "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+    "files": {
+      "chat_template.jinja": "273d8e0e683b885071fb17e08d71e5f2a5ddfb5309756181681de4f5a1822d80",
+      "config.json": "ed1c1723241f23f7f4e23430759cbd7dcfb4103cbdfe052bfe7626b57c2615b4",
+      "merges.txt": "a9d356d7bdf1ef4949e3e748e95b8e10ad9d4e2e838eddc38a0a7b6b94d1db8d",
+      "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+      "tokenizer_config.json": "49e2b6e395f959f077f1e992b338919c0d4a9732fc6e613995e06557f843500c",
+      "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+      "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+    }
+  },
+  "Qwen/Qwen3.5-4B": {
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "files": {
+      "chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+      "config.json": "ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670",
+      "merges.txt": "a9d356d7bdf1ef4949e3e748e95b8e10ad9d4e2e838eddc38a0a7b6b94d1db8d",
+      "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+      "tokenizer_config.json": "316230d6a809701f4db5ea8f8fc862bc3a6f3229c937c174e674ff3ca0a64ac8",
+      "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+      "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+    }
+  },
+  "Qwen/Qwen3.5-9B": {
+    "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "files": {
+      "chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+      "config.json": "d0883072e01861ed0b2d47be3c16c36a8e81c224c7ffaa310c6558fb3f932b05",
+      "merges.txt": "a9d356d7bdf1ef4949e3e748e95b8e10ad9d4e2e838eddc38a0a7b6b94d1db8d",
+      "preprocessor_config.json": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+      "tokenizer_config.json": "316230d6a809701f4db5ea8f8fc862bc3a6f3229c937c174e674ff3ca0a64ac8",
+      "video_preprocessor_config.json": "7768af27c1fafa9cc9011c1dc20067e03f8915e03b63504550e11d5066986d13",
+      "vocab.json": "ce99b4cb2983d118806ce0a8b777a35b093e2000a503ebde25853284c9dfa003"
+    }
+  }
+}

@@ -15,6 +15,7 @@ See [LIBERO textual-memory adaptation](language_adaptation/libero/README.md) for
 
 ## News
 
+- **2026-10:** Added [model extensions](model_extensions/README.md) for Xiaomi-Robotics-0 and StarVLA, including multi-expert inference and Qwen3.5 backbone scaling experiments.
 - **2026-09:** [Paper](https://arxiv.org/abs/2603.14371) accepted to NeurIPS 2026 Main Track as poster. See you in Sydney!
 - **2026-08:** Added suffix-only LoRA training and inference support, plus a LIBERO textual-memory example.
 - **2026-05:** Added PyTorch inference support with primary `torch.compile` optimization, verified on NVIDIA A100 and Jetson AGX Thor.
@@ -69,6 +70,14 @@ PY
 ```
 
 For full benchmark commands, random-initialized latency runs, PyTorch support, Jetson AGX Thor setup, analysis, and plotting, see [`experiments/Experiments.md`](experiments/Experiments.md).
+
+## Model extensions
+
+[Model extensions](model_extensions/README.md) provide optional implementations
+for Xiaomi-Robotics-0, StarVLA with PI_v3/GR00T/OFT action experts, and Qwen3.5
+backbones from 0.8B to 9B. They include shared-prefix execution and continuous
+language batching, with separate environments for each framework. Follow the
+extension guide for installation and runnable examples.
 
 ## Acknowledgments
 
