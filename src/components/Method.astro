@@ -63,11 +63,11 @@ function layout(mode: (typeof modes)[number]) {
 ---
 
 <Design />
-<p class="method-bridge">One shared prefill removes duplicate work. Carrying language requests across frames then turns many separate decoding passes into one batch.</p>
+<p class="method-bridge">The effect on one control frame: remove a repeated prefill, then replace a full answer’s decoding with a few batched steps.</p>
 
 <div class="grid unit">
   <figure class="c1-8">
-    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>What it buys: one control frame, three ways</span></div>
+    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>Measured frame latency · π0.5 / LIBERO / RTX 4090</span></div>
     <div class="lanes">
       {modes.map((mode) => (
         <div class="lane">
@@ -91,9 +91,9 @@ function layout(mode: (typeof modes)[number]) {
     <div class="key">
       <span><i style="background: var(--baseline)"></i>observation prefill</span>
       <span><i style="background: var(--action)"></i>action denoising</span>
-      <span><i style="background: var(--language)"></i>language decoding</span>
+      <span><i style="background: var(--language)"></i>decoding + other frame work</span>
     </div>
-    <figcaption class="caption">π<sub>0.5</sub> on an RTX 4090; 30-token requests, <i>k</i> = 5, one new request per frame. Frame totals come from the original ablation. Stage widths are illustrative, using the separate camera-ready profile (prefill ≈ {PREFIX.toFixed(1)} ms, denoising ≈ {DENOISE.toFixed(1)} ms); the remaining width includes decoding and other frame work.</figcaption>
+    <figcaption class="caption">N = 30, k = 5. Totals measured in the original ablation; stage widths are illustrative. <details class="experiment-note"><summary>How to read the stage widths</summary><p>Prefill ≈ {PREFIX.toFixed(1)} ms and denoising ≈ {DENOISE.toFixed(1)} ms come from a separate camera-ready profile. The remaining width includes decoding and other frame work.</p></details></figcaption>
   </figure>
   <aside class="c9-12">
     <div class="fig-head"><span class="title">Per frame</span></div>

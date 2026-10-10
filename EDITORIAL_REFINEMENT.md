@@ -39,3 +39,26 @@ are not final experiment values (70 Hz is the current rounded headline).
 - Dedicated mobile diagrams and chart typography.
 - Dark-theme and video theme refinements.
 - Real-robot footage (existing setup photo is not a demo).
+
+## Chapter review pass
+
+All previously listed desktop content/layout gaps have a concrete revision:
+hero/decode illustration copy shortened, frequency rounding unified at 71 Hz;
+demo selected-rollout gain and completion times move beside the video, with
+three selectors below; method panels use action-led titles, a prefix/private
+suffix distinction and an explicit batch/completion key; lengthy measurement
+notes are expandable. Results drop the redundant numbered subheads, highlight
+matched 30-token points and label the ablation endpoints. Scale bars have a
+shared range and explicit color key; the Xiaomi boundary is secondary.
+
+On-board inference and physical execution now have separate graphics. The
+latter explicitly starts the 333 ms execution window at action dispatch and
+is labelled illustrative, with communication overhead omitted. Application
+promotes accuracy and memory-generation latency; zeroed-adapter checks are
+secondary. Resources ends with Paper/Code and a compact expandable BibTeX,
+whose copy button also works while collapsed.
+
+Desktop checks: 1280/1440/1920, images loaded, no overflow or page errors;
+all demo selectors and their numeric readouts, all three chart configuration
+tabs, collapsed BibTeX copying, and expanded citation checked in Chromium.
+This is the review candidate for section-by-section author feedback.

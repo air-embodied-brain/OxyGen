@@ -7,7 +7,7 @@ const base = import.meta.env.BASE_URL.endsWith("/")
 const first = demos[0];
 ---
 
-<figure class="grid" data-demo data-base={base}>
+<figure class="grid demo-comparison" data-demo data-base={base}>
   <div class="c1-9 demo-video">
     <video
       controls
@@ -22,23 +22,27 @@ const first = demos[0];
     </video>
   </div>
   <figcaption class="c10-12 demo-side">
+    <div class="demo-outcome"><span class="label">Task completion</span><strong data-demo-gain>{(first.baselineS / first.oxygenS).toFixed(2)}×</strong><span>faster in this rollout</span><dl><div><dt>OxyGen</dt><dd data-demo-ours>{first.oxygenS.toFixed(1)} s</dd></div><div><dt>Isolated</dt><dd data-demo-base>{first.baselineS.toFixed(1)} s</dd></div></dl></div>
     <p class="caption"><b>FIG. 1</b> π<sub>0.5</sub> writes a memory at each replan. The baseline waits for the complete answer; OxyGen finishes it across subsequent frames.</p>
     <p class="caption"><span class="c-action">Teal: arm moving.</span> Amber: waiting for language.</p>
-    <div class="demo-list" role="tablist" aria-label="Demo tasks">
+    <p class="caption">One RTX 4090; measured model time, simulation at 20 Hz, played at 1×. OxyGen decodes <i>k</i> = 1 token per request per frame.</p>
+  </figcaption>
+  <div class="demo-choices">    <div class="demo-list" role="tablist" aria-label="Demo tasks">
       {demos.map((demo, index) => (
         <button
           role="tab"
           type="button"
           aria-selected={index === 0 ? "true" : "false"}
           data-id={demo.id}
+          data-ours={demo.oxygenS}
+          data-baseline={demo.baselineS}
           data-label={demo.title}
           title={demo.task}
         >
           <span>{demo.title}</span>
-          <small>{demo.oxygenS.toFixed(1)} s vs {demo.baselineS.toFixed(1)} s · <b>{(demo.baselineS / demo.oxygenS).toFixed(2)}×</b></small>
+          <small>OxyGen {demo.oxygenS.toFixed(1)} s · isolated {demo.baselineS.toFixed(1)} s</small>
         </button>
       ))}
     </div>
-    <p class="caption">One RTX 4090; measured model time, simulation at 20 Hz, played at 1×. OxyGen decodes <i>k</i> = 1 token per request per frame.</p>
-  </figcaption>
+</div>
 </figure>

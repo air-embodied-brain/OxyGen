@@ -24,9 +24,10 @@ const steady = B; // first frame where the batch is full (0-based)
   <div class="fig-head"><span class="title"><span class="label"><b>Fig. 2</b></span>How OxyGen manages the KV cache</span></div>
   <div class="grid">
     <div class="c1-6">
-      <div class="panel-head"><span><i class="roman">i.</i> Within a frame: one prefill, shared by every expert</span></div>
+      <div class="panel-head"><span><i class="roman">i.</i> Encode once. Share the prefix.</span></div>
+      <p class="design-lead">One observation feeds both experts.</p>
       <div class="chart">
-        <svg data-flow viewBox={`0 14 ${W} ${H}`} role="img" aria-label="Per-frame flow: the observation is prefilled once, and the shared prefix KV cache feeds the action expert and a new language request">
+        <svg data-flow viewBox={`-5 14 ${W + 12} ${H + 4}`} role="img" aria-label="Per-frame flow: the observation is prefilled once, and the shared prefix KV cache feeds the action expert and a new language request">
           <defs>
             <marker id="dg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L8,4 L0,8 z" class="dg-head" />
@@ -86,7 +87,7 @@ const steady = B; // first frame where the batch is full (0-based)
             <text class="dg-label" x="12" y="20">New language request</text>
             <rect class="dg-kv" x="12" y="30" width="44" height="16" />
             {Array.from({ length: N }, (_, i) => <rect class:list={["dg-slot", i < K && "dg-slot-k"]} x={60 + i * 8.6} y="30" width="6.6" height="16" style={`--i: ${i}`} />)}
-            <text class="dg-small" x="12" y="59">prefix KV + room for N tokens</text>
+            <text class="dg-small" x="12" y="59">shared prefix · private suffix</text>
           </g>
         </svg>
       </div>
@@ -99,7 +100,8 @@ const steady = B; // first frame where the batch is full (0-based)
     </div>
 
     <div class="c7-12">
-      <div class="panel-head"><span><i class="roman">ii.</i> Across frames: unfinished requests decode together</span></div>
+      <div class="panel-head"><span><i class="roman">ii.</i> Keep requests. Decode together.</span></div>
+      <p class="design-lead">A new frame joins the unfinished requests.</p>
       <div class="chart">
         <svg data-window viewBox={`0 0 ${W} ${TOP + ROW * FRAMES + 30}`} role="img" aria-label={`Cross-frame batching: each request needs ${N} tokens, advances ${K} per frame, so ${B} requests decode together in every frame`}>
           <!-- frame header and action lane -->
@@ -142,9 +144,10 @@ const steady = B; // first frame where the batch is full (0-based)
           })}
         </svg>
       </div>
+      <div class="key design-key"><span><i style="background: var(--language)"></i>4 tokens / request / frame</span><span class="c-action">✓ completed request</span></div>
     </div>
 
-    <p class="caption c1-6">The backbone encodes each new observation once. The action expert denoises over the shared prefix KV, and a new language request starts from the same prefill instead of computing it again. Isolated execution repeats the prefill for every task.</p>
-    <p class="caption c7-12">Each request needs N = {N} tokens; every frame advances all unfinished requests by k = {K} in one batch. After warm-up, {B} requests from different frames share each decoding pass, while actions keep their per-frame pace. Finished requests are evicted.</p>
+    <p class="caption c1-6">Both experts read the same observation KV. The language request keeps this prefix and its own generated-token state as decoding continues across frames.</p>
+    <p class="caption c7-12">Illustration: N = {N}, k = {K}. Each highlighted column is one batch; after warm-up, {B} requests share each decoding step. A check marks completion and eviction.</p>
   </div>
 </figure>

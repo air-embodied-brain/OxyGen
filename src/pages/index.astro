@@ -40,6 +40,8 @@ const overall = quality.at(-1)!;
 
 const robotBase = robot.baseline.action + robot.baseline.language;
 const robotOurs = robot.oxygen.action + robot.oxygen.language;
+const dispatchMs = robot.oxygen.action;
+const motionEndMs = dispatchMs + robot.executionWindowMs;
 const pctOfBase = (v: number) => ((v / robotBase) * 100).toFixed(2);
 
 const resources = [
@@ -74,13 +76,14 @@ const resources = [
   <main class="page">
     <div class="stats grid performance-strip" aria-label="Performance highlights">
       <div class="stat lead-stat"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster action updates <em>and</em> language throughput<br />π<sub>0.5</sub> · RTX 4090 · N = 30, k = 1</p></div>
-      <div class="stat"><strong><span data-count-up>{Math.floor(peak[1])}</span><small>Hz</small></strong><p>action frequency, alongside {Math.round(peak[2])} language tokens/s</p></div>
+      <div class="stat"><strong><span data-count-up>{Math.round(peak[1])}</span><small>Hz</small></strong><p>action frequency, alongside {Math.round(peak[2])} language tokens/s</p></div>
       <div class="stat transfer-stat"><span class="label">Across backbones</span><p><b>{xiaomi.at(-1)!.k1.toFixed(2)}×</b> Xiaomi-Robotics-0<br /><b>{starvla[2].at(-1)!.k1.toFixed(2)}×</b> StarVLA</p><small>RTX 4090 · N = 30, k = 1<br />Each against its own isolated baseline</small></div>
     </div>
 
     <section class="section" id="demo" data-title="Demo">
       <SectionHead number="1" label="Demo">
-        <Fragment slot="title">Same robot, same model, <em>less waiting.</em></Fragment>
+        <Fragment slot="title">Less inference waiting. <em>Earlier task completion.</em></Fragment>
+        The same LIBERO tasks and starting states, with measured inference time played at 1×. Watch how scheduling changes the pauses between actions.
       </SectionHead>
       <DemoPlayer />
     </section>
@@ -96,16 +99,16 @@ const resources = [
     <section class="section" id="results" data-title="Results">
       <SectionHead number="3" label="Results">
         <Fragment slot="title">Faster actions <em>and</em> more language.</Fragment>
-        Under isolated execution, longer answers mean slower control. In the π<sub>0.5</sub> experiments below, OxyGen extends the action-frequency / language-throughput frontier, with gains up to {peakSpeedup.toFixed(1)}×.
+        Measurements on desktop and on-board GPUs, followed by transfer across backbones and model sizes.
       </SectionHead>
 
-      <div class="result-block"><div class="result-intro"><span class="label">01 / Joint performance</span><h3>Longer answers. <em>Sustained action frequency.</em></h3><p>At matched output lengths, batching improves both axes. Compare the same workload on desktop and on-board GPUs.</p></div><TradeoffChart /></div>
+      <div class="result-block"><div class="result-intro"><h3>Longer answers. <em>Sustained action frequency.</em></h3><p>At matched output lengths, batching improves both axes. Compare the same workload on desktop and on-board GPUs.</p></div><TradeoffChart /></div>
 
-      <div class="result-block"><div class="result-intro"><span class="label">02 / Where the gains come from</span><h3>Share the prefix. <em>Amortize the decoding.</em></h3><p>KV sharing removes repeated observation processing; batching keeps action frequency nearly flat as requests grow longer.</p></div><AblationChart /></div>
+      <div class="result-block"><div class="result-intro"><h3>Share the prefix. <em>Amortize the decoding.</em></h3><p>KV sharing removes repeated observation processing; batching keeps action frequency nearly flat as requests grow longer.</p></div><AblationChart /></div>
 
-      <div class="result-block"><div class="result-intro"><span class="label">03 / Generality</span><h3>Across backbones, <em>experts and model sizes.</em></h3><p>The same scheduling idea transfers beyond π<sub>0.5</sub>. Each result compares OxyGen with isolated execution within its own configuration.</p></div><Generality /></div>
+      <div class="result-block"><div class="result-intro"><h3>Across backbones, <em>experts and model sizes.</em></h3><p>The same scheduling idea transfers beyond π<sub>0.5</sub>. Each result compares OxyGen with isolated execution within its own configuration.</p></div><Generality /></div>
 
-      <div class="result-block"><div class="result-intro compact"><span class="label">04 / Quality &amp; resources</span><h3>Comparable task success. <em>Less energy per request.</em></h3></div>
+      <div class="result-block"><div class="result-intro compact"><h3>Comparable task success. <em>Less energy per request.</em></h3></div>
       <div class="grid">
         <figure class="c1-7 ci">
           <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Action quality on LIBERO</span></div>
@@ -162,7 +165,7 @@ const resources = [
             <div><dt>Actions</dt><dd>H = 10, S = 10 denoising steps</dd></div>
             <div><dt>Language</dt><dd>30-token requests, <i>k</i> = 5</dd></div>
           </dl>
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 7</b></span>Inference per control cycle</span></div>
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 7</b></span>Inference per control cycle</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
           <div class="latency">
             <div class="latency-row">
               <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
@@ -176,18 +179,30 @@ const resources = [
               <div class="latency-track">
                 <div class="seg act" style={`width: ${pctOfBase(robot.oxygen.action)}%`}>{robot.oxygen.action}</div>
                 <div class="seg lang" style={`width: ${pctOfBase(robot.oxygen.language)}%`}>{robot.oxygen.language}</div>
-                <span class="window" style={`left: ${pctOfBase(robot.executionWindowMs)}%`}><span>{robot.executionWindowMs} ms action execution</span></span>
+
               </div>
             </div>
           </div>
-          <div class="key" style="margin-top: 34px">
+          <div class="key" style="margin-top: 16px">
             <span><i style="background: var(--action)"></i>action path: prefill and denoising</span>
             <span><i style="background: var(--language)"></i>language path</span>
           </div>
-          <div class="facts">
-            <div><strong>{(robotBase / robotOurs).toFixed(1)}×</strong><p>shorter combined inference, {robotBase.toFixed(0)} → {robotOurs.toFixed(0)} ms</p></div>
-            <div><strong>{robot.oxygen.action.toFixed(0)} ms</strong><p>action path, inside the {robot.executionWindowMs} ms execution window; language can overlap with motion</p></div>
-            <div><strong>{(robot.baseline.language / robot.oxygen.language).toFixed(1)}×</strong><p>faster language path, from KV sharing and batching together</p></div>
+          <div class="overlap-study">
+            <div class="overlap-copy"><span class="label">After action dispatch</span><h3>Language can run<br /><em>while the robot moves.</em></h3><p>The {robot.oxygen.language.toFixed(0)} ms language path fits inside the {robot.executionWindowMs} ms physical execution window.</p></div>
+            <figure class="overlap-figure">
+              <svg viewBox="0 0 540 178" role="img" aria-label={`Illustrative schedule: ${dispatchMs} ms action inference, then ${robot.oxygen.language} ms language alongside ${robot.executionWindowMs} ms physical execution. Dispatch overhead omitted.`}>
+                <text x="0" y="18">GPU inference</text>
+                <rect x="0" y="30" width={dispatchMs} height="26" fill="var(--action)" />
+                <rect x={dispatchMs} y="30" width={robot.oxygen.language} height="26" fill="var(--language)" />
+                <text class="overlap-inside" x="10" y="48">actions · {dispatchMs.toFixed(0)} ms</text><text class="overlap-inside" x={dispatchMs + 10} y="48">language · {robot.oxygen.language.toFixed(0)} ms</text>
+                <text x="0" y="89">Robot motion</text><rect x={dispatchMs} y="99" width={robot.executionWindowMs} height="26" class="motion-window" />
+                <text x={dispatchMs + 12} y="117">physical execution · {robot.executionWindowMs} ms</text>
+                <line x1={dispatchMs} x2={dispatchMs} y1="22" y2="137" class="dispatch-line" />
+                <text x={dispatchMs} y="154" text-anchor="middle">dispatch</text>
+                <text x="0" y="174">0</text><text x={dispatchMs} y="174" text-anchor="middle">{dispatchMs.toFixed(0)}</text><text x={robotOurs} y="174" text-anchor="middle">{robotOurs.toFixed(0)}</text><text x={motionEndMs} y="174" text-anchor="end">{motionEndMs.toFixed(0)} ms</text>
+              </svg>
+              <figcaption class="caption">Illustrative overlap using measured stage durations; communication overhead omitted. The execution window starts at dispatch, not at the beginning of inference.</figcaption>
+            </figure>
           </div>
         </div>
       </div>
@@ -212,9 +227,10 @@ const resources = [
           <div class="fig-head"><span class="title">Adapter, RTX 4090</span></div>
           <dl class="memory-stats">
             <div><dt>{mem.exactMatchPct}%</dt><dd>exact match on held-out frames</dd></div>
-            <div><dt>{mem.actionDiff}</dt><dd>change to actions with the adapter zeroed</dd></div>
+            <div><dt>{mem.adapterMs} ms</dt><dd>median cost per memory</dd></div>
           </dl>
-          <p class="caption">{mem.adapterMs} ms median per memory, vs. {mem.prefixForwardMs} ms for a prefix forward. Trained with {mem.annotatedFrames.toLocaleString("en-US")} annotated frames from {mem.demonstrations.toLocaleString("en-US")} demonstrations. See the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository.</p>
+          <p class="caption">Reference prefix forward: {mem.prefixForwardMs} ms. Trained with {mem.annotatedFrames.toLocaleString("en-US")} annotated frames from {mem.demonstrations.toLocaleString("en-US")} demonstrations. See the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository.</p>
+          <details class="experiment-note"><summary>Action-path validation</summary><p>With the adapter zeroed, the measured action difference is {mem.actionDiff}. The language adapter operates on the private suffix; this check is separate from the paper’s LIBERO success evaluation.</p></details>
         </div>
       </div>
     </section>
@@ -233,8 +249,9 @@ const resources = [
           </ul>
         </div>
         <div class="c7-12 citation">
+          <p class="citation-intro">For the full method and evaluation, start with the paper. The code includes JAX and PyTorch implementations; the blog walks through the design.</p>
           <div class="fig-head"><span class="title">Citation</span><button id="copy-citation" class="copy" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1.5"></rect><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"></path></svg><span>Copy BibTeX</span></button></div>
-          <pre><code id="citation-text">{citation}</code></pre>
+          <details class="citation-source"><summary>View BibTeX · arXiv preprint</summary><pre><code id="citation-text">{citation}</code></pre></details>
         </div>
       </div>
     </section>

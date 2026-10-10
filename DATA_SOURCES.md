@@ -57,7 +57,7 @@ camera-ready figures within 0.05.
 |---|---|---|
 | Masthead "One second of inference" | 71 Hz / 213 tok/s vs 19 Hz / 57 tok/s | LIBERO, RTX 4090, N = 30: `k1` vs `baseline` |
 | Headline stat "3.7×" and §3 text | 3.7× | same point, k1 Hz / baseline Hz |
-| Headline stat "70 Hz … 213 tokens/s" | floor(70.9), round(212.9) | same point |
+| Headline stat "71 Hz … 213 tokens/s" | round(70.9), round(212.9) | same point |
 | Fig. 3 frame totals | 524 / 469 / 176 ms | 10 / Hz of ablation RTX 4090 at N = 30: `baseline`, `no_batching`, `ours` |
 | Fig. 4 | all curves, 3.7× / 3.3× panel labels | tradeoff, k1 vs baseline at N = 30 per device |
 | Fig. 5 | all curves | ablation |
@@ -130,3 +130,15 @@ The headline now pairs the original π0.5 speedup and frequency with Xiaomi
 Success rate remains in the validation section. Table 1 covers models and
 experts; the following Qwen3.5 size panel uses the same `scaling` export
 and a common zero-based bar scale. No measurement values were changed.
+
+## Chapter review pass (2026-10-10)
+
+Headline frequency now uses ordinary integer rounding (70.9 → 71 Hz), matching
+the inference illustration. Demo task-completion readouts derive from `demos`
+and update together with the selected video. Cross-model numbers are unchanged.
+
+The robot figure now separates the measured inference sum (1030 → 393 ms)
+from an illustrative overlap timeline. Motion begins at the 198 ms dispatch
+point and lasts 333 ms; the 195.4 ms language path follows action inference.
+The timeline is a possibility illustrated using measured durations, not a new
+logged overlap experiment. Communication overhead is omitted explicitly.

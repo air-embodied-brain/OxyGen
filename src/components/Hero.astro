@@ -61,7 +61,7 @@ const runs = [
 
     <div class="c9-12">
       <p class="dek">
-        Actions need frequent updates. Language needs time to finish. OxyGen shares observation computation across experts and batches language across frames, keeping action updates fast as answers grow.
+        Keep actions fast while language unfolds. OxyGen reuses one observation prefill across experts and batches language requests across control frames.
       </p>
 
       <figure class="second" style={`--period: ${SLOWDOWN * WINDOW}s`} aria-label="Actions and language tokens produced per second by OxyGen and the isolated baseline">
@@ -85,7 +85,7 @@ const runs = [
           </div>
         ))}
         <figcaption class="caption">
-          Each mark is one action or one language token. Both tapes move at the same speed, so the spacing shows the measured rates: π<sub>0.5</sub> on an RTX 4090 with 30-token requests, slowed ten times.
+          Measured output rates, illustrated at 1/10 speed. Each mark is one action or token; denser marks mean higher throughput. π<sub>0.5</sub> · RTX 4090 · N = 30, k = 1.
         </figcaption>
       </figure>
     </div>

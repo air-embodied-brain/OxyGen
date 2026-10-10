@@ -35,7 +35,7 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
 
 <figure data-tradeoff>
   <div class="fig-head">
-    <span class="title"><span class="label"><b>Fig. 4</b></span>Action frequency vs. language throughput</span>
+    <span class="title"><span class="label"><b>Fig. 4</b></span>π0.5 · action frequency and language throughput</span>
     <div class="switch" role="tablist" aria-label="Robot configuration">
       {configs.map((c, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-config={c.id}>{c.label}</button>)}
     </div>
@@ -63,6 +63,11 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
                 <text class="axis-title" x={W - M.r} y={H - 4} text-anchor="end">Action frequency (Hz) →</text>
                 <text class="axis-title" x={M.l} y={M.t - 8}>↑ Language throughput (tok/s)</text>
                 <g class="annot"><line x1={sx(d.id, base[1])} y1={sy(d.id, base[2])} x2={sx(d.id, ours[1])} y2={sy(d.id, ours[2])} /></g>
+                <g class="matched-points">
+                  <circle cx={sx(d.id, ours[1])} cy={sy(d.id, ours[2])} r="6.5" />
+                  <circle cx={sx(d.id, base[1])} cy={sy(d.id, base[2])} r="6.5" />
+                  <text x={sx(d.id, ours[1]) + 10} y={sy(d.id, ours[2]) - 8}>30 tokens</text>
+                </g>
                 {series.map((s) => {
                   const p = pts[s.key];
                   const path = p.map((q, i) => `${i ? "L" : "M"}${sx(d.id, q[1]).toFixed(1)},${sy(d.id, q[2]).toFixed(1)}`).join("");
@@ -92,6 +97,6 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
     ))}
   </div>
   <figcaption class="caption">
-    π<sub>0.5</sub> with 10 denoising steps and one new request per frame. Each OxyGen line fixes <i>k</i> decoding steps per frame and sweeps request length from 5 to 30 tokens, so points move up and to the left. The dotted line joins the baseline and OxyGen (<i>k</i> = 1) at 30 tokens. Values recomputed from the raw logs; hover a point for details.
+    Ringed points compare the same 30-token workload; up and right is better. Each line sweeps 5–30 tokens at a fixed decoding budget k. S = 10, one request per frame. Hover for exact values.
   </figcaption>
 </figure>

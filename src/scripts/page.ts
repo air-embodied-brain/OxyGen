@@ -153,6 +153,11 @@ function initDemo() {
     video.querySelector("source")!.src = `${root.dataset.base}videos/${name}.mp4`;
     video.setAttribute("aria-label", `${tab.dataset.label}: OxyGen and the isolated baseline side by side`);
     video.load();
+    const ours = Number(tab.dataset.ours);
+    const baseline = Number(tab.dataset.baseline);
+    root.querySelector("[data-demo-gain]")!.textContent = `${(baseline / ours).toFixed(2)}×`;
+    root.querySelector("[data-demo-ours]")!.textContent = `${ours.toFixed(1)} s`;
+    root.querySelector("[data-demo-base]")!.textContent = `${baseline.toFixed(1)} s`;
   };
   const current = () => tabs.find((tab) => tab.getAttribute("aria-selected") === "true") ?? tabs[0];
   if (portrait.matches) load(current());
@@ -243,7 +248,7 @@ function initCitation() {
   const text = document.querySelector<HTMLElement>("#citation-text");
   button?.addEventListener("click", async () => {
     if (!text) return;
-    await navigator.clipboard.writeText(text.innerText);
+    await navigator.clipboard.writeText(text.textContent ?? "");
     const label = button.querySelector("span");
     if (!label) return;
     label.textContent = "Copied";
