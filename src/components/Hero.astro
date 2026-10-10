@@ -13,8 +13,8 @@ const authors = [
 // Schematic schedule, not measured stage durations. Both rows share one time
 // scale and repeat a whole tile, so the scrolling loop has no seam.
 const schedule = [
-  { name: "Isolated", period: 240, action: 44, language: 182 },
-  { name: "OxyGen", period: 80, action: 44, language: 24 },
+  { name: "Isolated", phrase: "one request at a time", batch: 1, period: 240, action: 44, language: 182 },
+  { name: "OxyGen", phrase: "more requests per step", batch: 6, period: 80, action: 44, language: 24 },
 ];
 ---
 
@@ -60,14 +60,13 @@ const schedule = [
 
         {schedule.map((run) => (
           <div class="schedule-run">
-            <div class="run-name">{run.name}</div>
+            <div class="run-name">{run.name}: <span>{run.phrase}</span></div>
             <div class="schedule-window" aria-hidden="true">
-              <svg viewBox="0 0 320 28" preserveAspectRatio="none">
+              <svg viewBox="0 0 320 42" preserveAspectRatio="none">
                 <g class="schedule-tape">
                   {Array.from({length: 9}, (_,i) => <g transform={`translate(${i * run.period} 0)`}>
-                    <rect x="0" y="3" width={run.action} height="14" fill="var(--action)" />
-                    <rect x={run.action + 4} y="3" width={run.language} height="14" fill="var(--language)" />
-                    {run.name === "OxyGen" && <><line x1={run.action + 4} x2={run.action + 4 + run.language} y1="8" y2="8" stroke="var(--paper)" stroke-width="1" /><line x1={run.action + 4} x2={run.action + 4 + run.language} y1="12" y2="12" stroke="var(--paper)" stroke-width="1" /></>}
+                    <rect x="0" y="17" width={run.action} height="7" fill="var(--action)" />
+                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" />)}
                   </g>)}
                 </g>
               </svg>
@@ -75,7 +74,7 @@ const schedule = [
 
           </div>
         ))}
-        <div class="key"><span><i style="background:var(--action)"></i>action</span><span><i style="background:var(--language)"></i>language</span></div>
+        <div class="key"><span><i style="background:var(--action)"></i>action</span><span><i style="background:var(--language)"></i>language requests</span></div>
 
       </figure>
     </div>

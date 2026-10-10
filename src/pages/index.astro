@@ -32,6 +32,7 @@ const change = (a: number, b: number) => Math.round((b / a - 1) * 100);
 // Headline numbers: π0.5 · LIBERO · RTX 4090 with 30-token requests, OxyGen k = 1.
 const headline = tradeoff.libero.rtx4090;
 const peak = headline.k1.at(-1)!;
+const headlineBaseline = headline.baseline.at(-1)!;
 const peakSpeedup = peak[1] / headline.baseline.at(-1)![1];
 
 // LIBERO success (Appendix tab:quality), drawn on a 90–100% axis.
@@ -78,9 +79,11 @@ const resources = [
       <div class="performance-primary">
         <p class="label">π<sub>0.5</sub> · actions &amp; language</p>
         <div class="joint-metrics">
-          <div class="joint-gain"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster in both outputs</p></div>
-          <div><strong><span data-count-up>{Math.round(peak[1])}</span><small>Hz</small></strong><p>action frequency</p></div>
-          <div><strong><span data-count-up>{Math.round(peak[2])}</span><small>tokens/s</small></strong><p>language throughput</p></div>
+          <div class="joint-gain"><strong>{peakSpeedup.toFixed(1)}<small>×</small></strong><p>faster in both outputs</p></div>
+          <div class="joint-breakdown">
+            <div><span class="metric-name">Actions</span><span class="metric-before">{Math.round(headlineBaseline[1])}</span><span class="metric-arrow">→</span><b>{Math.round(peak[1])}</b><small>Hz</small></div>
+            <div><span class="metric-name">Language</span><span class="metric-before">{Math.round(headlineBaseline[2])}</span><span class="metric-arrow">→</span><b>{Math.round(peak[2])}</b><small>tokens/s</small></div>
+          </div>
         </div>
       </div>
       <div class="performance-transfer">

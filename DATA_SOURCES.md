@@ -148,3 +148,8 @@ The opening animation now illustrates scheduling with a common time scale and
 repeated tiles, not measured durations or output-rate ticks. Actual performance
 remains in the two grouped result blocks below. Contacts use Xiangyu Li’s public
 homepage email and Ting Cao’s paper correspondence address.
+
+Hero performance detail now shows baseline → OxyGen at the same π0.5
+N=30, k=1 point: round(19.1) → round(70.9) Hz and
+round(57.2) → round(212.9) tokens/s. Animation lane thickness depicts
+multiple requests in a batch; its geometry remains schematic.

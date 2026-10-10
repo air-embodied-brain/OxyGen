@@ -2081,3 +2081,23 @@ table.data td.bar {
  .schedule-demo .key { margin-top: 3px; }
  .performance-groups { margin-top: 26px; }
 }
+
+/* Hero review: wider summary, batched language lanes and nested metrics. */
+.schedule-window svg { height: 42px; }
+.schedule-run .run-name { justify-content: start; display: block; font: 600 14px/1.4 var(--sans); }
+.schedule-run .run-name span { font-weight: 400; color: var(--muted); }
+.joint-metrics { grid-template-columns: 1fr 1.75fr; align-items: start; }
+.performance-transfer strong { font-size: 52px; }
+.joint-breakdown { display: grid; gap: 10px; padding-top: 2px; }
+.joint-breakdown > div { display: grid; grid-template-columns: 64px 36px 20px 52px auto; gap: 6px; align-items: baseline; }
+.metric-name { font: 14px var(--sans); color: var(--muted); }
+.metric-before, .metric-arrow { color: var(--muted); font: 22px var(--display); text-align: right; }
+.metric-arrow { font: 18px var(--sans); }
+.joint-breakdown b { font: 30px/1.1 var(--display); text-align: right; }
+.joint-breakdown small { font: 14px var(--sans); color: var(--muted); }
+@media(min-width:901px) {
+ .masthead-body.grid { grid-template-columns: 7fr 5fr; gap: 40px; }
+ .masthead-body > .c1-7 { grid-column: 1; }
+ .masthead-body > .hero-summary { grid-column: 2; }
+ .performance-groups { grid-template-columns: 7fr 5fr; gap: 40px; }
+}
