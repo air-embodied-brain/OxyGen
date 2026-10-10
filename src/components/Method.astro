@@ -24,7 +24,7 @@ const modes = [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
       { kind: "prefill repeat", ms: PREFIX, text: "prefill" },
-      { kind: "decode", text: `decode ${N} tokens for one request` },
+      { kind: "decode", text: `1 request · ${N} tokens` },
     ],
   },
   {
@@ -34,7 +34,7 @@ const modes = [
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode", text: `decode ${N} tokens for one request` },
+      { kind: "decode", text: `1 request · ${N} tokens` },
     ],
   },
   {
@@ -44,7 +44,7 @@ const modes = [
     blocks: [
       { kind: "prefill", ms: PREFIX, text: "prefill" },
       { kind: "denoise", ms: DENOISE, text: "act" },
-      { kind: "decode", text: `batch of ${N / K}` },
+      { kind: "decode", text: `${N / K} requests × ${K} tokens` },
     ],
   },
 ];
@@ -66,15 +66,16 @@ function layout(mode: (typeof modes)[number]) {
 
 
 <figure class="unit method-benefits">
-    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>Measured frame latency · π0.5 / LIBERO / RTX 4090</span></div>
+    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>KV sharing helps; batching delivers the larger latency reduction</span></div>
     <div class="lanes">
       {modes.map((mode) => (
         <div class="lane">
           <div class="lane-name">{mode.label}</div>
           <div class="lane-track">
             {layout(mode).map((block) => (
-              <div class:list={["block", block.kind]} style={`left: ${block.left}%; width: ${block.width}%`}>
-                {block.width > 10 ? block.text : ""}
+              <div class:list={["block", block.kind, mode.note === "OxyGen" && block.kind === "decode" && "batch-decode"]} style={`left: ${block.left}%; width: ${block.width}%`}>
+                {mode.note === "OxyGen" && block.kind === "decode" && <span class="batch-layers" aria-hidden="true">{[0, 1, 2].map(layer => <i style={`--layer:${layer}`} />)}</span>}
+                <span>{block.width > 10 ? block.text : ""}</span>
               </div>
             ))}
           </div>
@@ -90,10 +91,10 @@ function layout(mode: (typeof modes)[number]) {
     <div class="key">
       <span><i style="background: var(--baseline)"></i>observation prefill</span>
       <span><i style="background: var(--action)"></i>action denoising</span>
-      <span><i style="background: var(--language)"></i>decoding + other frame work</span>
+      <span><i style="background: var(--language)"></i>language decoding</span>
     </div>
     <div class="method-caption-row">
-      <figcaption class="caption">KV sharing removes repeated prefill. Batching shortens language work between action updates.</figcaption>
+      <figcaption class="caption">Sharing KV removes redundant prefill; batching amortizes decoding across unfinished requests.</figcaption>
       <button type="button" class="method-settings-trigger" popovertarget="method-settings">Measurement details</button>
       <div id="method-settings" class="method-popover" popover>
         <strong>RTX 4090 · π₀.₅ / LIBERO</strong>

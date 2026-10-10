@@ -2275,3 +2275,21 @@ table.data td.bar {
 #method .method-benefits .lanes { gap: 20px; margin-top: 22px; }
 #method .method-benefits .lane-track { height: 36px; }
 #method .method-benefits .block { font-size: 13px; }
+
+/* Synchronize the two method panels without adding explanatory rows. */
+#method .section-head .dek { line-height: 1.3; }
+#method .section-head { margin-bottom: 14px; }
+#method .design .grid > .c1-6, #method .design .grid > .c7-12 { display: grid; grid-template-rows: auto 250px auto; }
+#method .design .chart { display: flex; align-items: center; }
+#method .design .design-key { margin-top: 10px; align-self: end; }
+.chart .dg-frame-badge { fill: var(--paper-deep); stroke: var(--action); stroke-width: 1.5; }
+.chart .dg-frame-no { fill: var(--action); }
+.chart .dg-done { opacity: 0; }
+.chart .dg-done.completed { opacity: 1; }
+.design.playing .dg-done.finishing { animation: method-completion var(--cycle) linear infinite; }
+@keyframes method-completion { 0%, 84% { opacity: 0; } 85%, 100% { opacity: 1; } }
+#method .method-benefits .block.batch-decode { overflow: visible; font-size: 12px; }
+.batch-layers { position: absolute; inset: 0; pointer-events: none; }
+.batch-layers i { position: absolute; left: 0; right: 0; height: 3px; top: calc(-5px - var(--layer) * 5px); background: var(--language); opacity: calc(.7 - var(--layer) * .2); }
+#method .method-benefits .lanes { gap: 24px; }
+#method .fig-head .title { font-size: 17px; line-height: 1.4; }

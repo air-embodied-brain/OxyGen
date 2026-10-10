@@ -101,6 +101,7 @@ function initDesign() {
   const slider = root.querySelector<SVGGElement>("[data-slider]");
   const batchLabel = root.querySelector<SVGTextElement>("[data-batch-label]");
   const cells = $all<SVGElement>(".dg-cell", root);
+  const done = $all<SVGElement>("[data-completed-frame]", root);
   const col = Number(slider?.dataset.col ?? 0);
   let frame = 0;
   const show = (f: number) => {
@@ -108,6 +109,11 @@ function initDesign() {
     slider?.style.setProperty("--x", `${f * col}px`);
     if (batchLabel) batchLabel.textContent = `batch of ${Math.min(f + 1, batch)}`;
     for (const cell of cells) cell.classList.toggle("future", Number(cell.dataset.f) > f);
+    for (const mark of done) {
+      const finishedFrame = Number(mark.dataset.completedFrame);
+      mark.classList.toggle("completed", finishedFrame < f);
+      mark.classList.toggle("finishing", finishedFrame === f);
+    }
   };
   const clock = root.querySelector<SVGElement>(".ring-1");
   let playing = false;
