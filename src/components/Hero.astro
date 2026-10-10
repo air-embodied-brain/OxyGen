@@ -1,29 +1,20 @@
 ---
-import { tradeoff } from "../data/paper-figures";
 import { links } from "../data/site";
 
 const authors = [
   { name: "Xiangyu Li", affiliation: "1", homepage: "https://xxxxyu.github.io" },
   { name: "Huaizhi Tang", affiliation: "2", note: "*" },
   { name: "Xin Ding", affiliation: "3", note: "*", homepage: "https://xinding-bot.github.io" },
-  { name: "Weijun Wang", affiliation: "1" },
+  { name: "Weijun Wang", affiliation: "1", homepage: "https://weijunalexwang.github.io" },
   { name: "Ting Cao", affiliation: "1", note: "†", homepage: "https://tingcao952.github.io" },
   { name: "Yunxin Liu", affiliation: "1", homepage: "https://yunxinliu.github.io" },
 ];
 
-// π0.5 · LIBERO · RTX 4090 with 30-token requests: OxyGen (k = 1) and sequential
-// isolated execution. Each lane shows WINDOW seconds of marks at the measured
-// rate. Every tape moves at the same speed (one window per SLOWDOWN × WINDOW s);
-// each loop shifts by exactly one mark, so the repeat is seamless.
-const libero = tradeoff.libero.rtx4090;
-const ours = libero.k1.at(-1)!;
-const base = libero.baseline.at(-1)!;
-const SLOWDOWN = 10;
-// Each lane spans half a second, so even 213 tok/s stays legible as marks.
-const WINDOW = 0.5;
-const runs = [
-  { cls: "ours", name: "OxyGen", note: "shared KV, batched decoding", hz: ours[1], tps: ours[2] },
-  { cls: "base", name: "Isolated baseline", note: "openpi, sequential", hz: base[1], tps: base[2] },
+// Schematic schedule, not measured stage durations. Both rows share one time
+// scale and repeat a whole tile, so the scrolling loop has no seam.
+const schedule = [
+  { name: "Isolated", note: "finish language, then act again", period: 240, action: 44, language: 182 },
+  { name: "OxyGen", note: "advance language between action updates", period: 80, action: 44, language: 24 },
 ];
 ---
 
@@ -44,49 +35,47 @@ const runs = [
               {author.homepage ? (
                 <a href={author.homepage} target="_blank" rel="noreferrer">{author.name}</a>
               ) : author.name}
-              <sup>{author.affiliation}{author.note}</sup>
+
             </span>
           ))}
         </div>
-        <p><sup>1</sup> Institute for AI Industry Research (AIR), Tsinghua University · <sup>2</sup> Department of Electronic Engineering, Tsinghua University · <sup>3</sup> University of Science and Technology of China</p>
-        <p class="notes"><sup>*</sup> Work done during internships at AIR, Tsinghua University. <sup>†</sup> Corresponding author: <a href="mailto:tingcao@mail.tsinghua.edu.cn">tingcao@mail.tsinghua.edu.cn</a></p>
+        <p class="project-affiliation">Institute for AI Industry Research (AIR), Tsinghua University</p>
       </div>
       <nav class="links" aria-label="Paper links">
         <a href={links.paper} target="_blank" rel="noreferrer">Paper ↗</a>
         <a href={links.code} target="_blank" rel="noreferrer">Code ↗</a>
         <a href="#demo">Demo ↓</a>
+        <a href="#contact">Contact ↓</a>
         <a href={links.blog} target="_blank" rel="noreferrer">Blog post ↗</a>
       </nav>
     </div>
 
     <div class="c9-12">
       <p class="dek">
-        Keep actions fast while language unfolds. OxyGen reuses one observation prefill across experts and batches language requests across control frames.
+        Actions and language share what they see, but need not finish together. OxyGen unifies their KV state across tasks and control cycles, reusing observation computation while language generation continues across action updates.
       </p>
 
-      <figure class="second" style={`--period: ${SLOWDOWN * WINDOW}s`} aria-label="Actions and language tokens produced per second by OxyGen and the isolated baseline">
-        <div class="second-head">
-          <span class="label"><b>Inference</b>, live</span>
-          <span class="clock">0.5 s shown · 1/{SLOWDOWN} speed</span>
-        </div>
-        {runs.map((run) => (
-          <div class:list={["run", run.cls]} data-hz={run.hz} data-tps={run.tps}>
-            <div class="run-name">{run.name}<small>{run.note}</small></div>
-            <div class="lane-row">
-              <span>Actions</span>
-              <div class="marks act" style={`--n: ${(run.hz * WINDOW).toFixed(3)}; --dur: ${(SLOWDOWN / run.hz).toFixed(4)}s`}><i class="tape"></i></div>
-              <output><span data-count-up>{run.hz.toFixed(0)}</span><small>Hz</small></output>
+      <figure class="schedule-demo" aria-label="Illustrative inference schedule: isolated execution finishes each language request before the next action update; OxyGen batches language across updates.">
+        <div class="second-head"><span class="label"><b>Two tasks, one schedule</b></span><span class="schedule-time">time →</span></div>
+        {schedule.map((run) => (
+          <div class="schedule-run">
+            <div class="run-name">{run.name}</div>
+            <div class="schedule-window" aria-hidden="true">
+              <svg viewBox="0 0 320 28" preserveAspectRatio="none">
+                <g class="schedule-tape">
+                  {Array.from({length: 9}, (_,i) => <g transform={`translate(${i * run.period} 0)`}>
+                    <rect x="0" y="3" width={run.action} height="14" fill="var(--action)" />
+                    <rect x={run.action + 4} y="3" width={run.language} height="14" fill="var(--language)" />
+                    {run.name === "OxyGen" && <><line x1={run.action + 4} x2={run.action + 4 + run.language} y1="8" y2="8" stroke="var(--paper)" stroke-width="1" /><line x1={run.action + 4} x2={run.action + 4 + run.language} y1="12" y2="12" stroke="var(--paper)" stroke-width="1" /></>}
+                  </g>)}
+                </g>
+              </svg>
             </div>
-            <div class="lane-row">
-              <span>Tokens</span>
-              <div class="marks tokens" style={`--n: ${(run.tps * WINDOW).toFixed(3)}; --dur: ${(SLOWDOWN / run.tps).toFixed(4)}s`}><i class="tape"></i></div>
-              <output><span data-count-up>{run.tps.toFixed(0)}</span><small>tok/s</small></output>
-            </div>
+            <p>{run.note}</p>
           </div>
         ))}
-        <figcaption class="caption">
-          Measured output rates, illustrated at 1/10 speed. Each mark is one action or token; denser marks mean higher throughput. π<sub>0.5</sub> · RTX 4090 · N = 30, k = 1.
-        </figcaption>
+        <div class="key"><span><i style="background:var(--action)"></i>action</span><span><i style="background:var(--language)"></i>language</span></div>
+        <figcaption class="caption">Illustrative timing. Short batched decoding steps let language progress across control cycles.</figcaption>
       </figure>
     </div>
   </div>

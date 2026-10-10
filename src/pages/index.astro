@@ -74,11 +74,21 @@ const resources = [
   <Hero />
 
   <main class="page">
-    <div class="stats grid performance-strip" aria-label="Performance highlights">
-      <div class="stat lead-stat"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>π<sub>0.5</sub> action frequency<br />and language throughput</p></div>
-      <div class="stat"><strong><span data-count-up>{Math.round(peak[1])}</span><small>Hz</small></strong><p>action frequency, alongside {Math.round(peak[2])} language tokens/s</p></div>
-      <div class="stat"><strong>{xiaomi.at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>Xiaomi-Robotics-0<br />frame-latency speedup</p></div>
-      <div class="stat"><strong>{starvla[2].at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>StarVLA<br />frame-latency speedup</p></div>
+    <div class="performance-groups" aria-label="Performance highlights">
+      <div class="performance-primary">
+        <p class="label">Joint performance · π<sub>0.5</sub></p>
+        <div class="joint-metrics">
+          <div class="joint-gain"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster in both outputs</p></div>
+          <div><strong><span data-count-up>{Math.round(peak[1])}</span><small>Hz</small></strong><p>action frequency</p></div>
+          <div><strong><span data-count-up>{Math.round(peak[2])}</span><small>tokens/s</small></strong><p>language throughput</p></div>
+        </div>
+        <p class="performance-note">Actions and language generated simultaneously.</p>
+      </div>
+      <div class="performance-transfer">
+        <p class="label">Transfer to other backbones</p>
+        <div class="transfer-metrics"><div><strong>{xiaomi.at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>Xiaomi-Robotics-0</p></div><div><strong>{starvla[2].at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>StarVLA</p></div></div>
+        <p class="performance-note">Frame-latency speedup within each model.</p>
+      </div>
     </div>
 
     <p class="headline-protocol">RTX 4090 · 30-token requests · k = 1 · speedups relative to each configuration’s isolated baseline</p>
@@ -249,6 +259,7 @@ const resources = [
 
           <div class="fig-head"><span class="title">Citation</span><button id="copy-citation" class="copy" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1.5"></rect><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"></path></svg><span>Copy BibTeX</span></button></div>
           <pre><code id="citation-text">{citation}</code></pre>
+          <div id="contact" class="contact-block"><span class="label">Contact</span><p><a href="mailto:lixiangy22@mails.tsinghua.edu.cn">Xiangyu Li ↗</a><a href="mailto:tingcao@mail.tsinghua.edu.cn">Ting Cao ↗</a></p></div>
         </div>
       </div>
     </section>

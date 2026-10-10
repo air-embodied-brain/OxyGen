@@ -141,3 +141,10 @@ from an illustrative overlap timeline. Motion begins at the 198 ms dispatch
 point and lasts 333 ms; the 195.4 ms language path follows action inference.
 The timeline is a possibility illustrated using measured durations, not a new
 logged overlap experiment. Communication overhead is omitted explicitly.
+
+## Hero schedule illustration
+
+The opening animation now illustrates scheduling with a common time scale and
+repeated tiles, not measured durations or output-rate ticks. Actual performance
+remains in the two grouped result blocks below. Contacts use Xiangyu Li’s public
+homepage email and Ting Cao’s paper correspondence address.
