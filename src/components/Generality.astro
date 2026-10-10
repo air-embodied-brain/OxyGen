@@ -20,7 +20,7 @@ const groups = [
     ],
   },
   {
-    label: "More experts, one prefix", finding: "StarVLA retains its speedup with up to three action experts alongside language.",
+    label: "More experts", finding: "StarVLA holds its speedup to 3 experts.",
     rows: [
       { name: "+ GR00T", note: "3 experts", ...n30(starvla[3]) },
       { name: "+ GR00T + OFT", note: "4 experts", ...n30(starvla[4]) },
@@ -77,7 +77,7 @@ const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
   table.data td.bar { width: 38%; }
   table.data tr.group th { padding-top: 20px; padding-bottom: 10px; }
   table.data tr.group th span { font-weight: 600; }
-  table.data tr.group th small { margin-left: 18px; font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  table.data tr.group th small { margin-left: 18px; font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); white-space: nowrap; }
   table.data td.name small { font-size: 12px; }
   .key { margin-top: 15px; }
 </style>
