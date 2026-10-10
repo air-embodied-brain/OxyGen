@@ -1,4 +1,5 @@
 ---
+import ResultDetails from "./ResultDetails.astro";
 import { tradeoff, type SeriesKey, type TradeoffPoint } from "../data/paper-figures";
 
 const configs = [
@@ -35,7 +36,7 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
 
 <figure data-tradeoff>
   <div class="fig-head">
-    <span class="title"><span class="label"><b>Fig. 3</b></span>π0.5 · action frequency and language throughput</span>
+    <span class="title">OxyGen increases action frequency and language throughput together.</span>
     <div class="switch" role="tablist" aria-label="Robot configuration">
       {configs.map((c, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-config={c.id}>{c.label}</button>)}
     </div>
@@ -96,7 +97,5 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
       </div>
     ))}
   </div>
-  <figcaption class="caption">
-    Ringed points compare the same 30-token workload; up and right is better. Each line sweeps 5–30 tokens at a fixed decoding budget k. S = 10, one request per frame. Hover for exact values.
-  </figcaption>
+  <ResultDetails id="tradeoff-details"><p>π<sub>0.5</sub> on LIBERO, DROID and ALOHA; desktop RTX 4090 and on-board Jetson AGX Thor. Each line sweeps 5–30 tokens per request at a fixed per-frame decoding budget <i>k</i>, with <i>S</i> = 10 and one new request per frame.</p><p>Ringed points compare the same 30-token workload. The reported gains compare action frequency against isolated execution at those points. Up and right is better; hover over points for exact values.</p></ResultDetails>
 </figure>

@@ -2271,3 +2271,23 @@ table.data td.bar {
 [data-stage-animation].stage-ready .block { transform: scaleX(0); transform-origin: left; }
 [data-stage-animation].stage-ready .stage-block-label, [data-stage-animation].stage-ready .batch-layers i { opacity: 0; }
 [data-stage-count] { font-variant-numeric: tabular-nums; }
+
+/* Results: findings in the foreground, protocols in light-dismiss popovers. */
+.result-details { margin-top: 14px; }
+.quality-efficiency { align-items: stretch; }
+.quality-result { grid-column: 1 / 6; }
+.efficiency-result { grid-column: 6 / 13; }
+.quality-efficiency > figure { display: flex; flex-direction: column; min-width: 0; }
+.quality-efficiency .fig-head { min-height: 48px; align-items: start; }
+.quality-efficiency .panel-head { min-height: 67px; }
+.quality-efficiency .result-details { margin-top: auto; padding-top: 18px; }
+.quality-result .ci-row, .quality-result .ci-axis { grid-template-columns: 62px minmax(0, 1fr) 104px; gap: 10px; }
+.quality-result .key { gap: 8px 14px; font-size: 12px; margin-top: 15px; }
+.energy-comparison { display: grid; gap: 12px; margin: 0 0 20px; }
+.energy-comparison > div { display: grid; grid-template-columns: 68px 1fr 65px; gap: 12px; align-items: center; font: 14px var(--sans); }
+.energy-comparison b { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.energy-track { height: 14px; }
+.energy-track i { display: block; height: 100%; background: var(--ink-soft); opacity: .55; }
+.energy-track i.ours { background: var(--action); opacity: 1; }
+.efficiency-result table.data { font-size: 14px; }
+.efficiency-result table.data td, .efficiency-result table.data th { padding-top: 10px; padding-bottom: 10px; }

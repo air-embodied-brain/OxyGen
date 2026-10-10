@@ -6,6 +6,7 @@ import DemoPlayer from "../components/DemoPlayer.astro";
 import Method from "../components/Method.astro";
 import TradeoffChart from "../components/TradeoffChart.astro";
 import AblationChart from "../components/AblationChart.astro";
+import ResultDetails from "../components/ResultDetails.astro";
 import Generality from "../components/Generality.astro";
 import { citation, links } from "../data/site";
 import { memoryAdapter as mem, overhead, quality, qualityProtocol, robot, xiaomi, starvla } from "../data/paper-tables";
@@ -119,9 +120,9 @@ const resources = [
       <div class="result-block"><Generality /></div>
 
       <div class="result-block">
-      <div class="grid">
-        <figure class="c1-7 ci">
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 5</b></span>Action quality on LIBERO</span></div>
+      <div class="grid quality-efficiency">
+        <figure class="quality-result ci">
+          <div class="fig-head"><span class="title">LIBERO success remains comparable.</span></div>
           <div class="panel-head"><span>Mean success, 95% CI</span><span class="gain">{overall.mean.toFixed(2)}%<small>openpi: {overall.openpi}%</small></span></div>
           {quality.map((row) => (
             <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
@@ -139,11 +140,15 @@ const resources = [
             <span><i style="width: 9px; height: 9px; border-radius: 50%; background: var(--action)"></i>OxyGen mean and 95% CI</span>
             <span><i style="width: 1.5px; height: 13px; background: var(--ink)"></i>openpi reported</span>
           </div>
-          <figcaption class="caption">{qualityProtocol.seeds} seeds, {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts, official π<sub>0.5</sub>-LIBERO checkpoint. OxyGen changes the schedule, not the policy.</figcaption>
+          <ResultDetails id="quality-details"><p>{qualityProtocol.seeds} seeds and {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts using the official π<sub>0.5</sub>-LIBERO checkpoint. Dots show OxyGen means and lines show 95% confidence intervals; vertical ticks mark openpi’s reported success rates.</p><p>OxyGen changes the inference schedule, not the policy. This experiment checks action quality separately from the runtime scaling experiments.</p></ResultDetails>
         </figure>
-        <figure class="c8-12">
-          <div class="fig-head"><span class="title">Cost per request, RTX 4090</span></div>
+        <figure class="efficiency-result">
+          <div class="fig-head"><span class="title">Batching cuts energy per request by 78%.</span></div>
           <div class="panel-head"><span>Energy per request</span><span class="gain">−{-change(baselineCost.energyJ, bestCost.energyJ)}%<small>vs. baseline</small></span></div>
+          <div class="energy-comparison" aria-label="Energy per request: baseline 117.4 joules, OxyGen 25.8 joules">
+            <div><span>Baseline</span><div class="energy-track"><i style="width:100%"></i></div><b>{baselineCost.energyJ} J</b></div>
+            <div><span>OxyGen</span><div class="energy-track"><i class="ours" style={`width:${bestCost.energyJ / baselineCost.energyJ * 100}%`}></i></div><b>{bestCost.energyJ} J</b></div>
+          </div>
           <table class="data">
             <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
             <tbody>
@@ -152,7 +157,7 @@ const resources = [
               <tr><td class="name">Memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{change(baselineCost.memGiB, bestCost.memGiB)}%</td></tr>
             </tbody>
           </table>
-          <figcaption class="caption">OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Running the two tasks as parallel processes instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request.</figcaption>
+          <ResultDetails id="efficiency-details"><p>Measured on RTX 4090, with OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Energy is reported per request, power in watts and memory in GiB.</p><p>Running the two tasks as parallel processes (MPS) instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request. The table compares OxyGen with isolated execution.</p></ResultDetails>
         </figure>
       </div>
       </div>
@@ -170,7 +175,7 @@ const resources = [
         </figure>
         <div class="c5-12 onboard-measurement">
           <p class="measurement-protocol">π<sub>0.5</sub> · Jetson AGX Thor · H = 10 · S = 10 · N = 30 · k = 5</p>
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Inference per control cycle</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
+          <div class="fig-head"><span class="title">Inference per control cycle</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
           <div class="latency">
             <div class="latency-row">
               <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
@@ -220,7 +225,7 @@ const resources = [
       </SectionHead>
       <div class="grid">
         <figure class="c1-7">
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 7</b></span>Memories written during the demo</span></div>
+          <div class="fig-head"><span class="title">Memories written during the demo</span></div>
           <ol class="memory-log">
             <li class="task"><span>task</span><p>Put both the alphabet soup and the tomato sauce in the basket.</p></li>
             <li><span>step 50</span><q>No relevant task progress is visible yet.</q></li>

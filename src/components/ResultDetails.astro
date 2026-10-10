@@ -1,0 +1,11 @@
+---
+interface Props { id: string; }
+const { id } = Astro.props;
+---
+<div class="result-details">
+  <button type="button" class="method-settings-trigger" popovertarget={id}>Measurement details</button>
+  <div id={id} class="method-popover" popover aria-label="Measurement details">
+    <strong>Measurement details</strong>
+    <slot />
+  </div>
+</div>
