@@ -2283,11 +2283,5 @@ table.data td.bar {
 .quality-efficiency .result-details { margin-top: auto; padding-top: 18px; }
 .quality-result .ci-row, .quality-result .ci-axis { grid-template-columns: 62px minmax(0, 1fr) 104px; gap: 10px; }
 .quality-result .key { gap: 8px 14px; font-size: 12px; margin-top: 15px; }
-.energy-comparison { display: grid; gap: 12px; margin: 0 0 20px; }
-.energy-comparison > div { display: grid; grid-template-columns: 68px 1fr 65px; gap: 12px; align-items: center; font: 14px var(--sans); }
-.energy-comparison b { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
-.energy-track { height: 14px; }
-.energy-track i { display: block; height: 100%; background: var(--ink-soft); opacity: .55; }
-.energy-track i.ours { background: var(--action); opacity: 1; }
 .efficiency-result table.data { font-size: 14px; }
 .efficiency-result table.data td, .efficiency-result table.data th { padding-top: 10px; padding-bottom: 10px; }

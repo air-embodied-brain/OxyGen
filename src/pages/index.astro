@@ -122,7 +122,7 @@ const resources = [
       <div class="result-block">
       <div class="grid quality-efficiency">
         <figure class="quality-result ci">
-          <div class="fig-head"><span class="title">LIBERO success remains comparable.</span></div>
+          <div class="fig-head"><span class="title">OxyGen leaves the action policy unchanged.</span></div>
           <div class="panel-head"><span>Mean success, 95% CI</span><span class="gain">{overall.mean.toFixed(2)}%<small>openpi: {overall.openpi}%</small></span></div>
           {quality.map((row) => (
             <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
@@ -145,10 +145,6 @@ const resources = [
         <figure class="efficiency-result">
           <div class="fig-head"><span class="title">Batching cuts energy per request by 78%.</span></div>
           <div class="panel-head"><span>Energy per request</span><span class="gain">−{-change(baselineCost.energyJ, bestCost.energyJ)}%<small>vs. baseline</small></span></div>
-          <div class="energy-comparison" aria-label="Energy per request: baseline 117.4 joules, OxyGen 25.8 joules">
-            <div><span>Baseline</span><div class="energy-track"><i style="width:100%"></i></div><b>{baselineCost.energyJ} J</b></div>
-            <div><span>OxyGen</span><div class="energy-track"><i class="ours" style={`width:${bestCost.energyJ / baselineCost.energyJ * 100}%`}></i></div><b>{bestCost.energyJ} J</b></div>
-          </div>
           <table class="data">
             <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
             <tbody>
