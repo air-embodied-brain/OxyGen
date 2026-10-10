@@ -140,7 +140,7 @@ const resources = [
     <section class="section" id="robot" data-title="On the robot">
       <SectionHead number="4" label="On-board measurement">
         <Fragment slot="title">Lower latency, <em>on board.</em></Fragment>
-        On the humanoid’s Jetson AGX Thor, the measured action path takes {robot.oxygen.action.toFixed(0)} ms. Language generation can overlap with physical execution.
+        On Jetson AGX Thor, OxyGen overlaps language with motion while cutting control-cycle latency {(robotBase / robotOurs).toFixed(1)}×.
       </SectionHead>
       <div class="grid onboard-grid">
         <figure class="c1-4 plate setup-plate">
@@ -149,7 +149,8 @@ const resources = [
         </figure>
         <div class="c5-12 onboard-measurement">
           <p class="measurement-protocol">π<sub>0.5</sub> · Jetson AGX Thor · H = 10 · S = 10 · N = 30 · k = 5</p>
-          <div class="fig-head"><span class="title">Inference per control cycle</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
+          <div class="fig-head"><span class="title">One control cycle: faster inference, overlapping language.</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
+          <div class="onboard-evidence">
           <div class="latency">
             <div class="latency-row">
               <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
@@ -172,7 +173,6 @@ const resources = [
             <span><i style="background: var(--language)"></i>language path</span>
           </div>
           <div class="overlap-study">
-            <div class="overlap-copy"><h3>After dispatch, language overlaps with motion.</h3></div>
             <figure class="overlap-figure">
               <svg viewBox="0 0 540 140" role="img" aria-label={`Illustrative schedule: ${dispatchMs} ms action inference, then ${robot.oxygen.language} ms language alongside ${robot.executionWindowMs} ms physical execution. Dispatch overhead omitted.`}>
                 <text x="0" y="14">GPU inference</text>
@@ -185,42 +185,15 @@ const resources = [
                 <text x={dispatchMs} y="121" text-anchor="middle">dispatch</text>
                 <text x="0" y="138">0</text><text x={dispatchMs} y="138" text-anchor="middle">{dispatchMs.toFixed(0)}</text><text x={robotOurs} y="138" text-anchor="middle">{robotOurs.toFixed(0)}</text><text x={motionEndMs} y="138" text-anchor="end">{motionEndMs.toFixed(0)} ms</text>
               </svg>
-              <figcaption class="caption">Illustrative schedule from measured stages; communication overhead omitted. Physical execution starts at dispatch.</figcaption>
             </figure>
+          </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section" id="memory" data-title="Textual memory">
-      <SectionHead number="5" label="Application">
-        <Fragment slot="title">A robot that <em>keeps notes.</em></Fragment>
-        The language stream records task progress. A lightweight adapter writes one memory at each replan, with the action path frozen.
-      </SectionHead>
-      <div class="grid">
-        <figure class="c1-7">
-          <div class="fig-head"><span class="title">Memories written during the demo</span></div>
-          <ol class="memory-log">
-            <li class="task"><span>task</span><p>Put both the alphabet soup and the tomato sauce in the basket.</p></li>
-            <li><span>step 50</span><q>No relevant task progress is visible yet.</q></li>
-            <li class="new"><span>step 185</span><q>The alphabet soup is in the basket.</q></li>
-          </ol>
-          <figcaption class="caption">From the OxyGen run of the alphabet-soup demo. The adapter was developed after the main experiments; the paper's latency and quality results do not depend on it.</figcaption>
-        </figure>
-        <div class="c8-12">
-          <div class="fig-head"><span class="title">Adapter, RTX 4090</span></div>
-          <dl class="memory-stats">
-            <div><dt>{mem.exactMatchPct}%</dt><dd>exact match on held-out frames</dd></div>
-            <div><dt>{mem.adapterMs} ms</dt><dd>median cost per memory</dd></div>
-          </dl>
-          <p class="caption">Reference prefix forward: {mem.prefixForwardMs} ms. Trained with {mem.annotatedFrames.toLocaleString("en-US")} annotated frames from {mem.demonstrations.toLocaleString("en-US")} demonstrations. See the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository.</p>
-          <details class="experiment-note"><summary>Action-path validation</summary><p>With the adapter zeroed, the measured action difference is {mem.actionDiff}. The language adapter operates on the private suffix; this check is separate from the paper’s LIBERO success evaluation.</p></details>
-        </div>
-      </div>
-    </section>
-
     <section class="section" id="resources" data-title="Resources">
-      <SectionHead number="6" label="Resources">
+      <SectionHead number="5" label="Resources">
         <Fragment slot="title">Read it, run it, <em>build on it.</em></Fragment>
       </SectionHead>
       <div class="grid">
@@ -236,7 +209,6 @@ const resources = [
 
           <div class="fig-head"><span class="title">Citation</span><button id="copy-citation" class="copy" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1.5"></rect><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"></path></svg><span>Copy BibTeX</span></button></div>
           <pre><code id="citation-text">{citation}</code></pre>
-          <div id="contact" class="contact-block"><span class="label">Contact</span><p><a href="mailto:lixiangy22@mails.tsinghua.edu.cn">Xiangyu Li ↗</a><a href="mailto:tingcao@mail.tsinghua.edu.cn">Ting Cao ↗</a></p></div>
         </div>
       </div>
     </section>

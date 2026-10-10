@@ -12,7 +12,7 @@ const qwen = (backbone: string, tp: number) => scaling.find((r) => r.backbone ==
 
 const groups = [
   {
-    label: "Across architectures", finding: "Sharing and batching transfer beyond π0.5, reaching 6.64× on StarVLA.",
+    label: "Across architectures", finding: "Sharing and batching transfer beyond π0.5.",
     rows: [
       { name: "π0.5", note: "", k1: pi.k1.at(-1)![1] / pi.baseline.at(-1)![1], k5: pi.k5.at(-1)![1] / pi.baseline.at(-1)![1] },
       { name: "Xiaomi-Robotics-0", note: "", ...n30(xiaomi) },
@@ -20,14 +20,14 @@ const groups = [
     ],
   },
   {
-    label: "More experts", finding: "StarVLA holds its speedup to 3 experts.",
+    label: "More experts", finding: "Speedup holds as experts increase.",
     rows: [
       { name: "+ GR00T", note: "3 experts", ...n30(starvla[3]) },
       { name: "+ GR00T + OFT", note: "4 experts", ...n30(starvla[4]) },
     ],
   },
   {
-    label: "From 0.8B to 9B", finding: "Qwen3.5 gains stay at 3.58–3.79× with a five-token decoding budget.",
+    label: "Across backbone sizes", finding: "The gain persists as the backbone grows.",
     rows: [
       ...["0.8B", "2B", "4B", "9B"].map((b) => ({ name: `Qwen3.5-${b}`, note: "", ...qwen(b, 1) })),
     ],
