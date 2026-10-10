@@ -80,10 +80,8 @@ const resources = [
         <p class="label">π<sub>0.5</sub> · actions &amp; language</p>
         <div class="joint-metrics">
           <div class="joint-gain"><strong>{peakSpeedup.toFixed(1)}<small>×</small></strong><p>faster in both outputs</p></div>
-          <div class="joint-breakdown">
-            <div><span class="metric-name">Actions</span><span class="metric-before">{Math.round(headlineBaseline[1])}</span><span class="metric-arrow">→</span><b>{Math.round(peak[1])}</b><small>Hz</small></div>
-            <div><span class="metric-name">Language</span><span class="metric-before">{Math.round(headlineBaseline[2])}</span><span class="metric-arrow">→</span><b>{Math.round(peak[2])}</b><small>tokens/s</small></div>
-          </div>
+          <div class="metric-comparison"><strong><span>{Math.round(headlineBaseline[1])}</span><i>→</i>{Math.round(peak[1])}<small>Hz</small></strong><p>action frequency</p></div>
+          <div class="metric-comparison"><strong><span>{Math.round(headlineBaseline[2])}</span><i>→</i>{Math.round(peak[2])}<small>tok/s</small></strong><p>language throughput</p></div>
         </div>
       </div>
       <div class="performance-transfer">
