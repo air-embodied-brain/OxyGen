@@ -13,8 +13,8 @@ const authors = [
 // Schematic schedule, not measured stage durations. Both rows share one time
 // scale and repeat a whole tile, so the scrolling loop has no seam.
 const schedule = [
-  { name: "Isolated", note: "finish language, then act again", period: 240, action: 44, language: 182 },
-  { name: "OxyGen", note: "advance language between action updates", period: 80, action: 44, language: 24 },
+  { name: "Isolated", period: 240, action: 44, language: 182 },
+  { name: "OxyGen", period: 80, action: 44, language: 24 },
 ];
 ---
 
@@ -50,13 +50,14 @@ const schedule = [
       </nav>
     </div>
 
-    <div class="c9-12">
+    <div class="c9-12 hero-summary">
+      <p class="label summary-label">TL;DR</p>
       <p class="dek">
         Actions and language share what they see, but need not finish together. OxyGen unifies their KV state across tasks and control cycles, reusing observation computation while language generation continues across action updates.
       </p>
 
       <figure class="schedule-demo" aria-label="Illustrative inference schedule: isolated execution finishes each language request before the next action update; OxyGen batches language across updates.">
-        <div class="second-head"><span class="label"><b>Two tasks, one schedule</b></span><span class="schedule-time">time →</span></div>
+
         {schedule.map((run) => (
           <div class="schedule-run">
             <div class="run-name">{run.name}</div>
@@ -71,11 +72,11 @@ const schedule = [
                 </g>
               </svg>
             </div>
-            <p>{run.note}</p>
+
           </div>
         ))}
         <div class="key"><span><i style="background:var(--action)"></i>action</span><span><i style="background:var(--language)"></i>language</span></div>
-        <figcaption class="caption">Illustrative timing. Short batched decoding steps let language progress across control cycles.</figcaption>
+
       </figure>
     </div>
   </div>

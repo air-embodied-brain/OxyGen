@@ -2045,7 +2045,7 @@ table.data td.bar {
 }
 /* Opening: joint performance and transfer are two distinct evidence groups. */
 .project-affiliation { text-wrap: balance; }
-.schedule-demo { margin: 18px 0 0; border-top: 1px solid var(--rule); padding-top: 10px; }
+.schedule-demo { margin: 20px 0 0; border-top: 1px solid var(--hair); padding-top: 6px; }
 .schedule-time { font: 12px var(--sans); color: var(--muted); }
 .schedule-run { margin-top: 12px; }
 .schedule-window { overflow: hidden; margin-top: 6px; }
@@ -2069,3 +2069,15 @@ table.data td.bar {
 .contact-block { border-top: 1px solid var(--hair); margin-top: 18px; padding-top: 12px; scroll-margin-top: 90px; }
 .contact-block p { display: flex; gap: 30px; font: 16px var(--sans); margin: 8px 0 0; }
 @media(max-width:900px) { .performance-groups { grid-template-columns: 1fr; gap: 24px; } }
+
+.summary-label { margin-bottom: 9px; color: var(--muted); }
+.performance-groups + #demo { margin-top: 32px; }
+@media(min-width:901px) {
+ .masthead-body { align-items: stretch; }
+ .hero-summary { display: flex; flex-direction: column; }
+ .hero-summary .schedule-demo { margin-top: auto; padding-top: 10px; }
+ .hero-summary .dek { margin-bottom: 20px; }
+ .schedule-run { margin-top: 8px; }
+ .schedule-demo .key { margin-top: 3px; }
+ .performance-groups { margin-top: 26px; }
+}

@@ -76,22 +76,19 @@ const resources = [
   <main class="page">
     <div class="performance-groups" aria-label="Performance highlights">
       <div class="performance-primary">
-        <p class="label">Joint performance · π<sub>0.5</sub></p>
+        <p class="label">π<sub>0.5</sub> · actions &amp; language</p>
         <div class="joint-metrics">
           <div class="joint-gain"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster in both outputs</p></div>
           <div><strong><span data-count-up>{Math.round(peak[1])}</span><small>Hz</small></strong><p>action frequency</p></div>
           <div><strong><span data-count-up>{Math.round(peak[2])}</span><small>tokens/s</small></strong><p>language throughput</p></div>
         </div>
-        <p class="performance-note">Actions and language generated simultaneously.</p>
       </div>
       <div class="performance-transfer">
-        <p class="label">Transfer to other backbones</p>
+        <p class="label">Speedup across backbones</p>
         <div class="transfer-metrics"><div><strong>{xiaomi.at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>Xiaomi-Robotics-0</p></div><div><strong>{starvla[2].at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>StarVLA</p></div></div>
-        <p class="performance-note">Frame-latency speedup within each model.</p>
       </div>
     </div>
 
-    <p class="headline-protocol">RTX 4090 · 30-token requests · k = 1 · speedups relative to each configuration’s isolated baseline</p>
 
     <section class="section" id="demo" data-title="Demo">
       <SectionHead number="1" label="Demo">
