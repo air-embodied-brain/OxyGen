@@ -65,13 +65,12 @@ function layout(mode: (typeof modes)[number]) {
 <Design />
 
 
-<div class="grid unit method-benefits">
-  <figure class="c1-8">
+<figure class="unit method-benefits">
     <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>Measured frame latency · π0.5 / LIBERO / RTX 4090</span></div>
     <div class="lanes">
       {modes.map((mode) => (
         <div class="lane">
-          <div class="lane-name">{mode.label}<small>{mode.note}</small></div>
+          <div class="lane-name">{mode.label}</div>
           <div class="lane-track">
             {layout(mode).map((block) => (
               <div class:list={["block", block.kind]} style={`left: ${block.left}%; width: ${block.width}%`}>
@@ -79,7 +78,7 @@ function layout(mode: (typeof modes)[number]) {
               </div>
             ))}
           </div>
-          <div class="lane-total">{mode.total.toFixed(0)} ms<small>{((10 / mode.total) * 1000).toFixed(0)} Hz actions</small></div>
+          <div class="lane-total">{mode.total.toFixed(0)} ms</div>
         </div>
       ))}
       <div class="lane-axis" aria-hidden="true">
@@ -93,21 +92,13 @@ function layout(mode: (typeof modes)[number]) {
       <span><i style="background: var(--action)"></i>action denoising</span>
       <span><i style="background: var(--language)"></i>decoding + other frame work</span>
     </div>
-    <figcaption class="caption">N = 30, k = 5. Totals measured in the original ablation; stage widths are illustrative. <details class="experiment-note"><summary>How to read the stage widths</summary><p>Prefill ≈ {PREFIX.toFixed(1)} ms and denoising ≈ {DENOISE.toFixed(1)} ms come from a separate camera-ready profile. The remaining width includes decoding and other frame work.</p></details></figcaption>
-  </figure>
-  <aside class="c9-12">
-    <div class="fig-head"><span class="title">Per frame</span></div>
-    <div class="side-note">
-      <strong>{(modes[0].total / modes[2].total).toFixed(1)}× faster</strong>
-      <p>{modes[0].total.toFixed(0)} → {modes[2].total.toFixed(0)} ms per frame at the same language workload.</p>
+    <div class="method-caption-row">
+      <figcaption class="caption">KV sharing removes repeated prefill. Batching shortens language work between action updates.</figcaption>
+      <button type="button" class="method-settings-trigger" popovertarget="method-settings">Measurement details</button>
+      <div id="method-settings" class="method-popover" popover>
+        <strong>RTX 4090 · π₀.₅ / LIBERO</strong>
+        <p>H = 10 actions, S = 10 denoising steps, N = 30 tokens per language request, k = 5 decoding steps per frame. At steady state, six unfinished requests share a batch.</p>
+        <p>Totals are derived from measured action frequency in the paper’s ablation (10 / Hz). Prefill ≈ {PREFIX.toFixed(1)} ms and denoising ≈ {DENOISE.toFixed(1)} ms come from a separate synchronized camera-ready profile. Stage widths are illustrative; the remainder includes decoding and other frame work.</p>
+      </div>
     </div>
-    <div class="side-note">
-      <strong>−{(modes[0].total - modes[1].total).toFixed(0)} ms</strong>
-      <p>from removing the repeated prefill.</p>
-    </div>
-    <div class="side-note">
-      <strong>−{(modes[1].total - modes[2].total).toFixed(0)} ms</strong>
-      <p>from batching {N / K} requests in {K} decoding steps per frame.</p>
-    </div>
-  </aside>
-</div>
+</figure>

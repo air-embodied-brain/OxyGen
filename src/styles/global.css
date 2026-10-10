@@ -2255,3 +2255,23 @@ table.data td.bar {
 .demo-output-popover { bottom: calc(100% + 8px); }
 .demo-output-box { grid-column: 1 / -1; }
 .demo-output-box[data-demo-output-box="baseline"] .demo-output-expand { visibility: hidden; }
+
+/* Method: concise mechanisms, full-width measured latency. */
+#method .section-head { margin-bottom: 22px; }
+#method .section-head .dek { font-size: 17px; }
+#method .caption { font-size: 16px; line-height: 1.5; }
+#method .design .caption { margin-top: 12px; }
+.method-design-note { display: flex; justify-content: flex-end; margin-top: 6px; }
+.method-design-note + .method-benefits { margin-top: 26px; }
+.method-caption-row { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; margin-top: 18px; }
+.method-caption-row .caption { margin: 0; }
+.method-settings-trigger, .method-design-note button { font: 14px var(--sans); color: var(--muted); text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 3px; white-space: nowrap; }
+.method-popover { max-width: min(560px, 85vw); padding: 22px 26px; margin: auto; background: var(--paper); border: 1px solid var(--hair); color: var(--ink-soft); box-shadow: 0 8px 32px #17160f26; font: 16px/1.5 var(--sans); }
+.method-popover p { margin: 12px 0 0; }
+.method-popover::backdrop { background: transparent; }
+
+#method .method-benefits .lane, #method .method-benefits .lane-axis { grid-template-columns: 182px minmax(0, 1fr) 80px; gap: 20px; }
+#method .method-benefits .lane-name { font-size: 15px; }
+#method .method-benefits .lanes { gap: 20px; margin-top: 22px; }
+#method .method-benefits .lane-track { height: 36px; }
+#method .method-benefits .block { font-size: 13px; }

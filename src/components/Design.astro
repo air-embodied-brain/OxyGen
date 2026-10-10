@@ -147,7 +147,9 @@ const steady = B; // first frame where the batch is full (0-based)
       <div class="key design-key"><span><i style="background: var(--language)"></i>4 tokens / request / frame</span><span class="c-action">✓ completed request</span></div>
     </div>
 
-    <p class="caption c1-6">Both experts read the same observation KV. The language request keeps this prefix and its own generated-token state as decoding continues across frames.</p>
-    <p class="caption c7-12">Illustration: N = {N}, k = {K}. Each highlighted column is one batch; after warm-up, {B} requests share each decoding step. A check marks completion and eviction.</p>
+    <p class="caption c1-6">One observation, one prefill. Both experts reuse its KV cache.</p>
+    <p class="caption c7-12">Unfinished language requests advance together across frames.</p>
   </div>
 </figure>
+
+<div class="method-design-note"><button type="button" popovertarget="method-animation-settings">Illustration details</button><div id="method-animation-settings" class="method-popover" popover><strong>Cross-frame batching</strong><p>The illustration uses N = {N} tokens per request and k = {K} decoding steps per frame. After warm-up, {B} requests share a batch. A check marks completion and cache eviction. Each request keeps its own observation prefix and generated-token KV state.</p></div></div>
