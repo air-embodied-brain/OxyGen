@@ -1,44 +1,54 @@
 ---
 import { demos } from "../data/site";
-
-const base = import.meta.env.BASE_URL.endsWith("/")
-  ? import.meta.env.BASE_URL
-  : `${import.meta.env.BASE_URL}/`;
+const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const first = demos[0];
 ---
 
-<figure class="grid" data-demo data-base={base}>
-  <div class="c1-9 demo-video">
-    <video
-      controls
-      muted
-      playsinline
-      preload="metadata"
-      poster={`${base}posters/${first.id}.webp`}
-      data-demo-video
-      aria-label={`${first.title}: OxyGen and the isolated baseline side by side`}
-    >
-      <source src={`${base}videos/${first.id}.mp4`} type="video/mp4" />
-    </video>
+<figure class="interactive-demo" data-demo data-base={base}>
+  <div class="demo-tasks" role="tablist" aria-label="Demo tasks">
+    {demos.map((demo, index) => (
+      <button role="tab" type="button" id={`task-${demo.id}`} aria-controls="demo-panel" aria-selected={index === 0 ? "true" : "false"} tabindex={index === 0 ? 0 : -1}
+        data-id={demo.id} data-label={demo.title} data-task={demo.task} data-oxygen={demo.oxygenS} data-baseline={demo.baselineS}>
+        {demo.title}
+      </button>
+    ))}
   </div>
-  <figcaption class="c10-12 demo-side crafted-demo-side">
-    <p class="caption"><b>FIG. 1</b> π<sub>0.5</sub> writes a memory of task progress at every replan. The baseline waits for the full answer; OxyGen carries decoding across frames.</p>
-    <p class="caption">Teal marks motion; amber marks time waiting for language.</p>
-    <div class="demo-list" role="tablist" aria-label="Demo tasks">
-      {demos.map((demo, index) => (
-        <button
-          role="tab"
-          type="button"
-          aria-selected={index === 0 ? "true" : "false"}
-          data-id={demo.id}
-          data-label={demo.title}
-          title={demo.task}
-        >
-          <span>{demo.title}</span>
-          <small>{demo.oxygenS.toFixed(1)} s vs {demo.baselineS.toFixed(1)} s · <b>{(demo.baselineS / demo.oxygenS).toFixed(2)}×</b></small>
-        </button>
-      ))}
+  <div id="demo-panel" role="tabpanel" aria-labelledby={`task-${first.id}`}>
+    <div class="demo-task-heading">
+      <p data-demo-task>{first.task}</p>
+      <span class="demo-gain"><b data-demo-gain>{(first.baselineS / first.oxygenS).toFixed(2)}×</b> faster completion</span>
     </div>
-    <p class="caption">One RTX 4090; measured model time, simulation at 20 Hz, played at 1×. OxyGen decodes <i>k</i> = 1 token per request per frame.</p>
+    <div class="demo-panes demo-pane-heads">
+      <div><strong>OxyGen</strong><span>Completion <b data-demo-duration="oxygen">{first.oxygenS.toFixed(1)} s</b></span></div>
+      <div><strong>Isolated baseline</strong><span>Completion <b data-demo-duration="baseline">{first.baselineS.toFixed(1)} s</b></span></div>
+    </div>
+    <video muted playsinline preload="metadata" poster={`${base}posters/${first.id}-interactive.webp`} data-demo-video
+      aria-label={`${first.title}: synchronized OxyGen and isolated baseline replay`}>
+      <source src={`${base}videos/${first.id}-interactive.mp4`} type="video/mp4" />
+    </video>
+    <div class="demo-panes demo-statuses">
+      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-step" data-demo-step={side}></span></div>)}
+    </div>
+    <div class="demo-playback">
+      <button type="button" class="demo-play" data-demo-play disabled aria-label="Play demo">Play</button>
+      <span class="demo-clock"><output data-demo-clock>0.00</output> / <span data-demo-total>{first.baselineS.toFixed(2)}</span> s</span>
+      <span class="demo-scrub-hint">Drag to compare at any moment</span>
+      <div class="demo-phase-key" aria-label="Timeline legend"><span data-kind="action">Action inference</span><span data-kind="language">Language inference</span><span data-kind="move">Execution</span></div>
+    </div>
+    <div class="demo-timeline">
+      <div class="demo-track-names"><span>OxyGen</span><span>Baseline</span></div>
+      <div class="demo-tracks" data-demo-tracks>
+        <div class="demo-track" data-demo-track="oxygen"></div>
+        <div class="demo-track" data-demo-track="baseline"></div>
+        <span class="demo-playhead" data-demo-playhead></span>
+        <input type="range" data-demo-seek min="0" max={first.baselineS} step="any" value="0" disabled aria-label="Shared replay time in seconds" />
+      </div>
+    </div>
+    <noscript><p><a href={`${base}videos/${first.id}.mp4`}>Watch the annotated comparison video</a>.</p></noscript>
+    <p class="demo-error" data-demo-error hidden>Replay data could not be loaded. <a href={`${base}videos/${first.id}.mp4`} data-demo-fallback>Watch the annotated video</a>.</p>
+  </div>
+  <figcaption class="demo-caption">
+    <p>The baseline finishes each language response before moving. OxyGen carries language generation across action updates.</p>
+    <details><summary>Measurement details</summary><p>π<sub>0.5</sub> on one RTX 4090; OxyGen decodes one token per request per update. The replay combines logged model inference time with simulation at 20 Hz, played at 1×. Action and language phases follow the original renderer’s timing split.</p></details>
   </figcaption>
 </figure>

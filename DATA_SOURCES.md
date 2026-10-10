@@ -153,3 +153,27 @@ Hero performance detail now shows baseline → OxyGen at the same π0.5
 N=30, k=1 point: round(19.1) → round(70.9) Hz and
 round(57.2) → round(212.9) tokens/s. Animation lane thickness depicts
 multiple requests in a batch; its geometry remains schematic.
+
+### Interactive demo timeline (2026-10-10)
+
+`public/data/demo-timelines.json` exports the same reconstructed clock as
+`render_comparison.py::build_side`, using the six original run directories in
+§3 above. `scripts/demo/export_timelines.py` reproduces the export with Python's
+standard library; pass `--verify-videos` to also check all three MP4 durations.
+`demo-timelines.provenance.json` records the source paths and SHA-256 hashes of
+the inference and action logs.
+
+Inference durations are the recorded `server_timing.infer_ms`. The boundary
+between action and language follows the existing renderer exactly: split the
+server duration in proportion to `action_ms` / `language_ms` for the baseline,
+and `prefill_actions_ms` / (`text_gen_ms` + `post_proc_ms`) for OxyGen. Thus these
+are reconstructed subphase boundaries, not independently recorded wall-clock
+start timestamps. Movement runs at the original 20 Hz simulation rate.
+The final frame step is the last action step plus one, exactly as saved by
+`replay_hires.py`; the old temporary high-resolution NPZ files are not needed.
+Latest completed language outputs are exported at each inference-call boundary.
+
+All completion times round to the existing `site.ts` values. Each existing
+landscape MP4 duration matches `floor((max completion + 2 seconds) * 30) / 30`,
+including the renderer's 2-second end hold. Interactive displays should stop the
+shared measurement clock at `total`, not count that hold as task time.

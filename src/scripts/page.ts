@@ -144,39 +144,191 @@ function initDesign() {
 function initDemo() {
   const root = document.querySelector<HTMLElement>("[data-demo]");
   if (!root) return;
+  type Phase = "action" | "language" | "move";
+  type Segment = { start: number; end: number; kind: Phase; step: number };
+  type Side = { duration: number; segments: Segment[]; firstStep: number; lastStep: number };
+  type Replay = { total: number; controlDt: number; oxygen: Side; baseline: Side };
   const video = root.querySelector<HTMLVideoElement>("[data-demo-video]")!;
   const tabs = $all<HTMLButtonElement>("[role=tab]", root);
-  const portrait = window.matchMedia("(max-width: 680px)");
-  const load = (tab: HTMLButtonElement) => {
-    const name = `${tab.dataset.id}${portrait.matches ? "-vertical" : ""}`;
-    video.poster = `${root.dataset.base}posters/${name}.webp`;
-    video.querySelector("source")!.src = `${root.dataset.base}videos/${name}.mp4`;
-    video.setAttribute("aria-label", `${tab.dataset.label}: OxyGen and the isolated baseline side by side`);
-    video.load();
-
+  const play = root.querySelector<HTMLButtonElement>("[data-demo-play]")!;
+  const seek = root.querySelector<HTMLInputElement>("[data-demo-seek]")!;
+  const tracks = root.querySelector<HTMLElement>("[data-demo-tracks]")!;
+  const head = root.querySelector<HTMLElement>("[data-demo-playhead]")!;
+  const clock = root.querySelector<HTMLOutputElement>("[data-demo-clock]")!;
+  const error = root.querySelector<HTMLElement>("[data-demo-error]")!;
+  const sides = ["oxygen", "baseline"] as const;
+  const labels = { action: "Action inference", language: "Language inference", move: "Executing actions" };
+  let replay: Replay | undefined;
+  let taskId = tabs[0].dataset.id!;
+  let animation = 0;
+  let wantsPlay = false;
+  let dragging = false;
+  const data = fetch(`${root.dataset.base}data/demo-timelines.json`).then(response => {
+    if (!response.ok) throw new Error("Replay data unavailable");
+    return response.json() as Promise<Record<string, Replay>>;
+  });
+  const render = (time: number) => {
+    if (!replay) return;
+    // Media timestamps are quantized to microseconds; preserve the exact end state.
+    const t = time >= replay.total - 0.00001 ? replay.total : Math.max(0, time);
+    seek.value = String(t);
+    seek.setAttribute("aria-valuetext", `${t.toFixed(2)} seconds`);
+    clock.value = t.toFixed(2);
+    head.style.left = `${t / replay.total * 100}%`;
+    if (video.paused) {
+      play.textContent = t === replay.total ? "Replay" : "Play";
+      play.setAttribute("aria-label", t === replay.total ? "Replay demo" : "Play demo");
+    }
+    for (const side of sides) {
+      const run = replay[side];
+      const phase = root.querySelector<HTMLElement>(`[data-demo-phase="${side}"]`)!;
+      const progress = root.querySelector<HTMLElement>(`[data-demo-step="${side}"]`)!;
+      const segment = run.segments.find(s => s.start <= t && t < s.end);
+      const step = segment ? Math.min(run.lastStep, segment.step + (segment.kind === "move" ? Math.floor((t - segment.start) / replay.controlDt) + 1 : 0)) : run.lastStep;
+      phase.textContent = segment ? labels[segment.kind] : "Task complete";
+      phase.dataset.kind = segment?.kind ?? "done";
+      progress.textContent = `Step ${step} / ${run.lastStep}`;
+    }
   };
-  const current = () => tabs.find((tab) => tab.getAttribute("aria-selected") === "true") ?? tabs[0];
-  if (portrait.matches) load(current());
-  portrait.addEventListener("change", () => load(current()));
-  for (const tab of tabs) {
+  const updateButton = () => {
+    const playing = !video.paused && !video.ended;
+    play.textContent = playing ? "Pause" : "Play";
+    play.setAttribute("aria-label", playing ? "Pause demo" : "Play demo");
+  };
+  const tick = () => {
+    if (dragging) return;
+    render(video.currentTime);
+    if (replay && video.currentTime >= replay.total) {
+      video.pause();
+      wantsPlay = false;
+      render(replay.total);
+      play.textContent = "Replay";
+      play.setAttribute("aria-label", "Replay demo");
+      return;
+    }
+    if (!video.paused) animation = requestAnimationFrame(tick);
+  };
+  const start = () => {
+    if (!replay || video.readyState < 1) return;
+    if (video.currentTime >= replay.total - 0.001) video.currentTime = 0;
+    void video.play().catch(() => { wantsPlay = false; updateButton(); });
+  };
+  const load = async (tab: HTMLButtonElement) => {
+    const id = tab.dataset.id!;
+    taskId = id;
+    video.pause();
+    replay = undefined;
+    play.disabled = true;
+    seek.disabled = true;
+    error.hidden = true;
+    video.poster = `${root.dataset.base}posters/${id}-interactive.webp`;
+    video.querySelector("source")!.src = `${root.dataset.base}videos/${id}-interactive.mp4`;
+    video.setAttribute("aria-label", `${tab.dataset.label}: synchronized OxyGen and isolated baseline replay`);
+    root.querySelector("[role=tabpanel]")!.setAttribute("aria-labelledby", tab.id);
+    root.querySelector("[data-demo-task]")!.textContent = tab.dataset.task!;
+    root.querySelector("[data-demo-gain]")!.textContent = `${(Number(tab.dataset.baseline) / Number(tab.dataset.oxygen)).toFixed(2)}×`;
+    root.querySelector<HTMLAnchorElement>("[data-demo-fallback]")!.href = `${root.dataset.base}videos/${id}.mp4`;
+    for (const side of sides) {
+      root.querySelector(`[data-demo-duration="${side}"]`)!.textContent = `${Number(tab.dataset[side]).toFixed(1)} s`;
+      root.querySelector(`[data-demo-phase="${side}"]`)!.textContent = "Loading replay…";
+      root.querySelector(`[data-demo-step="${side}"]`)!.textContent = "";
+      root.querySelector(`[data-demo-track="${side}"]`)!.replaceChildren();
+    }
+    clock.value = "0.00";
+    head.style.left = "0%";
+    video.load();
+    try {
+      const all = await data;
+      if (taskId !== id) return;
+      replay = all[id];
+      if (!replay) throw new Error("Missing task data");
+      seek.max = String(replay.total);
+      root.querySelector("[data-demo-total]")!.textContent = replay.total.toFixed(2);
+      for (const side of sides) {
+        const track = root.querySelector(`[data-demo-track="${side}"]`)!;
+        for (const segment of replay[side].segments) {
+          const span = document.createElement("span");
+          span.dataset.kind = segment.kind;
+          span.style.left = `${segment.start / replay.total * 100}%`;
+          span.style.width = `${(segment.end - segment.start) / replay.total * 100}%`;
+          track.append(span);
+        }
+      }
+      render(0);
+      play.disabled = video.readyState < 1;
+      seek.disabled = video.readyState < 1;
+      if (wantsPlay) start();
+    } catch {
+      if (taskId === id) error.hidden = false;
+    }
+  };
+  video.addEventListener("loadedmetadata", () => {
+    if (replay) { play.disabled = false; seek.disabled = false; }
+    if (wantsPlay) start();
+  });
+  const mediaError = () => { error.hidden = false; play.disabled = true; seek.disabled = true; };
+  video.addEventListener("error", mediaError);
+  video.querySelector("source")!.addEventListener("error", mediaError);
+  video.addEventListener("play", () => { updateButton(); cancelAnimationFrame(animation); tick(); });
+  video.addEventListener("pause", () => { cancelAnimationFrame(animation); updateButton(); });
+  video.addEventListener("seeked", () => { if (!dragging) render(video.currentTime); });
+  video.addEventListener("timeupdate", () => { if (!dragging) render(video.currentTime); });
+  play.addEventListener("click", () => {
+    wantsPlay = video.paused;
+    if (wantsPlay) start(); else video.pause();
+  });
+  const scrub = (value: number) => {
+    if (!replay) return;
+    wantsPlay = false;
+    video.pause();
+    const t = Math.max(0, Math.min(replay.total, value));
+    video.currentTime = t;
+    render(t);
+  };
+  seek.addEventListener("input", () => scrub(Number(seek.value)));
+  seek.addEventListener("keydown", event => {
+    if (!replay) return;
+    const direction = event.key === "ArrowRight" || event.key === "ArrowUp" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 0;
+    if (direction) { event.preventDefault(); scrub(Number(seek.value) + direction * replay.controlDt); }
+  });
+  const point = (event: PointerEvent) => {
+    const bounds = tracks.getBoundingClientRect();
+    scrub((event.clientX - bounds.left) / bounds.width * (replay?.total ?? 0));
+  };
+  seek.addEventListener("pointerdown", event => {
+    if (seek.disabled) return;
+    event.preventDefault(); dragging = true; seek.focus(); seek.setPointerCapture(event.pointerId); point(event);
+  });
+  seek.addEventListener("pointermove", event => { if (dragging) point(event); });
+  seek.addEventListener("pointerup", event => { if (dragging) point(event); dragging = false; });
+  seek.addEventListener("pointercancel", () => { dragging = false; });
+  for (const [index, tab] of tabs.entries()) {
     tab.addEventListener("click", () => {
-      if (tab.getAttribute("aria-selected") === "true") return;
+      if (tab.dataset.id === taskId) return;
+      wantsPlay = !video.paused;
       select(tabs, tab);
-      load(tab);
-      void video.play().catch(() => undefined);
+      for (const item of tabs) item.tabIndex = item === tab ? 0 : -1;
+      void load(tab);
+    });
+    tab.addEventListener("keydown", event => {
+      let next = index;
+      if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+      else if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else return;
+      event.preventDefault(); tabs[next].focus(); tabs[next].click();
     });
   }
-  if (reducedMotion) return;
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        void video.play().catch(() => undefined);
-        observer.disconnect();
+  void load(tabs[0]);
+  if (!reducedMotion) {
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        wantsPlay = true; start(); observer.disconnect();
       }
-    },
-    { threshold: 0.6 },
-  );
-  observer.observe(video);
+    }, { threshold: 0.6 });
+    observer.observe(video);
+  }
 }
 
 /** Draws a chart panel's lines once. */

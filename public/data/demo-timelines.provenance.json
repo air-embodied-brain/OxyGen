@@ -1,0 +1,54 @@
+{
+  "runsRoot": "visual_memory_v1_20260813",
+  "timingSource": "render_comparison.py build_side; server inference durations split by policy timing ratios; simulated movement at 20 Hz",
+  "evidence": {
+    "white-mug-and-chocolate-pudding": {
+      "oxygen": {
+        "run": "demo_campaign_v2/oxygen/k1/task6",
+        "sha256": {
+          "inference_events.jsonl": "5eaf2f4b819c5e6e6c922956f03a551bcd94081ac3bcf11b83bfb50272f05365",
+          "action_trajectory.jsonl": "2e2de5ab746241c5213b10408589df6e6ab2d162c8d7a057062701ffe4be2c61"
+        }
+      },
+      "baseline": {
+        "run": "blocking_baseline_eos_v2/task6",
+        "sha256": {
+          "inference_events.jsonl": "807cebd8e794195493d3d49c05992fc823a5a76d8c6f2c617c8ff52733d1c20b",
+          "action_trajectory.jsonl": "5c4169116918e61b30b5bf68e6a84f4b98a145066e00f83af74d0e9e055c4c85"
+        }
+      }
+    },
+    "alphabet-soup-and-tomato-sauce": {
+      "oxygen": {
+        "run": "demo_campaign_v2/oxygen/k1/task0",
+        "sha256": {
+          "inference_events.jsonl": "cf5f844034e5cdf1d1578c3a9526cc07c61b54cbf579b789c836cf6169c64f06",
+          "action_trajectory.jsonl": "2c123ee0b6ab1ff881a3810f48a1c22ae7c255a0080e74a428f925b8e1974e7e"
+        }
+      },
+      "baseline": {
+        "run": "blocking_baseline_eos_v2/task0",
+        "sha256": {
+          "inference_events.jsonl": "d485532d3c4b3ba64da9c6c65ef78cc563127d35584f196337cc917c7b6b5811",
+          "action_trajectory.jsonl": "8e63510f417f5a538c46de706993058611ab3fd8c88f94302f15f08cd928e520"
+        }
+      }
+    },
+    "moka-pots": {
+      "oxygen": {
+        "run": "demo_campaign_v2/oxygen/k1/task8",
+        "sha256": {
+          "inference_events.jsonl": "75773a21fad5e8ea2dd816c08aebaec7c3fdabc5366146e24ce1d90bdd7e92e8",
+          "action_trajectory.jsonl": "e35fd596f9c8d7cf1c299fa6a1511047f3c69d88fe42373ba95f4ee31dbda93c"
+        }
+      },
+      "baseline": {
+        "run": "blocking_baseline_eos_v2/task8",
+        "sha256": {
+          "inference_events.jsonl": "6bac898c88c765b9f65bb09f97e5334db7d4d57a9cd19eb4a9d5dbbb25d67dd1",
+          "action_trajectory.jsonl": "c263c0037945259119ad99b0879f299878773e2781b13c3b62854c528f05f0b7"
+        }
+      }
+    }
+  }
+}
