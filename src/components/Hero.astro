@@ -13,8 +13,8 @@ const authors = [
 // Schematic schedule, not measured stage durations. Both rows share one time
 // scale and repeat a whole tile, so the scrolling loop has no seam.
 const schedule = [
-  { name: "Isolated", phrase: "one request at a time", batch: 1, period: 240, action: 44, language: 182 },
-  { name: "OxyGen", phrase: "more requests per step", batch: 6, period: 80, action: 44, language: 24 },
+  { name: "Isolated", phrase: "language blocks action generation", batch: 1, period: 240, action: 44, language: 182 },
+  { name: "OxyGen", phrase: "language resumes across frames in batches", batch: 6, period: 80, action: 44, language: 24 },
 ];
 ---
 
@@ -50,9 +50,9 @@ const schedule = [
     </div>
 
     <div class="c9-12 hero-summary">
-      <p class="label summary-label">TL;DR</p>
+      <p class="summary-heading"><span class="label summary-label">TL;DR</span><strong>Let robots talk while they act.</strong></p>
       <p class="dek">
-        <strong>Let robots talk while they act.</strong> OxyGen shares what both tasks have already computed, letting language unfold across action updates instead of holding up the next move.
+        OxyGen shares what both tasks have already computed, letting language unfold across action updates instead of holding up the next move.
       </p>
 
       <figure class="schedule-demo" aria-label="Illustrative inference schedule: isolated execution finishes each language request before the next action update; OxyGen batches language across updates.">
@@ -65,7 +65,7 @@ const schedule = [
                 <g class="schedule-tape">
                   {Array.from({length: 9}, (_,i) => <g transform={`translate(${i * run.period} 0)`}>
                     <rect x="0" y="17" width={run.action} height="7" fill="var(--action)" />
-                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" />)}
+                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" opacity={run.batch === 1 ? 1 : 0.3 + 0.7 * row / (run.batch - 1)} />)}
                   </g>)}
                 </g>
               </svg>
@@ -73,7 +73,7 @@ const schedule = [
 
           </div>
         ))}
-        <div class="key"><span><i style="background:var(--action)"></i>action</span><span><i style="background:var(--language)"></i>language requests</span></div>
+        <div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span></div>
 
       </figure>
     </div>

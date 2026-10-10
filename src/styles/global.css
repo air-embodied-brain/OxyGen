@@ -379,10 +379,7 @@ dd {
   white-space: nowrap;
 }
 
-.byline .names span + span::before {
-  content: ",\00a0";
-  font-weight: 400;
-}
+
 
 .byline .names a {
   text-decoration: none;
@@ -2070,7 +2067,7 @@ table.data td.bar {
 .contact-block p { display: flex; gap: 30px; font: 16px var(--sans); margin: 8px 0 0; }
 @media(max-width:900px) { .performance-groups { grid-template-columns: 1fr; gap: 24px; } }
 
-.summary-label { margin-bottom: 9px; color: var(--muted); }
+.summary-label { color: var(--muted); }
 .performance-groups + #demo { margin-top: 32px; }
 @media(min-width:901px) {
  .masthead-body { align-items: stretch; }
@@ -2104,11 +2101,13 @@ table.data td.bar {
 
 /* Compact opening identity and evidence. */
 .byline .project-affiliation { font: 400 16px/1.5 var(--sans); color: var(--ink); }
-.byline .names { margin-bottom: 4px; }
+.masthead .byline { margin-top: 18px; }
+.byline .names { margin-bottom: 4px; gap: 2px 14px; justify-content: space-between; }
 .masthead .byline a, .masthead .links a { text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 4px; text-decoration-thickness: 1px; border: 0; padding: 0; }
 .masthead .byline a:hover, .masthead .links a:hover { color: var(--action); text-decoration-color: var(--action); }
-.masthead .links { margin-top: 16px; gap: 8px 24px; font-size: 16px; font-weight: 500; }
-.hero-summary .dek strong { display: block; font-weight: 600; color: var(--action); margin-bottom: 8px; }
+.masthead .links { margin-top: 12px; gap: 8px 24px; justify-content: space-between; font-size: 16px; font-weight: 500; }
+.summary-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 8px; }
+.summary-heading strong { font-size: 17px; font-weight: 600; color: var(--action); }
 .joint-metrics { grid-template-columns: .85fr 1fr 1.25fr; gap: 16px; align-items: baseline; }
 .performance-groups .joint-gain strong, .performance-transfer strong { font-size: 36px; }
 .performance-groups .metric-comparison strong { font-size: 28px; }
