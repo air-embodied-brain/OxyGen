@@ -1,0 +1,120 @@
+[
+  {
+    "id": "019f920d-e283-7201-8a4b-31d31623081f",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/24/rollout-2026-07-24T10-56-51-019f920d-e283-7201-8a4b-31d31623081f.jsonl",
+    "source": "cli",
+    "sha256": "cca10617f89b76ff6ad0b5e1b640039aaa3fa85bd9051170dcddc3d3e4bacae8"
+  },
+  {
+    "id": "019f9d90-2c74-7d53-b26e-c39ef2554f17",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/26/rollout-2026-07-26T16-34-59-019f9d90-2c74-7d53-b26e-c39ef2554f17.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019f920d-e283-7201-8a4b-31d31623081f",
+          "depth": 1,
+          "agent_path": "/root/bs32_fluctuating_3000",
+          "agent_nickname": "Mencius",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "9f5505b48aa652ca4673893ff98c09a12af93a30e2fb5e430f3a69023ba1bdbf"
+  },
+  {
+    "id": "019fa2bc-c501-7b82-8ee8-5227b5ed6fdf",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/27/rollout-2026-07-27T16-41-48-019fa2bc-c501-7b82-8ee8-5227b5ed6fdf.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019f920d-e283-7201-8a4b-31d31623081f",
+          "depth": 1,
+          "agent_path": "/root/xiaomi_rerun",
+          "agent_nickname": "Laplace",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "a9b82c29584380ba6cbb265df9981c1886e62c43d1f2b26566b71de68f0f4fb5"
+  },
+  {
+    "id": "019fa2bd-fc04-7500-a3eb-6397591bc05d",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/27/rollout-2026-07-27T16-43-07-019fa2bd-fc04-7500-a3eb-6397591bc05d.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019f920d-e283-7201-8a4b-31d31623081f",
+          "depth": 1,
+          "agent_path": "/root/starvla_experts",
+          "agent_nickname": "Turing",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "7cd8cadcf40613b1cb4caaaf24679843dced2c40007425837ec20bf354353036"
+  },
+  {
+    "id": "019fa2be-31b8-7851-a55d-f2a6c72b0cf5",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/27/rollout-2026-07-27T16-43-21-019fa2be-31b8-7851-a55d-f2a6c72b0cf5.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019f920d-e283-7201-8a4b-31d31623081f",
+          "depth": 1,
+          "agent_path": "/root/qwen_scaling_tp",
+          "agent_nickname": "Hubble",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "d70104af2e4d002f7e96d519729b678893aa70f61e7002840ff4ca141a71f93c"
+  },
+  {
+    "id": "019fa4a0-6daf-7210-8658-7c2be74bab32",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/28/rollout-2026-07-28T01-30-05-019fa4a0-6daf-7210-8658-7c2be74bab32.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019fa2be-31b8-7851-a55d-f2a6c72b0cf5",
+          "depth": 2,
+          "agent_path": "/root/qwen_scaling_tp/qwen35_scaling_rerun",
+          "agent_nickname": "Poincare",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "d1654a5b948618faef23fb46d013366eabf62f20a982ce90dee7d2c34f676f4d"
+  },
+  {
+    "id": "019fa4bd-d11c-7543-a383-78c4a88c1c8f",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/28/rollout-2026-07-28T02-02-11-019fa4bd-d11c-7543-a383-78c4a88c1c8f.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019fa4a0-6daf-7210-8658-7c2be74bab32",
+          "depth": 3,
+          "agent_path": "/root/qwen_scaling_tp/qwen35_scaling_rerun/gd8_formal_rerun",
+          "agent_nickname": "Linnaeus",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "5fce3231249035844e429b940d74b5fec9998514642218fce4d4cfa93a56d85e"
+  },
+  {
+    "id": "019fae48-45ad-7a30-aafe-bd33db4d12d8",
+    "file": "/home/lixiangyu/.codex/sessions/2026/07/29/rollout-2026-07-29T22-29-59-019fae48-45ad-7a30-aafe-bd33db4d12d8.jsonl",
+    "source": {
+      "subagent": {
+        "thread_spawn": {
+          "parent_thread_id": "019f920d-e283-7201-8a4b-31d31623081f",
+          "depth": 1,
+          "agent_path": "/root/aligned_kv_profile",
+          "agent_nickname": "Boole",
+          "agent_role": null
+        }
+      }
+    },
+    "sha256": "7076b5869d94c1eba6f6364d2690dff1be4d0d811e3e7c96248f643f7a9eabba"
+  }
+]

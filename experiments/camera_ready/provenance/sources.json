@@ -1,0 +1,82 @@
+{
+  "oxygen_pi05_small_n_profile.py": {
+    "source": "remote_edit/oxygen_pi05_small_n_profile.py",
+    "source_sha256": "c85dca2fc29106f0aeda85545de243d88c3f5a418053af36e517a11e216a25a1",
+    "change": "byte identical"
+  },
+  "profile_oxygen_kv_allocator.py": {
+    "source": "remote_edit/profile_oxygen_kv_allocator.py",
+    "source_sha256": "427401e4ce4f02e23161376b6eac2e663c15408e09e801c4a053fcd3f38fbf79",
+    "change": "byte identical"
+  },
+  "profile_fullpath.py": {
+    "source": "results/kv_manager_fullpath_aligned_20260729/profile_fullpath.py",
+    "source_sha256": "7ee8f4bb4e1b50813678b36e09412b5c253d5eebb830ed8083ef253c52a316ba",
+    "change": "byte identical"
+  },
+  "profile_oxygen_kv_manager_longrun.py": {
+    "source": "results/eccv_submission_raw/kv_manager_longrun_20260726/profile_oxygen_kv_manager_longrun.py",
+    "source_sha256": "306c5d214d0dff309bec1a24c1532a5b1554a9b2aaf4ab1cd99dc3d96aeb46a9",
+    "change": "byte identical"
+  },
+  "analyze_robust_latency.py": {
+    "source": "results/eccv_submission_raw/kv_manager_longrun_20260726/analyze_robust_latency.py",
+    "source_sha256": "af0f758f70ffdd451d021e8ffa672323437025600e68278197e7b6dfcc84b6c2",
+    "change": "byte identical"
+  },
+  "oxygen_k_expert_formal_fixed_prefix.py": {
+    "source": "results/starvla_4b_multi_expert_fixed_prefix_20260727/benchmark_script.py",
+    "source_sha256": "77c8687416696f6ef981afeff370e808ba3f78d92f47f49b12e5350172d611b2",
+    "change": "relocate sibling imports only"
+  },
+  "oxygen_real_experts.py": {
+    "source": "results/starvla_4b_multi_expert_fixed_prefix_20260727/oxygen_real_experts.py",
+    "source_sha256": "ac4376d519707c7ba619ffd1a9c7feaea4dd4a522c9bf5b799ea608ea2a79c2b",
+    "change": "relocate sibling imports only"
+  },
+  "oxygen_heterogeneous_sweep.py": {
+    "source": "results/starvla_4b_multi_expert_fixed_prefix_20260727/oxygen_heterogeneous_sweep.py",
+    "source_sha256": "3a4cfd10fa5b5c865159ade40871249b7ca8e11bddba32fd488e866d697e9665",
+    "change": "relocate sibling imports only"
+  },
+  "starVLA_qwen35_tp_benchmark.py": {
+    "source": "results/qwen35_scaling_tp_formal_20260728/benchmark_script.py",
+    "source_sha256": "0fdbe6b8b50e7ec6929cebdc6726875bb3b1ac5a9d0ccafa08a8a70d5b433e42",
+    "change": "byte identical"
+  },
+  "starVLA_qwen25vl_tp_benchmark.py": {
+    "source": "results/qwen35_scaling_tp_formal_20260728/benchmark_helper.py",
+    "source_sha256": "8b12c950d25c4a0a836dc72e31978bdd208ace084d1156a2505aa6e59f11737a",
+    "change": "relocate sibling imports only"
+  },
+  "analyze_qwen35_scaling_tp.py": {
+    "source": "results/qwen35_scaling_tp_formal_20260728/analysis_script.py",
+    "source_sha256": "3891d77e5e94063d1b421b84a79da4387e152bb09456fab6eb31273397ab5b19",
+    "change": "byte identical"
+  },
+  "qwen35_native_decoder_diagnostic.py": {
+    "source": "results/qwen35_scaling_tp_formal_20260728/diagnostics/diagnostic_script.py",
+    "source_sha256": "e6a35e7c86667d524cdbedd0261bda45d1124db439f8429e5848a79ee99fbfd3",
+    "change": "byte identical"
+  },
+  "oxygen_runtime.py": {
+    "source": "experiment_repos/Xiaomi-Robotics-0/scripts/oxygen_runtime.py",
+    "source_sha256": "1531f0c69f311e674160006385fae8c24caf7c8634d2dca1c5278e5f9cf525a7",
+    "change": "byte identical"
+  },
+  "oxygen_paper_sweep_formal_20260727.py": {
+    "source": "experiment_repos/Xiaomi-Robotics-0/scripts/oxygen_paper_sweep_formal_20260727.py",
+    "source_sha256": "8e06108aec6129f9b945cac2946821955d8b619248d01d7b0685d1d8215ed2b3",
+    "change": "byte identical"
+  },
+  "oxygen_continuous_text_smoke_formal_20260727.py": {
+    "source": "experiment_repos/Xiaomi-Robotics-0/scripts/oxygen_continuous_text_smoke_formal_20260727.py",
+    "source_sha256": "0ccab1f3ad9b60f7bf779bf44872b85bd7bf544fa4f6bfc3c8040313eb4d4aee",
+    "change": "byte identical"
+  },
+  "oxygen_batch_equivalence_smoke.py": {
+    "source": "experiment_repos/Xiaomi-Robotics-0/scripts/oxygen_batch_equivalence_smoke.py",
+    "source_sha256": "59621bc33e52cc316c4e508b4a1c578a36ccf3dbb7564f534c911829768cbc5f",
+    "change": "byte identical"
+  }
+}

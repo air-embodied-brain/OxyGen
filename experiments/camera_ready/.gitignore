@@ -1,0 +1,8 @@
+!**/*.json
+!**/*.txt
+!inputs/*.png
+!vendor/**
+**/__pycache__/
+**/*.pyc
+**/.venv/
+*.local.json

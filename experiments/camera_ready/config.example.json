@@ -1,0 +1,29 @@
+{
+  "output": "/absolute/path/to/new-results",
+  "devices": [
+    "0"
+  ],
+  "include_tp2": false,
+  "random_init": true,
+  "python": {
+    "pi": "/absolute/path/to/envs/pi/bin/python",
+    "xiaomi": "/absolute/path/to/envs/xiaomi/bin/python",
+    "starvla": "/absolute/path/to/envs/starvla/bin/python",
+    "qwen35": "/absolute/path/to/envs/qwen35/bin/python",
+    "plot": "/absolute/path/to/envs/pi/bin/python"
+  },
+  "checkpoints": {
+    "pi_jax": "/checkpoints/pi05_libero_modelscope",
+    "pi_pytorch": "/checkpoints/pi05_libero_pytorch",
+    "xiaomi": "/checkpoints/Xiaomi-Robotics-0-LIBERO",
+    "qwen3vl": "/checkpoints/Qwen3-VL-4B-Instruct",
+    "star_pi": "/checkpoints/Qwen3VL-PI_v3-Bridge-RT_1/checkpoints/steps_50000_pytorch_model.pt",
+    "star_groot": "/checkpoints/Qwen3VL-GR00T-Bridge-RT-1/checkpoints/steps_20000_pytorch_model.pt",
+    "star_oft": "/checkpoints/Qwen3VL-OFT-Bridge-RT-1/checkpoints/steps_5000_pytorch_model.pt",
+    "qwen35_0p8b": "/checkpoints/Qwen3.5-0.8B",
+    "qwen35_2b": "/checkpoints/Qwen3.5-2B",
+    "qwen35_4b": "/checkpoints/Qwen3.5-4B",
+    "qwen35_9b": "/checkpoints/Qwen3.5-9B"
+  },
+  "assets_lock": "/absolute/path/to/checkpoints.sha256.json"
+}

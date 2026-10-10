@@ -1,0 +1,5 @@
+-r common.txt
+transformers==5.2.0
+accelerate==1.10.1
+diffusers==0.39.0
+flash-linear-attention==0.5.1

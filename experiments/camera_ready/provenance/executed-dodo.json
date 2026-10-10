@@ -1,0 +1,13 @@
+{
+  "measured_source_lock": "a1124ea62d593174ac5740e65a85674900a3120888bbd549a2a82bbe48a136f6",
+  "base_commit": "4db4c8c39dd82c81eb6e33edb8b515117b3c493b",
+  "adopted_run": "formal-affinity-v1",
+  "archive_id": "paper_results_20261009",
+  "source_snapshot": "workspace/results/dodo_camera_ready_20261008/source/OxyGen",
+  "command_records": "workspace/results/dodo_camera_ready_20261008/results/formal-affinity-v1/status",
+  "preserved_measured_manifest": "executed-dodo-source-lock.json",
+  "postmeasurement_changes": [
+    "reviewed plotting uses ordinary 119-frame cycle means and updated typography",
+    "documentation and current source-lock updated; measurement runners/vendors/protocol are byte-identical to executed snapshot"
+  ]
+}

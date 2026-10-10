@@ -1,0 +1,5 @@
+-r common.txt
+transformers==4.57.1
+accelerate==1.11.0
+huggingface-hub==0.36.0
+safetensors==0.6.2

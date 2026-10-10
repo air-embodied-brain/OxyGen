@@ -1,0 +1,15 @@
+torch==2.8.0
+torchvision==0.23.0
+numpy==2.2.6
+pillow==11.3.0
+einops==0.8.1
+omegaconf==2.3.0
+qwen-vl-utils==0.0.14
+rich==14.1.0
+timm==1.0.20
+bitsandbytes==0.48.1
+sentencepiece==0.2.1
+ninja==1.13.0
+packaging==25.0
+setuptools==80.9.0
+wheel==0.45.1

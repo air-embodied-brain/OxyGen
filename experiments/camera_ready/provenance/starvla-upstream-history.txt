@@ -1,0 +1,145 @@
+commit c00b8e18c1b5ba6228fd68a8f38acca8df4e938a
+Author:     Jiahang Li <103312600+LiJiahang617@users.noreply.github.com>
+AuthorDate: Mon Jul 20 16:48:35 2026 +0800
+Commit:     GitHub <noreply@github.com>
+CommitDate: Mon Jul 20 16:48:35 2026 +0800
+
+    [framework] (VM4A): Add VM4A (VisuoMotor for Action) family — ACT + Diffusion Policy (#422)
+    
+    * feat(VM4A): add VM4A (ACT + Diffusion Policy) framework family
+    
+    Adds a from-scratch visuomotor framework family: ACT (LeRobot ACTPolicy wrapper with identity normalizers) and Diffusion Policy (vendored real-stanford/diffusion_policy image-policy subset, MIT, with an EMA-persistence fix). Both default to ImageNet-pretrained ResNet-18 backbones (configurable). Zero-intrusion registration; docs/VM4A.md; model_zoo entry; genericized Realman example. Additive: the only modified existing file is docs/model_zoo.md. Verified locally: registration / build / forward / predict / EMA round-trip all pass; black + ruff clean on changed files. Test files intentionally not included per maintainer review feedback.
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+    
+    * fix(VM4A): address automated review feedback
+    
+    - ACT: guard the optional lerobot import so framework auto-discovery succeeds without it; instantiating ACT then raises a clear ImportError (lerobot is not in requirements.txt).
+    - Vendored DP normalizer: make zarr optional via a typing-safe stub (only the unused fit-from-zarr path needs it); the only functional deviation from upstream, marked inline.
+    - Realman example: give Diffusion Policy its own mixture whose action window equals framework.horizon (16), so training targets start at the sampled observation; DP batch building now also takes the immediate horizon prefix (identical behavior when the window equals the horizon).
+    - DP/ACT image fast path: only used when ndarray frames already match the configured input size; other resolutions fall back to the resizing PIL path instead of tripping the encoder shape assertion.
+    - DP EMA: documented the update-timing caveat (the trainer exposes no post-optimizer hook to frameworks; the one-step lag is negligible over full training).
+    Verified: framework discovery succeeds with lerobot/zarr import-blocked; local test suite passes unchanged; black + ruff clean on changed files (vendored file untouched by formatters).
+    
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+    
+    ---------
+    
+    Co-authored-by: LiJiahang617 <lijiahang0617@gmail.com>
+    Co-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+
+commit f7e3a60b9f433df39ada096fdd551f191488c549
+Author:     hyding1 <haoyuding252@gmail.com>
+AuthorDate: Mon Jul 20 04:45:30 2026 -0400
+Commit:     GitHub <noreply@github.com>
+CommitDate: Mon Jul 20 16:45:30 2026 +0800
+
+    [framework] Add EgoVLA (VILA bimanual VLA) as a selectable model (#419)
+    
+    * Built and tested a GR00T-protocol compatibility server inside starVLA
+    
+    * [framework] Add EgoVLA (VILA bimanual VLA) as a selectable model
+    
+    Adds EgoVLA to the plug-and-swap model zoo (framework.name: EgoVLA),
+    alongside QwenOFT/QwenGR00T/PI0/PI05. Vendored natively — no dependency
+    on EgoVLA_Release/llava; runs in starVLA's transformers-4.57 env.
+    
+    Components:
+    - modules/vlm/VILA.py           _EgoVLA_VILA_Interface: SigLIP-384 (native
+                                    SiglipVisionModel) + Qwen2-1.5B (native
+                                    AutoModelForCausalLM) + vendored projector
+    - modules/vlm/vila_egovla/      projector (mlp_downsample) + LLaVA multimodal
+                                    splice (prepare_inputs_labels_for_multimodal)
+    - action_model/EgoVLA_ActionHeader.py  transformer trajectory decoder ->
+                                    48-dim per-step MANO/camera action
+    - framework/VLM4A/EgoVLA.py     forward/predict_action orchestration
+    - modules/vlm/__init__.py       get_vlm_model: egovla/vila dispatch branch
+    - examples/realRobots/EgoVLA/   demo train yaml + README
+    
+    Verified against the public ego_vla_checkpoint/ckpt-6720:
+    - native SigLIP/Qwen2 load vision_tower/ and llm/
+    - vendored mm_projector matches checkpoint 6/6 keys (strict load)
+    - vendored traj_decoder matches checkpoint 98/98 keys (strict load)
+    - end-to-end: encode_images -> splice -> Qwen2 -> action-query latent
+      -> trajectory decoder -> (T,48) prediction, all with real weights
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+    
+    * [framework] EgoVLA: match action-head dtype to backbone (bf16)
+    
+    Cast the trajectory-decoder head to the VILA backbone dtype so bf16
+    hidden states / proprio flow through it (was float32 -> dtype mismatch).
+    Verified under transformers 4.57 + torch 2.8 (sm_120): build_framework
+    ("EgoVLA") from the real ckpt, forward (action_loss) and predict_action
+    ((1,30,48)) both run on GPU.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+    
+    * [deployment] EgoVLA G1 policy server: run EgoVLA in the red-ball sim
+    
+    Adds a GR00T-protocol policy server that serves the starVLA EgoVLA model on
+    :5555 so the GR00T-WBC-Bridge -> Isaac-Lab G1 red-ball eval runs with EgoVLA
+    as the policy (sim + bridge unchanged). Decodes EgoVLA's 48-dim camera-frame
+    output into the bridge's joint-target contract:
+    
+    - arms: wrist EE pose (camera->pelvis via G1 D435 transform) -> 7-DoF joints
+      by pinocchio DLS IK (g1_kinematics, FK-IK round-trip 20/20 <1mm), warm-started
+      from state;
+    - hand: MANO -> MANO FK -> fingertips -> HandActuationNet -> Inspire -> Dex3-7,
+      per-finger (articulation preserved, so a commanded grasp is physically
+      reachable — grasp success is up to the model, not capped by the wrapper);
+    - base_height/navigate -> neutral.
+    
+    Only MANO forward kinematics is imported from EgoVLA (license-gated model); the
+    rest is self-contained. License-gated assets (checkpoint, MANO .pkl, hand nets)
+    are NOT committed — README documents the required downloads. Verified standalone:
+    synthetic bridge obs -> valid GR00T action dict (arms 7-DoF, hand articulated).
+    
+    Files: server_egovla_g1.py, egovla_g1_policy.py, decode.py, g1_kinematics.py,
+    g1_camera.py, assets/ (Unitree G1 URDF; hand nets git-ignored), README.md.
+    
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+    
+    * refactor(egovla): move deployment/egovla → examples/realRobots/EgoVLA/eval_files
+    
+    Consolidate the EgoVLA G1 deployment code under the EgoVLA example folder, as
+    requested in review, so it sits next to train_files/ (mirrors the
+    RoboChallenge_table30v2/{train,eval}_files package layout).
+    
+    - git-mv the server + policy + kinematics + assets into eval_files/ (history
+      preserved); add EgoVLA/__init__.py, keep eval_files/__init__.py, so the
+      example is a proper package.
+    - drop the ad-hoc sys.path.insert(..., "..", "..") shims: the repo is an
+      editable install, so deployment.model_server / starVLA resolve as installed
+      packages (matching the WholeBody eval_files convention). The sibling import in
+      server_egovla_g1.py becomes
+      `from examples.realRobots.EgoVLA.eval_files.egovla_g1_policy import EgoVLAG1Policy`.
+    - update README + docstring paths; license-gated *.pth stay git-ignored via
+      eval_files/assets/.gitignore.
+    
+    No behavior change: py_compile + import of all servers pass; no remaining
+    deployment/egovla references in the tree.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+    
+    * fix(egovla): bootstrap repo root on sys.path for the eval server entrypoint
+    
+    The reorg (ef082f1) dropped the sys.path shim assuming an editable install, but
+    the repo is not pip-installed, so running `python .../server_egovla_g1.py` failed
+    with `ModuleNotFoundError: No module named 'deployment'` (only the script's own
+    directory is auto-added to sys.path).
+    
+    Add a small `_bootstrap` helper that walks up to the repo root (marked by
+    pyproject.toml) and inserts it on sys.path. The entrypoint imports it guarded so
+    it is a no-op (ModuleNotFoundError, caught) when the file is imported as a package
+    module instead of run as a script.
+    
+    Verified: `python .../server_egovla_g1.py` resolves deployment/starVLA from any
+    cwd; importing the module as a package still works.
+    
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+    
+    ---------
+    
+    Co-authored-by: Ren_Jiming_jren313 <jren313@MEL05964D.me.gatech.edu>
+    Co-authored-by: Claude Opus 4.8 <noreply@anthropic.com>
