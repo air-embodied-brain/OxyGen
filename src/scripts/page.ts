@@ -189,13 +189,23 @@ function initDemo() {
       phase.textContent = segment ? labels[segment.kind] : "Task complete";
       phase.dataset.kind = segment?.kind ?? "done";
       progress.textContent = `Step ${step} / ${run.lastStep}`;
-      const output = root.querySelector<HTMLElement>(`[data-demo-output="${side}"]`)!;
-      const outputProgress = root.querySelector<HTMLElement>(`[data-demo-output-progress="${side}"]`)!;
+      const output = root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!;
       const latest = run.memory.filter(item => item.time <= t).at(-1);
       const activeCall = run.calls.find(call => call.start <= t && t < call.end);
       const activeLanguage = segment?.kind === "language";
-      output.textContent = latest ? `Latest language output: ${latest.text}` : "Latest language output: —";
-      outputProgress.textContent = activeLanguage && activeCall ? `Generating · ${Math.round((t - activeCall.actionEnd) / Math.max(activeCall.end - activeCall.actionEnd, 0.001) * 100)}%` : (latest ? "Language output available" : "Waiting for first output");
+      const inferenceElapsed = run.segments.reduce((sum, item) => {
+        if (item.kind === "move" || item.start >= t) return sum;
+        return sum + Math.max(0, Math.min(item.end, t) - item.start);
+      }, 0);
+      root.querySelector<HTMLElement>(`[data-demo-inference-elapsed="${side}"]`)!.textContent = `Inference ${inferenceElapsed.toFixed(2)} s`;
+      const currentText = activeCall?.updates.at(-1)?.text ?? latest?.text ?? "—";
+      output.textContent = `OUTPUT: ${currentText}`;
+      output.disabled = side !== "oxygen" || !activeCall;
+      output.dataset.active = activeCall && activeLanguage ? "true" : "false";
+      const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
+      if (activeCall) {
+        popover.innerHTML = activeCall.updates.map((item, index) => `<div><span>Request ${index + 1}</span><b>${item.text || "…"}</b></div>`).join("");
+      } else popover.innerHTML = latest ? `<div><span>Latest request</span><b>${latest.text}</b></div>` : "<div><span>Output</span><b>—</b></div>";
     }
   };
   const updateButton = () => {
@@ -236,16 +246,13 @@ function initDemo() {
     root.querySelector("[role=tabpanel]")!.setAttribute("aria-labelledby", tab.id);
     root.querySelector("[data-demo-task-text]")!.textContent = tab.dataset.task!;
     root.querySelector("[data-demo-gain]")!.textContent = `${(Number(tab.dataset.baseline) / Number(tab.dataset.oxygen)).toFixed(2)}×`;
-    for (const side of sides) {
-      root.querySelector(`[data-demo-speedup="${side}"]`)!.textContent = side === "oxygen" ? `${(Number(tab.dataset.baseline) / Number(tab.dataset.oxygen)).toFixed(2)}× faster` : "reference";
-    }
     root.querySelector<HTMLAnchorElement>("[data-demo-fallback]")!.href = `${root.dataset.base}videos/${id}.mp4`;
     for (const side of sides) {
       root.querySelector(`[data-demo-duration="${side}"]`)!.textContent = `${Number(tab.dataset[side]).toFixed(1)} s`;
-      root.querySelector(`[data-demo-inference="${side}"]`)!.textContent = "—";
-      root.querySelector(`[data-demo-inference-speedup="${side}"]`)!.textContent = "—";
       root.querySelector(`[data-demo-phase="${side}"]`)!.textContent = "Loading replay…";
       root.querySelector(`[data-demo-step="${side}"]`)!.textContent = "";
+      root.querySelector(`[data-demo-output="${side}"]`)!.textContent = "OUTPUT: —";
+      root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!.hidden = true;
       root.querySelector(`[data-demo-track="${side}"]`)!.replaceChildren();
     }
     clock.value = "0.00";
@@ -261,7 +268,6 @@ function initDemo() {
       for (const side of sides) {
         const inference = replay[side].segments.filter(segment => segment.kind !== "move").reduce((sum, segment) => sum + segment.end - segment.start, 0);
         root.querySelector(`[data-demo-inference="${side}"]`)!.textContent = `${inference.toFixed(1)} s`;
-        if (side === "oxygen") root.querySelector(`[data-demo-inference-speedup="${side}"]`)!.textContent = `${(replay.baseline.segments.filter(segment => segment.kind !== "move").reduce((sum, segment) => sum + segment.end - segment.start, 0) / inference).toFixed(2)}× faster`;
       }
       for (const side of sides) {
         const track = root.querySelector(`[data-demo-track="${side}"]`)!;
@@ -328,6 +334,23 @@ function initDemo() {
   seek.addEventListener("pointermove", event => { if (dragging) point(event); });
   seek.addEventListener("pointerup", event => { if (dragging) point(event); dragging = false; });
   seek.addEventListener("pointercancel", () => { dragging = false; });
+  for (const side of sides) {
+    const button = root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!;
+    const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
+    button.addEventListener("click", () => { if (!button.disabled) popover.hidden = !popover.hidden; });
+  }
+  const detailsButton = root.querySelector<HTMLButtonElement>("[data-demo-details]")!;
+  const detailsPopover = root.querySelector<HTMLElement>("[data-demo-details-popover]")!;
+  detailsButton.addEventListener("click", () => { detailsPopover.hidden = !detailsPopover.hidden; detailsButton.setAttribute("aria-expanded", String(!detailsPopover.hidden)); });
+  document.addEventListener("click", event => {
+    if (!(event.target instanceof Node)) return;
+    if (!root.contains(event.target)) return;
+    for (const side of sides) {
+      const button = root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!;
+      const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
+      if (event.target !== button && !popover.contains(event.target)) popover.hidden = true;
+    }
+  });
   for (const [index, tab] of tabs.entries()) {
     tab.addEventListener("click", () => {
       if (tab.dataset.id === taskId) return;
