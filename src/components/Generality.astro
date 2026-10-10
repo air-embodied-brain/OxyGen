@@ -38,19 +38,18 @@ const tp1 = tensorParallel[0];
 const tp2 = tensorParallel[1];
 const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
 const shortN = starvla[2].find((r) => r.N === 5)!.k5;
-const shortN3 = starvla[3].find((r) => r.N === 5)!.k5;
 const shortN4 = starvla[4].find((r) => r.N === 5)!.k5;
 const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
 ---
 
-<div class="grid">
+<div class="grid generality">
   <figure class="c1-8">
-    <div class="fig-head"><span class="title"><span class="label"><b>Table 1</b></span>Speedup over isolated execution, 30-token requests</span></div>
+    <div class="fig-head"><span class="title"><span class="label"><b>Table 1</b></span>Speedup over isolated execution</span><span class="table-condition">N = 30 tokens</span></div>
     <table class="data">
       <thead>
-        <tr><th scope="col" style="text-align: left"><span class="sr-only">Configuration</span></th><th scope="col" class="k">k = 1</th><th scope="col" class="k">k = 5</th><th scope="col"><span class="sr-only">Bars</span></th></tr>
+        <tr><th scope="col" class="configuration">Configuration</th><th scope="col" class="k">k = 1</th><th scope="col" class="k">k = 5</th><th scope="col" class="bar-heading">0–{MAX}×</th></tr>
       </thead>
-      {groups.slice(0, 2).map((group) => (
+      {groups.map((group) => (
         <tbody>
           <tr class="group"><th colspan="4">{group.label}</th></tr>
           {group.rows.map((row) => (
@@ -67,38 +66,51 @@ const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
     <div class="key">
       <span><i style="background: var(--action-3)"></i>k = 1</span>
       <span><i style="background: var(--action)"></i>k = 5</span>
-      <span><i style="width: 1px; height: 12px; background: var(--ink)"></i>1×</span>
+      <span><i style="width: 1px; height: 12px; background: var(--ink)"></i>isolated baseline · 1×</span>
     </div>
-    <figcaption class="caption">π<sub>0.5</sub>: original paper measurements. Other rows: camera-ready remeasurements on RTX 4090 with an i9-13900K. StarVLA and Qwen3.5 use <i>S</i> = 4. Different host and software setups mean absolute latency is not compared across these groups.</figcaption>
-
+    <figcaption class="caption">Each row uses its own isolated baseline. π<sub>0.5</sub> uses the original paper setup; all other rows use one RTX 4090 with an i9-13900K. StarVLA and Qwen3.5 use <i>S</i> = 4. Absolute latencies are not compared across setups.</figcaption>
   </figure>
 
-  <aside class="c9-12">
-    <div class="fig-head"><span class="title">What transfers</span></div>
-    <div class="side-note">
-      <strong>{shortN.toFixed(2)}× → {shortN4.toFixed(2)}×</strong>
-      <p>With 5-token answers, nothing is batched across frames. The gain then comes from sharing the prefix, and grows as StarVLA goes from two to four experts (including language), with {shortN3.toFixed(2)}× at three experts.</p>
+  <aside class="c9-12 transfer-notes">
+    <div class="fig-head"><span class="title">Reading the results</span></div>
+    <div class="transfer-note">
+      <h4>Across architectures</h4>
+      <p>At <i>k</i> = 1, Xiaomi reaches <b>{n30(xiaomi).k1.toFixed(2)}×</b> and StarVLA <b>{n30(starvla[2]).k1.toFixed(2)}×</b>. Sharing and batching transfer beyond the original π<sub>0.5</sub> policy.</p>
     </div>
-    <p class="caption transfer-conclusion">Every tested Xiaomi and StarVLA configuration with <i>N</i> &gt; <i>k</i> is faster: unfinished requests create the batch.</p>
-    <details class="experiment-note"><summary>When requests finish in one frame</summary><p>Xiaomi at N = k = 10 reaches {boundary.toFixed(2)}×. With no requests carried over, cross-frame batching offers no amortization.</p></details>
-    <p class="caption">Each speedup uses its own configuration's isolated baseline. Xiaomi, StarVLA and Qwen3.5 are camera-ready performance measurements on one RTX 4090 with random parameters; they measure runtime scaling. Policy success is evaluated separately below with the official π<sub>0.5</sub> checkpoint.</p>
+    <div class="transfer-note">
+      <h4>More experts, one prefix</h4>
+      <p>With short, 5-token answers, prefix sharing alone improves speedup from <b>{shortN.toFixed(2)}× to {shortN4.toFixed(2)}×</b> as StarVLA grows from two to four experts, including language.</p>
+    </div>
+    <div class="transfer-note">
+      <h4>From 0.8B to 9B</h4>
+      <p>At <i>k</i> = 5, Qwen3.5 gains stay within <b>{Math.min(...scalingK5).toFixed(2)}–{Math.max(...scalingK5).toFixed(2)}×</b>. Each backbone uses a matching PI_v3 action head.</p>
+    </div>
+    <p class="caption scope-note">The camera-ready runs use random parameters to measure runtime scaling. Policy success is validated separately with the official π<sub>0.5</sub> checkpoint.</p>
   </aside>
 </div>
-
-<div class="grid scaling-study">
-  <div class="c1-4">
-    <span class="label">Backbone scale / Qwen3.5</span>
-    <h4>Similar gains,<br /><em>0.8B to 9B.</em></h4>
-    <p class="caption">At <i>k</i> = 5, speedup stays between {Math.min(...scalingK5).toFixed(2)}× and {Math.max(...scalingK5).toFixed(2)}×. All four sizes use a matching PI_v3 action head.</p>
-  </div>
-  <figure class="c5-12">
-    <div class="key scale-key"><span><i style="background: var(--action-3)"></i>k = 1</span><span><i style="background: var(--action)"></i>k = 5</span><span>common scale · 0–{MAX}×</span></div>
-    <div class="scale-columns">
-      {groups[2].rows.map((row) => <div><span class="label">{row.name.replace("Qwen3.5-", "")}</span><div class="scale-track"><i style={`height: ${pct(row.k1)}%`}></i><i style={`height: ${pct(row.k5)}%`}></i></div><strong>{row.k1.toFixed(2)}× <small>/ {row.k5.toFixed(2)}×</small></strong></div>)}
-    </div>
-    <figcaption class="caption">N = 30 · one RTX 4090 · S = 4. Values below each pair: k = 1 / k = 5.</figcaption>
-  </figure>
+<div class="generality-footnotes">
+  <p><b>Batching boundary.</b> Xiaomi reaches {boundary.toFixed(2)}× at <i>N</i> = <i>k</i> = 10: requests finish within one frame, leaving nothing to batch. Every tested Xiaomi and StarVLA setting with <i>N</i> &gt; <i>k</i> is faster.</p>
+  <p><b>Tensor parallelism.</b> On a separate eight-GPU RTX 4090 server (PCIe, no NVLink), paired 9B runs reach {tp1.k5.toFixed(2)}× / {tp2.k5.toFixed(2)}× at TP = 1 / 2 (<i>N</i> = 30, <i>k</i> = 5). Frame latency rises from {tp1.oxygenMs.toFixed(1)} to {tp2.oxygenMs.toFixed(1)} ms; a second GPU does not help in this setup.</p>
 </div>
-<details class="experiment-note"><summary>Tensor parallelism on a separate server</summary>
-    <p class="caption"><b>Tensor parallelism.</b> On a separate eight-GPU RTX 4090 server (PCIe, no NVLink), paired 9B runs retain {tp1.k5.toFixed(2)}× / {tp2.k5.toFixed(2)}× speedups at TP = 1 / 2 (<i>N</i> = 30, <i>k</i> = 5). OxyGen frame latency rises from {tp1.oxygenMs.toFixed(1)} to {tp2.oxygenMs.toFixed(1)} ms: the second GPU does not reduce latency in this setup.</p>
-</details>
+
+<style>
+  .generality { align-items: start; }
+  .generality .fig-head { min-height: 34px; gap: 12px; }
+  .table-condition { font: 11px var(--sans); color: var(--muted); white-space: nowrap; }
+  table.data { font-size: 14px; }
+  table.data th, table.data td { padding-top: 8px; padding-bottom: 8px; }
+  table.data .configuration { text-align: left; }
+  table.data .bar-heading { font-size: 10px; font-weight: 400; }
+  table.data td.bar { width: 29%; }
+  table.data tr.group th { padding-top: 19px; padding-bottom: 8px; }
+  table.data td.name small { font-size: 11px; }
+  .key { margin-top: 15px; }
+  .transfer-note { margin-top: 23px; }
+  .transfer-note h4 { font: 21px/1.25 var(--display); font-weight: 400; letter-spacing: -.015em; margin: 0 0 8px; }
+  .transfer-note p { font: 14px/1.65 var(--sans); color: var(--ink-soft); margin: 0; }
+  .transfer-note b { color: var(--ink); font-weight: 550; white-space: nowrap; }
+  .scope-note { border-top: 1px solid var(--hair); padding-top: 15px; margin-top: 24px; }
+  .generality-footnotes { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; border-top: 1px solid var(--hair); margin-top: 23px; padding-top: 15px; }
+  .generality-footnotes p { font: 12px/1.6 var(--sans); color: var(--muted); margin: 0; }
+  .generality-footnotes b { color: var(--ink-soft); font-weight: 600; }
+</style>

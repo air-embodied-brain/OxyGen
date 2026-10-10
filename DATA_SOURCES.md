@@ -127,15 +127,14 @@ components for it (`grep -rn "30-token\|k</i> = 5" src`).
 
 The headline now pairs the original π0.5 speedup and frequency with Xiaomi
 5.83× and StarVLA 6.64× (N=30, k=1), each against its own baseline.
-Success rate remains in the validation section. Table 1 covers models and
-experts; the following Qwen3.5 size panel uses the same `scaling` export
-and a common zero-based bar scale. No measurement values were changed.
+Success rate remains in the validation section. Table 1 groups models, experts and Qwen3.5 sizes using the same `scaling`
+export and common zero-based bar scale. No measurement values were changed.
 
 ## Chapter review pass (2026-10-10)
 
 Headline frequency now uses ordinary integer rounding (70.9 → 71 Hz), matching
 the inference illustration. Demo task-completion readouts derive from `demos`
-and update together with the selected video. Cross-model numbers are unchanged.
+and appear beside each video selector. Cross-model numbers are unchanged.
 
 The robot figure now separates the measured inference sum (1030 → 393 ms)
 from an illustrative overlap timeline. Motion begins at the 198 ms dispatch

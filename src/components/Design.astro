@@ -24,8 +24,8 @@ const steady = B; // first frame where the batch is full (0-based)
   <div class="fig-head"><span class="title"><span class="label"><b>Fig. 2</b></span>How OxyGen manages the KV cache</span></div>
   <div class="grid">
     <div class="c1-6">
-      <div class="panel-head"><span><i class="roman">i.</i> Encode once. Share the prefix.</span></div>
-      <p class="design-lead">One observation feeds both experts.</p>
+      <div class="panel-head"><span><i class="roman">i.</i> One prefill, shared across experts</span></div>
+
       <div class="chart">
         <svg data-flow viewBox={`-5 14 ${W + 12} ${H + 4}`} role="img" aria-label="Per-frame flow: the observation is prefilled once, and the shared prefix KV cache feeds the action expert and a new language request">
           <defs>
@@ -100,8 +100,8 @@ const steady = B; // first frame where the batch is full (0-based)
     </div>
 
     <div class="c7-12">
-      <div class="panel-head"><span><i class="roman">ii.</i> Keep requests. Decode together.</span></div>
-      <p class="design-lead">A new frame joins the unfinished requests.</p>
+      <div class="panel-head"><span><i class="roman">ii.</i> One batch, shared across frames</span></div>
+
       <div class="chart">
         <svg data-window viewBox={`0 0 ${W} ${TOP + ROW * FRAMES + 30}`} role="img" aria-label={`Cross-frame batching: each request needs ${N} tokens, advances ${K} per frame, so ${B} requests decode together in every frame`}>
           <!-- frame header and action lane -->

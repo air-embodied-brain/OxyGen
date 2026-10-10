@@ -63,9 +63,9 @@ function layout(mode: (typeof modes)[number]) {
 ---
 
 <Design />
-<p class="method-bridge">The effect on one control frame: remove a repeated prefill, then replace a full answer’s decoding with a few batched steps.</p>
 
-<div class="grid unit">
+
+<div class="grid unit method-benefits">
   <figure class="c1-8">
     <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>Measured frame latency · π0.5 / LIBERO / RTX 4090</span></div>
     <div class="lanes">
@@ -98,16 +98,16 @@ function layout(mode: (typeof modes)[number]) {
   <aside class="c9-12">
     <div class="fig-head"><span class="title">Per frame</span></div>
     <div class="side-note">
-      <strong>{(modes[0].total / modes[2].total).toFixed(1)}× shorter</strong>
-      <p>{modes[0].total.toFixed(0)} → {modes[2].total.toFixed(0)} ms per frame, so actions update {((10 / modes[2].total) * 1000).toFixed(0)} instead of {((10 / modes[0].total) * 1000).toFixed(0)} times per second.</p>
+      <strong>{(modes[0].total / modes[2].total).toFixed(1)}× faster</strong>
+      <p>{modes[0].total.toFixed(0)} → {modes[2].total.toFixed(0)} ms per frame at the same language workload.</p>
     </div>
     <div class="side-note">
       <strong>−{(modes[0].total - modes[1].total).toFixed(0)} ms</strong>
-      <p>from sharing the prefix: the second prefill disappears.</p>
+      <p>from removing the repeated prefill.</p>
     </div>
     <div class="side-note">
       <strong>−{(modes[1].total - modes[2].total).toFixed(0)} ms</strong>
-      <p>from batching: {N / K} requests share each decoding step, so each frame decodes only {K} steps.</p>
+      <p>from batching {N / K} requests in {K} decoding steps per frame.</p>
     </div>
   </aside>
 </div>

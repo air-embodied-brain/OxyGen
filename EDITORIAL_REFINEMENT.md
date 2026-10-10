@@ -1,64 +1,43 @@
-# Editorial refinement — 2026-10-10
+# Desktop editorial refinement — 2026-10-10
 
-Baseline: `website-editorial` at `f2ed456` (camera-ready content aligned).
+Baseline: `website-editorial` at `f2ed456`, with camera-ready data aligned.
 Working branch: `website-editorial-refinement`.
 
-## Agreed direction
+## Direction
 
-Preserve the warm paper background, homepage font family, fine rules, restrained
-teal/amber data colors and 1080px editorial grid. The page promotes the work;
-the blog carries extended technical explanation. Avoid card grids, dashboard
-styling and fixed-height sections. Prioritize mainstream desktop light mode.
-Mobile-specific layout and dark-theme refinement follow later.
+Warm paper, homepage typography, fine rules, 1080px editorial grid. Promotional
+research page, with technical depth in the blog. Performance and model transfer
+lead; success is validation. The robot photo is a setup reference, not a demo.
+Mobile-specific design and dark-theme refinement remain deferred.
 
-Performance is the headline; cross-model transfer provides supporting evidence.
-Success rate is validation, not a hero statistic. The robot photo documents the
-setup; the on-board section centers measured latency, not a visual demo claim.
-Keep arXiv and its BibTeX until proceedings are available.
+## Current section decisions
 
-## Implemented
+The author rejected the first two refinement passes as visually worse. This
+pass uses actual section screenshots and independent visual review, removing
+the extra structures that weakened the original composition.
 
-- Hero: direct description of competing action/language workloads; headline
-  hierarchy of π0.5 speedup, concurrent output rate and cross-model speedups.
-- Demo: shorten adjacent explanation; retain all three logged comparisons.
-- Method: bridge shared-prefix design to the measured latency illustration.
-- Results: four named evidence blocks, with compact two-column introductions.
-- Generality: separate models/experts table from the model-size visualization;
-  paired historical tensor-parallel results live in an expandable note.
-- On-board: small setup photo, wider latency figure and measurement facts.
-- Application: two prominent adapter metrics, supporting details in a caption.
-- Resources: emphasize Paper/Code through typography, retain visible citation.
+- Hero: retain the original masthead; four aligned performance columns show
+  π0.5 speedup, concurrent action rate and Xiaomi/StarVLA transfer. One common
+  protocol line. Integer frequency consistently rounds 70.9 to 71 Hz.
+- Demo: video and task selection stay together in the original two-column
+  arrangement; no detached full-width selectors or duplicate giant readout.
+- Method: two concise panel titles, aligned captions, no oversized transition
+  paragraph; compact measured-benefit notes alongside the latency diagram.
+- Results: each figure has one heading. Matched-workload points and direct
+  ablation labels guide reading. Models, experts and Qwen sizes share one
+  table, with three short interpretations and scoped protocol notes.
+- Robot: setup photograph and caption align; hardware settings occupy one
+  short line. Measured inference and illustrative overlap remain distinct,
+  with a compact timeline starting the execution window at dispatch.
+- Application: concise introduction, aligned memory log and two metrics;
+  zeroed-adapter validation stays secondary.
+- Resources: equal heading baselines, restrained link typography, visible
+  BibTeX and copy button. No explanatory paragraph or empty collapsed column.
 
-No measurement data or demo video was changed. Desktop verification uses
-1280, 1440 and 1920px viewports; scroll through sections before capturing to
-load the robot image and finish chart entry animations. Early count-up frames
-are not final experiment values (70 Hz is the current rounded headline).
+Independent agent reviewed each section visually; a separate agent implemented
+and screenshot-reviewed the generality table. Primary agent also inspected the
+section images and integrated requested alignment/spacing corrections.
 
-## Deferred by scope
-
-- Dedicated mobile diagrams and chart typography.
-- Dark-theme and video theme refinements.
-- Real-robot footage (existing setup photo is not a demo).
-
-## Chapter review pass
-
-All previously listed desktop content/layout gaps have a concrete revision:
-hero/decode illustration copy shortened, frequency rounding unified at 71 Hz;
-demo selected-rollout gain and completion times move beside the video, with
-three selectors below; method panels use action-led titles, a prefix/private
-suffix distinction and an explicit batch/completion key; lengthy measurement
-notes are expandable. Results drop the redundant numbered subheads, highlight
-matched 30-token points and label the ablation endpoints. Scale bars have a
-shared range and explicit color key; the Xiaomi boundary is secondary.
-
-On-board inference and physical execution now have separate graphics. The
-latter explicitly starts the 333 ms execution window at action dispatch and
-is labelled illustrative, with communication overhead omitted. Application
-promotes accuracy and memory-generation latency; zeroed-adapter checks are
-secondary. Resources ends with Paper/Code and a compact expandable BibTeX,
-whose copy button also works while collapsed.
-
-Desktop checks: 1280/1440/1920, images loaded, no overflow or page errors;
-all demo selectors and their numeric readouts, all three chart configuration
-tabs, collapsed BibTeX copying, and expanded citation checked in Chromium.
-This is the review candidate for section-by-section author feedback.
+Desktop validation: 1280/1440/1920px, completed count-up and chart entry
+animations, lazy image loaded. Check video/configuration switching, citation
+copy, build and whitespace. These checks supplement visual inspection.
