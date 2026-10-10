@@ -121,7 +121,7 @@ const resources = [
       <div class="result-block">
       <div class="grid">
         <figure class="c1-7 ci">
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Action quality on LIBERO</span></div>
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 5</b></span>Action quality on LIBERO</span></div>
           <div class="panel-head"><span>Mean success, 95% CI</span><span class="gain">{overall.mean.toFixed(2)}%<small>openpi: {overall.openpi}%</small></span></div>
           {quality.map((row) => (
             <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
@@ -170,7 +170,7 @@ const resources = [
         </figure>
         <div class="c5-12 onboard-measurement">
           <p class="measurement-protocol">π<sub>0.5</sub> · Jetson AGX Thor · H = 10 · S = 10 · N = 30 · k = 5</p>
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 7</b></span>Inference per control cycle</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Inference per control cycle</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
           <div class="latency">
             <div class="latency-row">
               <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
@@ -220,7 +220,7 @@ const resources = [
       </SectionHead>
       <div class="grid">
         <figure class="c1-7">
-          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 8</b></span>Memories written during Fig. 1</span></div>
+          <div class="fig-head"><span class="title"><span class="label"><b>Fig. 7</b></span>Memories written during the demo</span></div>
           <ol class="memory-log">
             <li class="task"><span>task</span><p>Put both the alphabet soup and the tomato sauce in the basket.</p></li>
             <li><span>step 50</span><q>No relevant task progress is visible yet.</q></li>

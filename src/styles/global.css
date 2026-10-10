@@ -53,36 +53,6 @@
   --block-gap: clamp(36px, 4vw, 52px);
 }
 
-@font-face {
-  font-family: "Libre Baskerville";
-  src: url("../fonts/LibreBaskerville-VariableFont_wght.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Libre Baskerville";
-  font-style: italic;
-  src: url("../fonts/LibreBaskerville-Italic-VariableFont_wght.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Source Sans 3";
-  src: url("../fonts/SourceSans3VF-Upright.ttf.woff2") format("woff2");
-  font-weight: 200 900;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Source Sans 3";
-  font-style: italic;
-  src: url("../fonts/SourceSans3VF-Italic.ttf.woff2") format("woff2");
-  font-weight: 200 900;
-  font-display: swap;
-}
-
 *,
 *::before,
 *::after {
@@ -2288,8 +2258,16 @@ table.data td.bar {
 .chart .dg-done.completed { opacity: 1; }
 .design.playing .dg-done.finishing { animation: method-completion var(--cycle) linear infinite; }
 @keyframes method-completion { 0%, 84% { opacity: 0; } 85%, 100% { opacity: 1; } }
-#method .method-benefits .block.batch-decode { overflow: visible; font-size: 12px; }
+#method .method-benefits .block.batch-decode { overflow: visible; }
 .batch-layers { position: absolute; inset: 0; pointer-events: none; }
 .batch-layers i { position: absolute; left: 0; right: 0; height: 3px; top: calc(-5px - var(--layer) * 5px); background: var(--language); opacity: calc(.7 - var(--layer) * .2); }
 #method .method-benefits .lanes { gap: 24px; }
-#method .fig-head .title { font-size: 17px; line-height: 1.4; }
+
+
+/* Shared figure typography: numbers and titles have the same visual weight. */
+.fig-head .title, .fig-head .title .label, .fig-head .title .label b { font-size: 17px; line-height: 1.4; }
+.caption, #method .caption { font-size: 16px; line-height: 1.5; }
+#method .method-benefits .block { font-size: 13px; }
+[data-stage-animation].stage-ready .block { transform: scaleX(0); transform-origin: left; }
+[data-stage-animation].stage-ready .stage-block-label, [data-stage-animation].stage-ready .batch-layers i { opacity: 0; }
+[data-stage-count] { font-variant-numeric: tabular-nums; }

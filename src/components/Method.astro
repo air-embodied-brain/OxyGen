@@ -65,8 +65,8 @@ function layout(mode: (typeof modes)[number]) {
 <Design />
 
 
-<figure class="unit method-benefits">
-    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 3</b></span>KV sharing helps; batching delivers the larger latency reduction</span></div>
+<figure class="unit method-benefits" data-stage-animation>
+    <div class="fig-head"><span class="title"><span class="label"><b>Fig. 2</b></span>KV sharing helps; batching delivers the larger latency reduction</span></div>
     <div class="lanes">
       {modes.map((mode) => (
         <div class="lane">
@@ -75,11 +75,11 @@ function layout(mode: (typeof modes)[number]) {
             {layout(mode).map((block) => (
               <div class:list={["block", block.kind, mode.note === "OxyGen" && block.kind === "decode" && "batch-decode"]} style={`left: ${block.left}%; width: ${block.width}%`}>
                 {mode.note === "OxyGen" && block.kind === "decode" && <span class="batch-layers" aria-hidden="true">{[0, 1, 2].map(layer => <i style={`--layer:${layer}`} />)}</span>}
-                <span>{block.width > 10 ? block.text : ""}</span>
+                <span class="stage-block-label">{block.width > 10 ? block.text : ""}</span>
               </div>
             ))}
           </div>
-          <div class="lane-total">{mode.total.toFixed(0)} ms</div>
+          <div class="lane-total"><span data-stage-count={mode.total.toFixed(0)}>{mode.total.toFixed(0)}</span> ms</div>
         </div>
       ))}
       <div class="lane-axis" aria-hidden="true">

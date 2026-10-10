@@ -1,5 +1,6 @@
 ---
 import "@fontsource-variable/source-serif-4/opsz.css";
+import serifFont from "@fontsource-variable/source-serif-4/files/source-serif-4-latin-opsz-normal.woff2?url";
 import "@fontsource-variable/source-serif-4/opsz-italic.css";
 import "@fontsource-variable/jetbrains-mono";
 import "../styles/global.css";
@@ -38,6 +39,15 @@ const socialImage = new URL(`${base}social-card.png`, Astro.site).href;
       document.documentElement.dataset.theme = savedTheme || "light";
     </script>
     <link rel="preload" href={`${base}fonts/LibreBaskerville-VariableFont_wght.woff2`} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={`${base}fonts/LibreBaskerville-Italic-VariableFont_wght.woff2`} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={`${base}fonts/SourceSans3VF-Upright.ttf.woff2`} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={serifFont} as="font" type="font/woff2" crossorigin />
+    <style is:inline set:html={`
+      @font-face { font-family: "Libre Baskerville"; src: url("${base}fonts/LibreBaskerville-VariableFont_wght.woff2") format("woff2"); font-weight: 400 700; font-display: block; }
+      @font-face { font-family: "Libre Baskerville"; src: url("${base}fonts/LibreBaskerville-Italic-VariableFont_wght.woff2") format("woff2"); font-weight: 400 700; font-style: italic; font-display: block; }
+      @font-face { font-family: "Source Sans 3"; src: url("${base}fonts/SourceSans3VF-Upright.ttf.woff2") format("woff2"); font-weight: 200 900; font-display: block; }
+      @font-face { font-family: "Source Sans 3"; src: url("${base}fonts/SourceSans3VF-Italic.ttf.woff2") format("woff2"); font-weight: 200 900; font-style: italic; font-display: block; }
+    `} />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <title>{title}</title>
   </head>

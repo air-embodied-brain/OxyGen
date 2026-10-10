@@ -85,6 +85,43 @@ function initCountUp() {
   requestAnimationFrame(frame);
 }
 
+/** Reveal the latency breakdown once, in execution order. */
+function initStageAnimation() {
+  const root = document.querySelector<HTMLElement>("[data-stage-animation]");
+  if (!root || reducedMotion) return;
+  const rows = $all<HTMLElement>(".lane", root);
+  root.classList.add("stage-ready");
+  for (const count of $all<HTMLElement>("[data-stage-count]", root)) count.textContent = "0";
+  const observer = new IntersectionObserver(entries => {
+    if (!entries.some(entry => entry.isIntersecting)) return;
+    observer.disconnect();
+    void document.fonts.ready.then(() => {
+      const start = performance.now();
+      const duration = 420;
+      const stageEnd = Math.max(...rows.map(row => row.querySelectorAll(".block").length)) * duration;
+      const ease = (x: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
+      const animate = (now: number) => {
+        const elapsed = now - start;
+        for (const row of rows) {
+          $all<HTMLElement>(".block", row).forEach((block, index) => {
+            block.style.transform = `scaleX(${ease((elapsed - index * duration) / duration)})`;
+          });
+          const count = row.querySelector<HTMLElement>("[data-stage-count]")!;
+          count.textContent = String(Math.round(Number(count.dataset.stageCount) * ease(elapsed / stageEnd)));
+        }
+        $all<HTMLElement>(".batch-layers i", root).forEach((layer, index) => {
+          layer.style.opacity = String((.7 - index * .2) * ease((elapsed - stageEnd - index * 120) / 180));
+        });
+        const textProgress = ease((elapsed - stageEnd - 450) / 250);
+        for (const label of $all<HTMLElement>(".stage-block-label", root)) label.style.opacity = String(textProgress);
+        if (elapsed < stageEnd + 700) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    });
+  }, { threshold: .45 });
+  observer.observe(root);
+}
+
 /**
  * Fig. 2: the left panel walks through one frame (observe, prefill, shared KV,
  * fan-out); each loop the right panel's window slides to the next frame and
@@ -486,7 +523,8 @@ export function initPage() {
   initChartText();
   initRunningHead();
   initTheme();
-  initCountUp();
+  void document.fonts.ready.then(initCountUp);
+  initStageAnimation();
   initDesign();
   initDemo();
   initTradeoff();
