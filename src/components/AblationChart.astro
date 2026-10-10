@@ -1,5 +1,4 @@
 ---
-import ResultDetails from "./ResultDetails.astro";
 import { ablation, ablationN } from "../data/paper-figures";
 
 const devices = [
@@ -24,7 +23,7 @@ const N = ablationN.at(-1);
 
 <figure data-ablation>
   <div class="fig-head">
-    <span class="title">Batching keeps actions fast as language requests grow longer.</span>
+    <span class="title">Batching keeps actions fast as language grows.</span>
     <div class="switch" role="tablist" aria-label="Device">
       {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-ablation-device={d.id}>{d.label}</button>)}
     </div>
@@ -64,5 +63,4 @@ const N = ablationN.at(-1);
     {series.map((s) => <span class={s.cls}><i class="line" style="background: currentColor"></i>{s.label}</span>)}
     <span><i class="dash"></i>one frame of decoding only</span>
   </div>
-  <ResultDetails id="ablation-details"><p>π<sub>0.5</sub> on LIBERO, <i>S</i> = 10 and <i>k</i> = 5. Gains compare OxyGen with isolated execution at 30 tokens per request. KV sharing and cross-frame batching are added in turn to isolate their contributions.</p><p>The dashed oracle decodes only <i>k</i> tokens and discards the rest. It is a reference bound, not a method that completes the same language workload.</p></ResultDetails>
 </figure>

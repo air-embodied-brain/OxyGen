@@ -61,10 +61,10 @@ const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
       <span><i style="background: var(--action)"></i>k = 5</span>
       <span><i style="width: 1px; height: 12px; background: var(--ink)"></i>isolated baseline · 1×</span>
     </div>
-    <ResultDetails id="generality-details">
-      <p>Speedup over each configuration’s own isolated baseline, with 30-token requests. <i>k</i> is the per-frame decoding budget; the vertical reference marks 1×.</p>
-      <p>π<sub>0.5</sub> uses the original paper setup with <i>S</i> = 10. The other models use one RTX 4090 and an i9-13900K: Xiaomi uses <i>S</i> = 5; StarVLA and Qwen3.5 use <i>S</i> = 4. Qwen3.5 uses a matching PI_v3 action head. Expert counts include language; absolute latencies are not compared across setups.</p>
-      <p>The camera-ready transfer and scaling runs use random parameters to measure runtime. Policy success is validated separately with the official π<sub>0.5</sub> checkpoint.</p>
+    <ResultDetails id="generality-details" label="Details (three experiments)">
+      <p>Shared details for the throughput, batching and transfer experiments.</p>
+      <p>All use π<sub>0.5</sub> on LIBERO, 30-token requests, and speedup over each configuration’s isolated baseline. <i>k</i> is the per-frame decoding budget; <i>S</i> = 10 for π<sub>0.5</sub>. The throughput chart compares RTX 4090 and Jetson AGX Thor; the batching chart uses <i>k</i> = 5. Ringed points match the same workload.</p>
+      <p>Transfer runs use one RTX 4090 and an i9-13900K (Xiaomi <i>S</i> = 5; StarVLA/Qwen3.5 <i>S</i> = 4). Runtime scaling uses random parameters; policy quality is validated separately with the official checkpoint.</p>
     </ResultDetails>
   </figure>
 </div>
