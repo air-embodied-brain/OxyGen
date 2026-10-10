@@ -960,6 +960,26 @@ dd {
 .chart [data-panel].off {
   display: none;
 }
+.chart.off { display: none; }
+
+.result-overview { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; align-items: start; }
+.result-charts { display: grid; gap: 22px; }
+.result-charts > figure { margin: 0; }
+.result-charts .grid { display: block; }
+.result-charts .chart { width: 100%; }
+.result-charts .fig-head { min-height: 42px; }
+.result-charts .chart svg { height: 220px; }
+.result-transfer .generality { display: block; }
+.result-transfer .generality .fig-head { min-height: 42px; }
+.result-transfer table.data th, .result-transfer table.data td { padding-top: 8px; padding-bottom: 8px; }
+.result-transfer table.data th.configuration { width: 34%; }
+.result-transfer table.data td.bar { width: auto; padding-left: 14px; }
+.result-transfer .spark { display: flex; align-items: center; }
+.result-transfer .spark span { position: absolute; right: 4px; z-index: 2; padding-left: 6px; background: var(--paper); color: var(--ink); font: 11px var(--mono); white-space: nowrap; }
+.compact-result .result-line { display: flex; align-items: baseline; gap: 10px; margin: 0; min-height: 42px; font: 15px/1.4 var(--sans); }
+.compact-result .result-line strong { color: var(--action); font: 30px var(--display); font-weight: 400; white-space: nowrap; }
+.compact-result .result-line span { color: var(--ink-soft); }
+.compact-result .result-line .method-settings-trigger { margin-left: auto; }
 
 .chart .drawn path {
   stroke-dasharray: 1;

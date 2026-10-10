@@ -25,14 +25,17 @@ const N = ablationN.at(-1);
 <figure data-ablation>
   <div class="fig-head">
     <span class="title">Batching keeps actions fast as language requests grow longer.</span>
+    <div class="switch" role="tablist" aria-label="Device">
+      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-ablation-device={d.id}>{d.label}</button>)}
+    </div>
   </div>
   <div class="grid">
-    {devices.map((d) => {
+    {devices.map((d, i) => {
       const data = ablation[d.id];
       const sy = (v: number) => H - M.b - (v / d.max) * (H - M.t - M.b);
       const gain = data.ours.at(-1)! / data.baseline.at(-1)!;
       return (
-        <div class:list={[d.cls, "chart"]}>
+        <div class:list={[d.cls, "chart", i !== 0 && "off"]} data-ablation-panel={d.id}>
           <div class="panel-head"><span>{d.label}</span><span class="gain">{gain.toFixed(1)}×<small>at {N}-token requests</small></span></div>
           <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${d.label}: action frequency by request length for each execution mode`}>
             <g class="gridlines">{d.ticks.slice(1).map((t) => <line x1={M.l} x2={W - M.r} y1={sy(t)} y2={sy(t)} />)}</g>

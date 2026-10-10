@@ -113,47 +113,25 @@ const resources = [
         Measurements on desktop and on-board GPUs, followed by transfer across backbones and model sizes.
       </SectionHead>
 
-      <div class="result-block"><TradeoffChart /></div>
-
-      <div class="result-block"><AblationChart /></div>
-
-      <div class="result-block"><Generality /></div>
+      <div class="result-overview">
+        <div class="result-charts">
+          <TradeoffChart />
+          <AblationChart />
+        </div>
+        <div class="result-transfer"><Generality /></div>
+      </div>
 
       <div class="result-block">
       <div class="grid quality-efficiency">
-        <figure class="quality-result ci">
+        <figure class="quality-result ci compact-result">
           <div class="fig-head"><span class="title">OxyGen leaves the action policy unchanged.</span></div>
-          <div class="panel-head"><span>Mean success, 95% CI</span><span class="gain">{overall.mean.toFixed(2)}%<small>openpi: {overall.openpi}%</small></span></div>
-          {quality.map((row) => (
-            <div class:list={["ci-row", row.suite === "Overall" && "overall"]}>
-              <span>{row.suite}</span>
-              <div class="ci-track" title={`OxyGen ${row.mean}% [${row.ci[0]}, ${row.ci[1]}] · openpi ${row.openpi}%`}>
-                <span class="range" style={`left: ${ciScale(row.ci[0])}%; width: ${ciScale(row.ci[1]) - ciScale(row.ci[0])}%`}></span>
-                <span class="ref" style={`left: ${ciScale(row.openpi)}%`}></span>
-                <span class="mean" style={`left: ${ciScale(row.mean)}%`}></span>
-              </div>
-              <span class="val">{row.mean.toFixed(2)}<small>/ {row.openpi.toFixed(2)}</small></span>
-            </div>
-          ))}
-          <div class="ci-axis"><span></span><div><span>90%</span><span>95%</span><span>100%</span></div><span></span></div>
-          <div class="key">
-            <span><i style="width: 9px; height: 9px; border-radius: 50%; background: var(--action)"></i>OxyGen mean and 95% CI</span>
-            <span><i style="width: 1.5px; height: 13px; background: var(--ink)"></i>openpi reported</span>
-          </div>
-          <ResultDetails id="quality-details"><p>{qualityProtocol.seeds} seeds and {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts using the official π<sub>0.5</sub>-LIBERO checkpoint. Dots show OxyGen means and lines show 95% confidence intervals; vertical ticks mark openpi’s reported success rates.</p><p>OxyGen changes the inference schedule, not the policy. This experiment checks action quality separately from the runtime scaling experiments.</p></ResultDetails>
+          <p class="result-line"><strong>{overall.mean.toFixed(2)}%</strong><span>LIBERO success, matching openpi ({overall.openpi}%).</span><button type="button" class="method-settings-trigger" popovertarget="quality-details">Details</button></p>
+          <div id="quality-details" class="method-popover" popover aria-label="Measurement details"><strong>Measurement details</strong><p>{qualityProtocol.seeds} seeds, {qualityProtocol.rollouts.toLocaleString("en-US")} rollouts, official π<sub>0.5</sub>-LIBERO checkpoint. OxyGen changes the inference schedule only; the policy and action outputs are unchanged.</p></div>
         </figure>
-        <figure class="efficiency-result">
+        <figure class="efficiency-result compact-result">
           <div class="fig-head"><span class="title">Batching cuts energy per request by 78%.</span></div>
-          <div class="panel-head"><span>Energy per request</span><span class="gain">−{-change(baselineCost.energyJ, bestCost.energyJ)}%<small>vs. baseline</small></span></div>
-          <table class="data">
-            <thead><tr><th scope="col"><span class="sr-only">Metric</span></th><th scope="col">Baseline</th><th scope="col">OxyGen</th><th scope="col">Δ</th></tr></thead>
-            <tbody>
-              <tr><td class="name">Energy</td><td>{baselineCost.energyJ} J</td><td>{bestCost.energyJ} J</td><td class="c-action">−{-change(baselineCost.energyJ, bestCost.energyJ)}%</td></tr>
-              <tr><td class="name">Power</td><td>{baselineCost.powerW} W</td><td>{bestCost.powerW} W</td><td class="c-action">−{-change(baselineCost.powerW, bestCost.powerW)}%</td></tr>
-              <tr><td class="name">Memory</td><td>{baselineCost.memGiB} GiB</td><td>{bestCost.memGiB} GiB</td><td>+{change(baselineCost.memGiB, bestCost.memGiB)}%</td></tr>
-            </tbody>
-          </table>
-          <ResultDetails id="efficiency-details"><p>Measured on RTX 4090, with OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Energy is reported per request, power in watts and memory in GiB.</p><p>Running the two tasks as parallel processes (MPS) instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request. The table compares OxyGen with isolated execution.</p></ResultDetails>
+          <p class="result-line"><strong>25.8 J</strong><span>per request · {baselineCost.energyJ} J baseline · −78% energy · −47% power · +15% memory.</span><button type="button" class="method-settings-trigger" popovertarget="efficiency-details">Details</button></p>
+          <div id="efficiency-details" class="method-popover" popover aria-label="Measurement details"><strong>Measurement details</strong><p>RTX 4090, OxyGen batch size 4. The table compares isolated execution with batched decoding, which reads the VLM weights once for several requests. Parallel processes (MPS) use {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request.</p></div>
         </figure>
       </div>
       </div>

@@ -2,11 +2,6 @@
 import ResultDetails from "./ResultDetails.astro";
 import { tradeoff, type SeriesKey, type TradeoffPoint } from "../data/paper-figures";
 
-const configs = [
-  { id: "libero", label: "LIBERO" },
-  { id: "droid", label: "DROID" },
-  { id: "aloha", label: "ALOHA" },
-] as const;
 const devices = [
   { id: "rtx4090", label: "RTX 4090", cls: "c1-6" },
   { id: "thor", label: "Jetson AGX Thor", cls: "c7-12" },
@@ -37,24 +32,22 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
 <figure data-tradeoff>
   <div class="fig-head">
     <span class="title">OxyGen increases action frequency and language throughput together.</span>
-    <div class="switch" role="tablist" aria-label="Robot configuration">
-      {configs.map((c, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-config={c.id}>{c.label}</button>)}
+    <div class="switch" role="tablist" aria-label="Device">
+      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
     </div>
   </div>
   <div class="grid">
-    {devices.map((d) => (
-      <div class:list={[d.cls, "chart"]}>
-        {configs.map((c) => {
-          const pts = tradeoff[c.id][d.id];
+    {devices.map((d, i) => {
+          const pts = tradeoff.libero[d.id];
           const ax = axes[d.id];
           const ours = pts.k1.at(-1)!;
           const base = pts.baseline.at(-1)!;
           // On Thor, MPS falls below the sequential baseline, so the two labels swap sides.
           const parallelBelow = pts.parallel[0][2] < pts.baseline[0][2];
           return (
-            <div data-panel={c.id} class:list={[c.id !== "libero" && "off"]}>
+            <div data-panel={d.id} class:list={[d.cls, "chart", i !== 0 && "off"]}>
               <div class="panel-head"><span>{d.label}</span><span class="gain">{gain(pts).toFixed(1)}×<small>at 30-token requests</small></span></div>
-              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${c.label} on ${d.label}: action frequency versus language throughput`}>
+              <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`LIBERO on ${d.label}: action frequency versus language throughput`}>
                 <g class="gridlines">{ax.ys.slice(1).map((v) => <line x1={M.l} x2={W - M.r} y1={sy(d.id, v)} y2={sy(d.id, v)} />)}</g>
                 <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
                 <g class="ticklabels">
@@ -94,8 +87,6 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
             </div>
           );
         })}
-      </div>
-    ))}
   </div>
-  <ResultDetails id="tradeoff-details"><p>π<sub>0.5</sub> on LIBERO, DROID and ALOHA; desktop RTX 4090 and on-board Jetson AGX Thor. Each line sweeps 5–30 tokens per request at a fixed per-frame decoding budget <i>k</i>, with <i>S</i> = 10 and one new request per frame.</p><p>Ringed points compare the same 30-token workload. The reported gains compare action frequency against isolated execution at those points. Up and right is better; hover over points for exact values.</p></ResultDetails>
+  <ResultDetails id="tradeoff-details"><p>π<sub>0.5</sub> on LIBERO. Each line sweeps 5–30 tokens per request at a fixed per-frame decoding budget <i>k</i>, with <i>S</i> = 10 and one new request per frame. Use the device switch to compare RTX 4090 and Jetson AGX Thor.</p><p>Ringed points compare the same 30-token workload. Up and right is better; hover over points for exact values.</p></ResultDetails>
 </figure>

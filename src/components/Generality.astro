@@ -42,17 +42,15 @@ const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
     <div class="fig-head"><span class="title">Speedups transfer across VLA architectures, expert counts and backbone sizes.</span></div>
     <table class="data">
       <thead>
-        <tr><th scope="col" class="configuration">Configuration</th><th scope="col" class="k">k = 1</th><th scope="col" class="k">k = 5</th><th scope="col" class="bar-heading">0–{MAX}×</th></tr>
+        <tr><th scope="col" class="configuration">Configuration</th><th scope="col" class="bar-heading">k = 1 / k = 5 · 0–{MAX}×</th></tr>
       </thead>
       {groups.map((group) => (
         <tbody>
-          <tr class="group"><th colspan="4"><span>{group.label}</span><small>{group.finding}</small></th></tr>
+          <tr class="group"><th colspan="2"><span>{group.label}</span><small>{group.finding}</small></th></tr>
           {group.rows.map((row) => (
             <tr>
               <td class="name">{row.name}{row.note && <small>{row.note}</small>}</td>
-              <td>{row.k1.toFixed(2)}×</td>
-              <td>{row.k5.toFixed(2)}×</td>
-              <td class="bar"><div class="spark" style={`--one: ${pct(1)}`}><i class="k1" style={`width: ${pct(row.k1)}%`}></i><i style={`width: ${pct(row.k5)}%`}></i></div></td>
+              <td class="bar"><div class="spark" style={`--one: ${pct(1)}`}><i class="k1" style={`width: ${pct(row.k1)}%`}></i><i style={`width: ${pct(row.k5)}%`}></i><span>{row.k1.toFixed(2)}× / {row.k5.toFixed(2)}×</span></div></td>
             </tr>
           ))}
         </tbody>

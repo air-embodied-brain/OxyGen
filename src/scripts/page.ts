@@ -451,13 +451,13 @@ function drawOnFirstView(root: HTMLElement, targets: () => Element[]) {
 function initTradeoff() {
   const root = document.querySelector<HTMLElement>("[data-tradeoff]");
   if (!root) return;
-  const buttons = $all<HTMLButtonElement>("[data-config]", root);
+  const buttons = $all<HTMLButtonElement>("[data-device]", root);
   const panels = () => $all<HTMLElement>("[data-panel]:not(.off)", root);
   for (const button of buttons) {
     button.addEventListener("click", () => {
       select(buttons, button);
       for (const panel of $all<HTMLElement>("[data-panel]", root)) {
-        panel.classList.toggle("off", panel.dataset.panel !== button.dataset.config);
+        panel.classList.toggle("off", panel.dataset.panel !== button.dataset.device);
       }
       for (const panel of panels()) draw(panel);
     });
@@ -467,7 +467,15 @@ function initTradeoff() {
 
 function initAblation() {
   const root = document.querySelector<HTMLElement>("[data-ablation]");
-  if (root) drawOnFirstView(root, () => $all(".chart svg", root));
+  if (!root) return;
+  const buttons = $all<HTMLButtonElement>("[data-ablation-device]", root);
+  const panels = () => $all<HTMLElement>("[data-ablation-panel]:not(.off)", root);
+  for (const button of buttons) button.addEventListener("click", () => {
+    select(buttons, button);
+    for (const panel of $all<HTMLElement>("[data-ablation-panel]", root)) panel.classList.toggle("off", panel.dataset.ablationPanel !== button.dataset.ablationDevice);
+    for (const panel of panels()) draw(panel);
+  });
+  drawOnFirstView(root, panels);
 }
 
 function initTooltip() {
