@@ -8,7 +8,7 @@ import TradeoffChart from "../components/TradeoffChart.astro";
 import AblationChart from "../components/AblationChart.astro";
 import Generality from "../components/Generality.astro";
 import { citation, links } from "../data/site";
-import { memoryAdapter as mem, overhead, quality, qualityProtocol, robot } from "../data/paper-tables";
+import { memoryAdapter as mem, overhead, quality, qualityProtocol, robot, xiaomi, starvla } from "../data/paper-tables";
 import { tradeoff } from "../data/paper-figures";
 
 const base = import.meta.env.BASE_URL.endsWith("/")
@@ -72,11 +72,10 @@ const resources = [
   <Hero />
 
   <main class="page">
-    <div class="stats grid" aria-label="Headline results">
-      <div class="stat"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster than isolated execution, π<sub>0.5</sub> on RTX 4090</p></div>
-      <div class="stat"><strong><span data-count-up>{Math.floor(peak[1])}</span><small>Hz</small></strong><p>action frequency while generating over {Math.floor(peak[2] / 100) * 100} tokens/s of language</p></div>
-      <div class="stat"><strong>−<span data-count-up>{-change(baselineCost.energyJ, bestCost.energyJ)}</span><small>%</small></strong><p>energy per request, with batched language decoding</p></div>
-      <div class="stat"><strong><span data-count-up>{overall.mean.toFixed(1)}</span><small>%</small></strong><p>LIBERO success, on par with the official openpi checkpoint</p></div>
+    <div class="stats grid performance-strip" aria-label="Performance highlights">
+      <div class="stat lead-stat"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster action updates <em>and</em> language throughput<br />π<sub>0.5</sub> · RTX 4090 · N = 30, k = 1</p></div>
+      <div class="stat"><strong><span data-count-up>{Math.floor(peak[1])}</span><small>Hz</small></strong><p>action frequency, alongside {Math.round(peak[2])} language tokens/s</p></div>
+      <div class="stat transfer-stat"><span class="label">Across backbones</span><p><b>{xiaomi.at(-1)!.k1.toFixed(2)}×</b> Xiaomi-Robotics-0<br /><b>{starvla[2].at(-1)!.k1.toFixed(2)}×</b> StarVLA</p><small>RTX 4090 · N = 30, k = 1<br />Each against its own isolated baseline</small></div>
     </div>
 
     <section class="section" id="demo" data-title="Demo">
@@ -89,7 +88,7 @@ const resources = [
     <section class="section" id="method" data-title="Method">
       <SectionHead number="2" label="Method">
         <Fragment slot="title">One cache, <em>shared across tasks and time.</em></Fragment>
-        Mixture-of-Transformers VLAs such as π<sub>0.5</sub> already share one backbone between action and language experts, yet inference stacks still run each task in isolation. OxyGen manages the KV cache as one resource.
+        Reuse the observation once across experts. Then batch unfinished language requests across control frames. Two changes to the inference schedule, one shared KV cache.
       </SectionHead>
       <Method />
     </section>
@@ -100,13 +99,14 @@ const resources = [
         Under isolated execution, longer answers mean slower control. In the π<sub>0.5</sub> experiments below, OxyGen extends the action-frequency / language-throughput frontier, with gains up to {peakSpeedup.toFixed(1)}×.
       </SectionHead>
 
-      <div class="unit"><TradeoffChart /></div>
+      <div class="result-block"><div class="result-intro"><span class="label">01 / Joint performance</span><h3>Longer answers. <em>Sustained action frequency.</em></h3><p>At matched output lengths, batching improves both axes. Compare the same workload on desktop and on-board GPUs.</p></div><TradeoffChart /></div>
 
-      <div class="unit"><AblationChart /></div>
+      <div class="result-block"><div class="result-intro"><span class="label">02 / Where the gains come from</span><h3>Share the prefix. <em>Amortize the decoding.</em></h3><p>KV sharing removes repeated observation processing; batching keeps action frequency nearly flat as requests grow longer.</p></div><AblationChart /></div>
 
-      <div class="unit"><Generality /></div>
+      <div class="result-block"><div class="result-intro"><span class="label">03 / Generality</span><h3>Across backbones, <em>experts and model sizes.</em></h3><p>The same scheduling idea transfers beyond π<sub>0.5</sub>. Each result compares OxyGen with isolated execution within its own configuration.</p></div><Generality /></div>
 
-      <div class="unit grid">
+      <div class="result-block"><div class="result-intro compact"><span class="label">04 / Quality &amp; resources</span><h3>Comparable task success. <em>Less energy per request.</em></h3></div>
+      <div class="grid">
         <figure class="c1-7 ci">
           <div class="fig-head"><span class="title"><span class="label"><b>Fig. 6</b></span>Action quality on LIBERO</span></div>
           <div class="panel-head"><span>Mean success, 95% CI</span><span class="gain">{overall.mean.toFixed(2)}%<small>openpi: {overall.openpi}%</small></span></div>
@@ -142,19 +142,20 @@ const resources = [
           <figcaption class="caption">OxyGen at batch size 4. Batched decoding reads the VLM weights once for several requests. Running the two tasks as parallel processes instead needs {parallelCost.memGiB} GiB and {parallelCost.energyJ} J per request.</figcaption>
         </figure>
       </div>
+      </div>
     </section>
 
     <section class="section" id="robot" data-title="On the robot">
-      <SectionHead number="4" label="On the robot">
-        <Fragment slot="title">On board <em>a humanoid.</em></Fragment>
-        OxyGen runs π<sub>0.5</sub> on the robot's own Jetson AGX Thor, producing actions and language from the same three camera views.
+      <SectionHead number="4" label="On-board measurement">
+        <Fragment slot="title">Lower latency, <em>on board.</em></Fragment>
+        On the humanoid’s Jetson AGX Thor, the measured action path takes {robot.oxygen.action.toFixed(0)} ms. Language generation can overlap with physical execution.
       </SectionHead>
-      <div class="grid">
-        <figure class="c1-4 plate">
+      <div class="grid onboard-grid">
+        <figure class="c1-4 plate setup-plate">
           <img src={`${base}images/humanoid-jetson-thor.webp`} alt="Humanoid robot with an on-board NVIDIA Jetson AGX Thor" loading="lazy" width="1200" height="1600" />
-          <figcaption class="caption"><b>PLATE 1</b> The humanoid and its on-board Jetson AGX Thor.</figcaption>
+          <figcaption class="caption"><b>SETUP</b> Humanoid with on-board Jetson AGX Thor. Three RGB views at 224 × 224.</figcaption>
         </figure>
-        <div class="c5-12">
+        <div class="c5-12 onboard-measurement">
           <dl class="specs">
             <div><dt>Compute</dt><dd>Jetson AGX Thor, on board</dd></div>
             <div><dt>Input</dt><dd>3 RGB views, 224 × 224</dd></div>
@@ -195,7 +196,7 @@ const resources = [
     <section class="section" id="memory" data-title="Textual memory">
       <SectionHead number="5" label="Application">
         <Fragment slot="title">A robot that <em>keeps notes.</em></Fragment>
-        The demo's language task is textual memory: a rank-{mem.rank} LoRA on the frozen π<sub>0.5</sub> checkpoint writes one line about task progress. It runs only on the private language suffix, so the shared prefix and the action path stay untouched.
+        The opening demo gives language a job: record task progress. A rank-{mem.rank} LoRA writes memories from the private language suffix, with the shared prefix and action path frozen.
       </SectionHead>
       <div class="grid">
         <figure class="c1-7">
@@ -211,11 +212,9 @@ const resources = [
           <div class="fig-head"><span class="title">Adapter, RTX 4090</span></div>
           <dl class="memory-stats">
             <div><dt>{mem.exactMatchPct}%</dt><dd>exact match on held-out frames</dd></div>
-            <div><dt>{mem.adapterMs} ms</dt><dd>median cost per memory, vs. a {mem.prefixForwardMs} ms prefix forward</dd></div>
             <div><dt>{mem.actionDiff}</dt><dd>change to actions with the adapter zeroed</dd></div>
-            <div><dt>{mem.annotatedFrames.toLocaleString("en-US")}</dt><dd>annotated frames, {mem.demonstrations.toLocaleString("en-US")} demonstrations</dd></div>
           </dl>
-          <p class="caption">From the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository.</p>
+          <p class="caption">{mem.adapterMs} ms median per memory, vs. {mem.prefixForwardMs} ms for a prefix forward. Trained with {mem.annotatedFrames.toLocaleString("en-US")} annotated frames from {mem.demonstrations.toLocaleString("en-US")} demonstrations. See the <a href={links.model} target="_blank" rel="noreferrer">model card</a> and the OxyGen repository.</p>
         </div>
       </div>
     </section>
@@ -229,7 +228,7 @@ const resources = [
           <div class="fig-head"><span class="title">Links</span></div>
           <ul class="resources">
             {resources.map((r) => (
-              <li><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
+              <li class:list={[r.title === "Paper" || r.title === "Code" ? "primary-resource" : ""]}><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
             ))}
           </ul>
         </div>

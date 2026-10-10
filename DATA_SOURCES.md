@@ -57,7 +57,7 @@ camera-ready figures within 0.05.
 |---|---|---|
 | Masthead "One second of inference" | 71 Hz / 213 tok/s vs 19 Hz / 57 tok/s | LIBERO, RTX 4090, N = 30: `k1` vs `baseline` |
 | Headline stat "3.7×" and §3 text | 3.7× | same point, k1 Hz / baseline Hz |
-| Headline stat "70 Hz … over 200 tokens/s" | floor(70.95), floor to 100 of 212.9 | same point |
+| Headline stat "70 Hz … 213 tokens/s" | floor(70.9), round(212.9) | same point |
 | Fig. 3 frame totals | 524 / 469 / 176 ms | 10 / Hz of ablation RTX 4090 at N = 30: `baseline`, `no_batching`, `ours` |
 | Fig. 4 | all curves, 3.7× / 3.3× panel labels | tradeoff, k1 vs baseline at N = 30 per device |
 | Fig. 5 | all curves | ablation |
@@ -80,8 +80,8 @@ camera-ready figures within 0.05.
 
 Used by: Table 1 and its notes (StarVLA 6.64×; prefix-sharing gains
 1.23× → 1.40× → 1.59×; Xiaomi boundary 0.96×; Qwen3.5 k=5 range
-3.58–3.79×), Fig. 6 and the 96.8% headline, the cost table and −78%
-headline, Fig. 7 and its three facts, Fig. 3 stage widths, §5 numbers.
+3.58–3.79×), Fig. 6 success-rate validation, the cost table and its −78%
+energy result, Fig. 7 and its three facts, Fig. 3 stage widths, §5 numbers.
 
 Fig. 3 retains original ablation frame totals; the new synchronized stage
 profile only supplies illustrative widths. Its remaining segment includes
@@ -122,3 +122,11 @@ components for it (`grep -rn "30-token\|k</i> = 5" src`).
    `src/data/site.ts`.
 4. Run `npm run build`, open the page and check the headline stats, Fig. 2–8
    and Table 1.
+
+## Desktop editorial refinement (2026-10-10)
+
+The headline now pairs the original π0.5 speedup and frequency with Xiaomi
+5.83× and StarVLA 6.64× (N=30, k=1), each against its own baseline.
+Success rate remains in the validation section. Table 1 covers models and
+experts; the following Qwen3.5 size panel uses the same `scaling` export
+and a common zero-based bar scale. No measurement values were changed.

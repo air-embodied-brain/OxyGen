@@ -61,7 +61,7 @@ const runs = [
 
     <div class="c9-12">
       <p class="dek">
-        Robots increasingly need to act and talk at once. OxyGen lets a vision-language-action model share one KV cache across its action and language experts and across control frames, so neither task waits for the other.
+        Actions need frequent updates. Language needs time to finish. OxyGen shares observation computation across experts and batches language across frames, keeping action updates fast as answers grow.
       </p>
 
       <figure class="second" style={`--period: ${SLOWDOWN * WINDOW}s`} aria-label="Actions and language tokens produced per second by OxyGen and the isolated baseline">

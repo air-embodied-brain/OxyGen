@@ -50,7 +50,7 @@ const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
       <thead>
         <tr><th scope="col" style="text-align: left"><span class="sr-only">Configuration</span></th><th scope="col" class="k">k = 1</th><th scope="col" class="k">k = 5</th><th scope="col"><span class="sr-only">Bars</span></th></tr>
       </thead>
-      {groups.map((group) => (
+      {groups.slice(0, 2).map((group) => (
         <tbody>
           <tr class="group"><th colspan="4">{group.label}</th></tr>
           {group.rows.map((row) => (
@@ -70,15 +70,11 @@ const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
       <span><i style="width: 1px; height: 12px; background: var(--ink)"></i>1×</span>
     </div>
     <figcaption class="caption">π<sub>0.5</sub>: original paper measurements. Other rows: camera-ready remeasurements on RTX 4090 with an i9-13900K. StarVLA and Qwen3.5 use <i>S</i> = 4. Different host and software setups mean absolute latency is not compared across these groups.</figcaption>
-    <p class="caption"><b>Tensor parallelism.</b> On a separate eight-GPU RTX 4090 server (PCIe, no NVLink), paired 9B runs retain {tp1.k5.toFixed(2)}× / {tp2.k5.toFixed(2)}× speedups at TP = 1 / 2 (<i>N</i> = 30, <i>k</i> = 5). OxyGen frame latency rises from {tp1.oxygenMs.toFixed(1)} to {tp2.oxygenMs.toFixed(1)} ms: the second GPU does not reduce latency in this setup.</p>
+
   </figure>
 
   <aside class="c9-12">
-    <div class="fig-head"><span class="title">Notes</span></div>
-    <div class="side-note">
-      <strong>{n30(starvla[2]).k1.toFixed(2)}×</strong>
-      <p>StarVLA with one action expert at <i>k</i> = 1: 30 in-flight requests share every decoding step.</p>
-    </div>
+    <div class="fig-head"><span class="title">What transfers</span></div>
     <div class="side-note">
       <strong>{shortN.toFixed(2)}× → {shortN4.toFixed(2)}×</strong>
       <p>With 5-token answers, nothing is batched across frames. The gain then comes from sharing the prefix, and grows as StarVLA goes from two to four experts (including language), with {shortN3.toFixed(2)}× at three experts.</p>
@@ -87,10 +83,23 @@ const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
       <strong>{boundary.toFixed(2)}×</strong>
       <p>The one slowdown: Xiaomi when each request finishes within a single frame (<i>N</i> = <i>k</i> = 10). Every tested Xiaomi and StarVLA setting with <i>N</i> &gt; <i>k</i> is faster.</p>
     </div>
-    <div class="side-note">
-      <strong>{Math.min(...scalingK5).toFixed(2)}–{Math.max(...scalingK5).toFixed(2)}×</strong>
-      <p>At <i>k</i> = 5, gains remain similar as Qwen3.5 grows from 0.8B to 9B.</p>
-    </div>
     <p class="caption">Each speedup uses its own configuration's isolated baseline. Xiaomi, StarVLA and Qwen3.5 are camera-ready performance measurements on one RTX 4090 with random parameters; they measure runtime scaling. Policy success is evaluated separately below with the official π<sub>0.5</sub> checkpoint.</p>
   </aside>
 </div>
+
+<div class="grid scaling-study">
+  <div class="c1-4">
+    <span class="label">Backbone scale / Qwen3.5</span>
+    <h4>Similar gains,<br /><em>0.8B to 9B.</em></h4>
+    <p class="caption">At <i>k</i> = 5, speedup stays between {Math.min(...scalingK5).toFixed(2)}× and {Math.max(...scalingK5).toFixed(2)}×. All four sizes use a matching PI_v3 action head.</p>
+  </div>
+  <figure class="c5-12">
+    <div class="scale-columns">
+      {groups[2].rows.map((row) => <div><span class="label">{row.name.replace("Qwen3.5-", "")}</span><div class="scale-track"><i style={`height: ${pct(row.k1)}%`}></i><i style={`height: ${pct(row.k5)}%`}></i></div><strong>{row.k1.toFixed(2)}× <small>/ {row.k5.toFixed(2)}×</small></strong></div>)}
+    </div>
+    <figcaption class="caption">Speedup at <i>k</i> = 1 / <i>k</i> = 5 · N = 30 · one RTX 4090. Runtime measurements with random parameters.</figcaption>
+  </figure>
+</div>
+<details class="experiment-note"><summary>Tensor parallelism on a separate server</summary>
+    <p class="caption"><b>Tensor parallelism.</b> On a separate eight-GPU RTX 4090 server (PCIe, no NVLink), paired 9B runs retain {tp1.k5.toFixed(2)}× / {tp2.k5.toFixed(2)}× speedups at TP = 1 / 2 (<i>N</i> = 30, <i>k</i> = 5). OxyGen frame latency rises from {tp1.oxygenMs.toFixed(1)} to {tp2.oxygenMs.toFixed(1)} ms: the second GPU does not reduce latency in this setup.</p>
+</details>
