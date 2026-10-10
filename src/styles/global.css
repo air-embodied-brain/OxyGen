@@ -2231,3 +2231,14 @@ table.data td.bar {
  .demo-statuses > div { grid-template-columns: 1fr 106px 94px; }
  .demo-statuses .demo-step { min-width: 94px; }
 }
+
+/* Final demo readout hierarchy. */
+.demo-tasks > button small { margin-left: 5px; color: inherit; font: 500 12px var(--sans); letter-spacing: .02em; opacity: .75; }
+.demo-output { box-sizing: border-box; display: block; min-width: 0; height: 28px; margin-top: 6px; padding: 5px 9px; border: 1px solid var(--hair); background: var(--paper); text-align: left; }
+.demo-output-label { color: var(--muted); font: 600 10px/1 var(--sans); letter-spacing: .07em; }
+.demo-output [data-demo-output-text] { color: var(--ink-soft); font: 13px/1.25 var(--serif); }
+.demo-output[data-active="true"] { border-color: var(--action); }
+.demo-output[data-active="false"] { border-color: var(--hair); }
+.demo-output:disabled { color: var(--ink-soft); }
+.demo-output-popover { bottom: calc(100% + 8px); }
+.demo-output [data-demo-output-text] { display: inline-block; max-width: calc(100% - 62px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }

@@ -9,15 +9,11 @@ const first = demos[0];
     {demos.map((demo, index) => (
       <button role="tab" type="button" id={`task-${demo.id}`} aria-controls="demo-panel" aria-selected={index === 0 ? "true" : "false"} tabindex={index === 0 ? 0 : -1}
         data-id={demo.id} data-label={demo.title} data-task={demo.task} data-oxygen={demo.oxygenS} data-baseline={demo.baselineS}>
-        {demo.title}
+        {demo.title} <small>(E2E {(demo.baselineS / demo.oxygenS).toFixed(2)}×)</small>
       </button>
     ))}
   </div>
   <div id="demo-panel" role="tabpanel" aria-labelledby={`task-${first.id}`}>
-    <div class="demo-task-heading">
-      <p data-demo-task><b>Task:</b> <span data-demo-task-text>{first.task}</span></p>
-      <span class="demo-gain"><b data-demo-gain>{(first.baselineS / first.oxygenS).toFixed(2)}×</b> faster end-to-end</span>
-    </div>
     <div class="demo-panes demo-pane-heads">
       <div><strong>OxyGen</strong><span>Inference <b data-demo-inference="oxygen">—</b> · End-to-end <b data-demo-duration="oxygen">{first.oxygenS.toFixed(1)} s</b></span></div>
       <div><strong>Isolated baseline</strong><span>Inference <b data-demo-inference="baseline">—</b> · End-to-end <b data-demo-duration="baseline">{first.baselineS.toFixed(1)} s</b></span></div>
@@ -27,7 +23,7 @@ const first = demos[0];
       <source src={`${base}videos/${first.id}-interactive.mp4`} type="video/mp4" />
     </video><button type="button" class="demo-pause-overlay" data-demo-overlay aria-label="Play demo"><span></span><span></span></button></div>
     <div class="demo-panes demo-statuses">
-      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-inference-elapsed" data-demo-inference-elapsed={side}>Inference 0.00 s</span><span class="demo-step" data-demo-step={side}></span><button type="button" class="demo-output" data-demo-output={side} disabled>OUTPUT: —</button><div class="demo-output-popover" data-demo-output-popover={side} hidden></div></div>)}
+      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-inference-elapsed" data-demo-inference-elapsed={side}>Inference 0.00 s</span><span class="demo-step" data-demo-step={side}></span><button type="button" class="demo-output" data-demo-output={side} disabled><span class="demo-output-label">OUTPUT:</span> <span data-demo-output-text={side}>—</span></button><div class="demo-output-popover" data-demo-output-popover={side} hidden></div></div>)}
     </div>
     <div class="demo-playback">
       <button type="button" class="demo-play" data-demo-play disabled aria-label="Play demo"><span class="icon-play"></span></button>

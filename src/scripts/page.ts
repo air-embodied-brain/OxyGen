@@ -176,10 +176,7 @@ function initDemo() {
     seek.setAttribute("aria-valuetext", `${t.toFixed(2)} seconds`);
     clock.value = t.toFixed(2);
     head.style.left = `${t / replay.total * 100}%`;
-    if (video.paused) {
-      play.textContent = t === replay.total ? "Replay" : "Play";
-      play.setAttribute("aria-label", t === replay.total ? "Replay demo" : "Play demo");
-    }
+    if (video.paused) updateButton();
     for (const side of sides) {
       const run = replay[side];
       const phase = root.querySelector<HTMLElement>(`[data-demo-phase="${side}"]`)!;
@@ -199,7 +196,7 @@ function initDemo() {
       }, 0);
       root.querySelector<HTMLElement>(`[data-demo-inference-elapsed="${side}"]`)!.textContent = `Inference ${inferenceElapsed.toFixed(2)} s`;
       const currentText = activeCall?.updates.at(-1)?.text ?? latest?.text ?? "—";
-      output.textContent = `OUTPUT: ${currentText}`;
+      root.querySelector<HTMLElement>(`[data-demo-output-text="${side}"]`)!.textContent = currentText;
       output.disabled = side !== "oxygen";
       output.dataset.active = side === "oxygen" && activeCall ? "true" : "false";
       const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
@@ -221,8 +218,7 @@ function initDemo() {
       video.pause();
       wantsPlay = false;
       render(replay.total);
-      play.textContent = "Replay";
-      play.setAttribute("aria-label", "Replay demo");
+      updateButton();
       return;
     }
     if (!video.paused) animation = requestAnimationFrame(tick);
@@ -244,14 +240,13 @@ function initDemo() {
     video.querySelector("source")!.src = `${root.dataset.base}videos/${id}-interactive.mp4`;
     video.setAttribute("aria-label", `${tab.dataset.label}: synchronized OxyGen and isolated baseline replay`);
     root.querySelector("[role=tabpanel]")!.setAttribute("aria-labelledby", tab.id);
-    root.querySelector("[data-demo-task-text]")!.textContent = tab.dataset.task!;
-    root.querySelector("[data-demo-gain]")!.textContent = `${(Number(tab.dataset.baseline) / Number(tab.dataset.oxygen)).toFixed(2)}×`;
+
     root.querySelector<HTMLAnchorElement>("[data-demo-fallback]")!.href = `${root.dataset.base}videos/${id}.mp4`;
     for (const side of sides) {
       root.querySelector(`[data-demo-duration="${side}"]`)!.textContent = `${Number(tab.dataset[side]).toFixed(1)} s`;
       root.querySelector(`[data-demo-phase="${side}"]`)!.textContent = "Loading replay…";
       root.querySelector(`[data-demo-step="${side}"]`)!.textContent = "";
-      root.querySelector(`[data-demo-output="${side}"]`)!.textContent = "OUTPUT: —";
+      root.querySelector<HTMLElement>(`[data-demo-output-text="${side}"]`)!.textContent = "—";
       root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!.hidden = true;
       root.querySelector(`[data-demo-track="${side}"]`)!.replaceChildren();
     }
