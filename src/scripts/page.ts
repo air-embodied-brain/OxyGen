@@ -200,11 +200,11 @@ function initDemo() {
       root.querySelector<HTMLElement>(`[data-demo-inference-elapsed="${side}"]`)!.textContent = `Inference ${inferenceElapsed.toFixed(2)} s`;
       const currentText = activeCall?.updates.at(-1)?.text ?? latest?.text ?? "—";
       output.textContent = `OUTPUT: ${currentText}`;
-      output.disabled = side !== "oxygen" || !activeCall;
-      output.dataset.active = activeCall && activeLanguage ? "true" : "false";
+      output.disabled = side !== "oxygen";
+      output.dataset.active = side === "oxygen" && activeCall ? "true" : "false";
       const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
       if (activeCall) {
-        popover.innerHTML = activeCall.updates.map((item, index) => `<div><span>Request ${index + 1}</span><b>${item.text || "…"}</b></div>`).join("");
+        popover.innerHTML = activeCall.updates.map((item, index) => `<div><span>Request ${activeCall.updates.length - 1 - index === 0 ? "t" : `t-${activeCall.updates.length - 1 - index}`}</span><b>${item.text || "…"}</b></div>`).join("");
       } else popover.innerHTML = latest ? `<div><span>Latest request</span><b>${latest.text}</b></div>` : "<div><span>Output</span><b>—</b></div>";
     }
   };
@@ -344,11 +344,15 @@ function initDemo() {
   detailsButton.addEventListener("click", () => { detailsPopover.hidden = !detailsPopover.hidden; detailsButton.setAttribute("aria-expanded", String(!detailsPopover.hidden)); });
   document.addEventListener("click", event => {
     if (!(event.target instanceof Node)) return;
-    if (!root.contains(event.target)) return;
+    const insideRoot = root.contains(event.target);
     for (const side of sides) {
       const button = root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!;
       const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
-      if (event.target !== button && !popover.contains(event.target)) popover.hidden = true;
+      if (!insideRoot || (event.target !== button && !popover.contains(event.target))) popover.hidden = true;
+    }
+    if (!insideRoot || (event.target !== detailsButton && !detailsPopover.contains(event.target))) {
+      detailsPopover.hidden = true;
+      detailsButton.setAttribute("aria-expanded", "false");
     }
   });
   for (const [index, tab] of tabs.entries()) {

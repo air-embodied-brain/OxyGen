@@ -2217,3 +2217,17 @@ table.data td.bar {
  .demo-statuses .demo-step { grid-column: 2; grid-row: 1; min-width: 0; }
  .demo-details-wrap { margin-top: 10px; }
 }
+
+/* Demo alignment and stable status columns. */
+.demo-tasks { height: 42px; align-items: stretch; }
+.demo-tasks-label { height: 42px; box-sizing: border-box; align-items: center; padding-top: 0; padding-bottom: 0; }
+.demo-tasks > button { height: 42px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; align-items: center; }
+.demo-statuses > div { grid-template-columns: 1fr 106px 94px; }
+.demo-statuses .demo-step { min-width: 94px; white-space: nowrap; }
+.demo-output[data-active="false"] { text-decoration: none; cursor: default; }
+.demo-output-popover div { grid-template-columns: 92px 1fr; }
+@media(max-width:900px) {
+ .demo-tasks { height: 42px; }
+ .demo-statuses > div { grid-template-columns: 1fr 106px 94px; }
+ .demo-statuses .demo-step { min-width: 94px; }
+}
