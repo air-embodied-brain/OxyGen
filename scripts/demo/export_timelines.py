@@ -37,7 +37,7 @@ def export_side(run: Path, episode: int) -> dict:
     # frame at last action step + 1. This is build_side()'s last_step.
     first_step, last_step = actions[0]["step"], actions[-1]["step"] + 1
     assert [a["step"] for a in actions] == list(range(first_step, last_step))
-    segments, memory = [], []
+    segments, memory, calls = [], [], []
     t = 0.0
     for i, event in enumerate(events):
         infer_s = event["server_timing"]["infer_ms"] / 1000
@@ -49,6 +49,7 @@ def export_side(run: Path, episode: int) -> dict:
             language_ms = timing["text_gen_ms"] + timing["post_proc_ms"]
         split = t + infer_s * action_ms / (action_ms + language_ms)
         end = t + infer_s
+        calls.append({"start": t, "actionEnd": split, "end": end, "updates": [{"requestId": u["request_id"], "text": u["text"], "full": len(u["tokens_full"]), "new": len(u["tokens_this_frame"]), "finished": bool(u["is_finished"])} for u in event["language_updates"]]})
         segments.extend([
             {"start": t, "end": split, "kind": "action", "step": event["step"]},
             {"start": split, "end": end, "kind": "language", "step": event["step"]},
@@ -64,7 +65,7 @@ def export_side(run: Path, episode: int) -> dict:
     assert all(s["end"] >= s["start"] for s in segments)
     assert all(a["end"] == b["start"] for a, b in zip(segments, segments[1:]))
     return {"duration": t, "firstStep": first_step, "lastStep": last_step,
-            "segments": segments, "memory": memory}
+            "segments": segments, "calls": calls, "memory": memory}
 
 
 def main() -> None:

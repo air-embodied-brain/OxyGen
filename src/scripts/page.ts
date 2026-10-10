@@ -146,7 +146,7 @@ function initDemo() {
   if (!root) return;
   type Phase = "action" | "language" | "move";
   type Segment = { start: number; end: number; kind: Phase; step: number };
-  type Side = { duration: number; segments: Segment[]; firstStep: number; lastStep: number };
+  type Side = { duration: number; segments: Segment[]; calls: { start: number; actionEnd: number; end: number; updates: { text: string; full: number; new: number; finished: boolean }[] }[]; memory: { time: number; text: string }[]; firstStep: number; lastStep: number };
   type Replay = { total: number; controlDt: number; oxygen: Side; baseline: Side };
   const video = root.querySelector<HTMLVideoElement>("[data-demo-video]")!;
   const tabs = $all<HTMLButtonElement>("[role=tab]", root);
@@ -156,6 +156,7 @@ function initDemo() {
   const head = root.querySelector<HTMLElement>("[data-demo-playhead]")!;
   const clock = root.querySelector<HTMLOutputElement>("[data-demo-clock]")!;
   const error = root.querySelector<HTMLElement>("[data-demo-error]")!;
+  const overlay = root.querySelector<HTMLButtonElement>("[data-demo-overlay]")!;
   const sides = ["oxygen", "baseline"] as const;
   const labels = { action: "Action inference", language: "Language inference", move: "Executing actions" };
   let replay: Replay | undefined;
@@ -188,11 +189,19 @@ function initDemo() {
       phase.textContent = segment ? labels[segment.kind] : "Task complete";
       phase.dataset.kind = segment?.kind ?? "done";
       progress.textContent = `Step ${step} / ${run.lastStep}`;
+      const output = root.querySelector<HTMLElement>(`[data-demo-output="${side}"]`)!;
+      const outputProgress = root.querySelector<HTMLElement>(`[data-demo-output-progress="${side}"]`)!;
+      const latest = run.memory.filter(item => item.time <= t).at(-1);
+      const activeCall = run.calls.find(call => call.start <= t && t < call.end);
+      const activeLanguage = segment?.kind === "language";
+      output.textContent = latest ? `Latest language output: ${latest.text}` : "Latest language output: —";
+      outputProgress.textContent = activeLanguage && activeCall ? `Generating · ${Math.round((t - activeCall.actionEnd) / Math.max(activeCall.end - activeCall.actionEnd, 0.001) * 100)}%` : (latest ? "Language output available" : "Waiting for first output");
     }
   };
   const updateButton = () => {
     const playing = !video.paused && !video.ended;
-    play.textContent = playing ? "Pause" : "Play";
+    play.innerHTML = playing ? '<span class="icon-pause"></span>' : '<span class="icon-play"></span>';
+    overlay.classList.toggle("is-paused", !playing);
     play.setAttribute("aria-label", playing ? "Pause demo" : "Play demo");
   };
   const tick = () => {
@@ -225,11 +234,16 @@ function initDemo() {
     video.querySelector("source")!.src = `${root.dataset.base}videos/${id}-interactive.mp4`;
     video.setAttribute("aria-label", `${tab.dataset.label}: synchronized OxyGen and isolated baseline replay`);
     root.querySelector("[role=tabpanel]")!.setAttribute("aria-labelledby", tab.id);
-    root.querySelector("[data-demo-task]")!.textContent = tab.dataset.task!;
+    root.querySelector("[data-demo-task-text]")!.textContent = tab.dataset.task!;
     root.querySelector("[data-demo-gain]")!.textContent = `${(Number(tab.dataset.baseline) / Number(tab.dataset.oxygen)).toFixed(2)}×`;
+    for (const side of sides) {
+      root.querySelector(`[data-demo-speedup="${side}"]`)!.textContent = side === "oxygen" ? `${(Number(tab.dataset.baseline) / Number(tab.dataset.oxygen)).toFixed(2)}× faster` : "reference";
+    }
     root.querySelector<HTMLAnchorElement>("[data-demo-fallback]")!.href = `${root.dataset.base}videos/${id}.mp4`;
     for (const side of sides) {
       root.querySelector(`[data-demo-duration="${side}"]`)!.textContent = `${Number(tab.dataset[side]).toFixed(1)} s`;
+      root.querySelector(`[data-demo-inference="${side}"]`)!.textContent = "—";
+      root.querySelector(`[data-demo-inference-speedup="${side}"]`)!.textContent = "—";
       root.querySelector(`[data-demo-phase="${side}"]`)!.textContent = "Loading replay…";
       root.querySelector(`[data-demo-step="${side}"]`)!.textContent = "";
       root.querySelector(`[data-demo-track="${side}"]`)!.replaceChildren();
@@ -245,6 +259,11 @@ function initDemo() {
       seek.max = String(replay.total);
       root.querySelector("[data-demo-total]")!.textContent = replay.total.toFixed(2);
       for (const side of sides) {
+        const inference = replay[side].segments.filter(segment => segment.kind !== "move").reduce((sum, segment) => sum + segment.end - segment.start, 0);
+        root.querySelector(`[data-demo-inference="${side}"]`)!.textContent = `${inference.toFixed(1)} s`;
+        if (side === "oxygen") root.querySelector(`[data-demo-inference-speedup="${side}"]`)!.textContent = `${(replay.baseline.segments.filter(segment => segment.kind !== "move").reduce((sum, segment) => sum + segment.end - segment.start, 0) / inference).toFixed(2)}× faster`;
+      }
+      for (const side of sides) {
         const track = root.querySelector(`[data-demo-track="${side}"]`)!;
         for (const segment of replay[side].segments) {
           const span = document.createElement("span");
@@ -255,6 +274,7 @@ function initDemo() {
         }
       }
       render(0);
+      updateButton();
       play.disabled = video.readyState < 1;
       seek.disabled = video.readyState < 1;
       if (wantsPlay) start();
@@ -273,10 +293,16 @@ function initDemo() {
   video.addEventListener("pause", () => { cancelAnimationFrame(animation); updateButton(); });
   video.addEventListener("seeked", () => { if (!dragging) render(video.currentTime); });
   video.addEventListener("timeupdate", () => { if (!dragging) render(video.currentTime); });
+  const togglePlayback = () => {
+    wantsPlay = video.paused;
+    if (wantsPlay) start(); else video.pause();
+  };
   play.addEventListener("click", () => {
     wantsPlay = video.paused;
     if (wantsPlay) start(); else video.pause();
   });
+  overlay.addEventListener("click", event => { event.stopPropagation(); togglePlayback(); });
+  video.addEventListener("click", togglePlayback);
   const scrub = (value: number) => {
     if (!replay) return;
     wantsPlay = false;

@@ -5,7 +5,7 @@ const first = demos[0];
 ---
 
 <figure class="interactive-demo" data-demo data-base={base}>
-  <div class="demo-tasks" role="tablist" aria-label="Demo tasks">
+  <div class="demo-tasks" role="tablist" aria-label="Demo tasks"><span class="demo-tasks-label">LIBERO tasks</span>
     {demos.map((demo, index) => (
       <button role="tab" type="button" id={`task-${demo.id}`} aria-controls="demo-panel" aria-selected={index === 0 ? "true" : "false"} tabindex={index === 0 ? 0 : -1}
         data-id={demo.id} data-label={demo.title} data-task={demo.task} data-oxygen={demo.oxygenS} data-baseline={demo.baselineS}>
@@ -15,22 +15,22 @@ const first = demos[0];
   </div>
   <div id="demo-panel" role="tabpanel" aria-labelledby={`task-${first.id}`}>
     <div class="demo-task-heading">
-      <p data-demo-task>{first.task}</p>
+      <p data-demo-task><b>Task:</b> <span data-demo-task-text>{first.task}</span></p>
       <span class="demo-gain"><b data-demo-gain>{(first.baselineS / first.oxygenS).toFixed(2)}×</b> faster completion</span>
     </div>
     <div class="demo-panes demo-pane-heads">
-      <div><strong>OxyGen</strong><span>Completion <b data-demo-duration="oxygen">{first.oxygenS.toFixed(1)} s</b></span></div>
-      <div><strong>Isolated baseline</strong><span>Completion <b data-demo-duration="baseline">{first.baselineS.toFixed(1)} s</b></span></div>
+      <div><strong>OxyGen</strong><span>Completion <b data-demo-duration="oxygen">{first.oxygenS.toFixed(1)} s</b> · <b data-demo-speedup="oxygen">—</b></span><small>Inference <b data-demo-inference="oxygen">—</b> · <b data-demo-inference-speedup="oxygen">—</b></small></div>
+      <div><strong>Isolated baseline</strong><span>Completion <b data-demo-duration="baseline">{first.baselineS.toFixed(1)} s</b> · <b data-demo-speedup="baseline">—</b></span><small>Inference <b data-demo-inference="baseline">—</b> · <b data-demo-inference-speedup="baseline">reference</b></small></div>
     </div>
-    <video muted playsinline preload="metadata" poster={`${base}posters/${first.id}-interactive.webp`} data-demo-video
+    <div class="demo-video-wrap"><video muted playsinline preload="metadata" poster={`${base}posters/${first.id}-interactive.webp`} data-demo-video
       aria-label={`${first.title}: synchronized OxyGen and isolated baseline replay`}>
       <source src={`${base}videos/${first.id}-interactive.mp4`} type="video/mp4" />
-    </video>
+    </video><button type="button" class="demo-pause-overlay" data-demo-overlay aria-label="Play demo"><span></span><span></span></button></div>
     <div class="demo-panes demo-statuses">
-      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-step" data-demo-step={side}></span></div>)}
+      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-step" data-demo-step={side}></span><span class="demo-output" data-demo-output={side}></span><span class="demo-output-progress" data-demo-output-progress={side}></span></div>)}
     </div>
     <div class="demo-playback">
-      <button type="button" class="demo-play" data-demo-play disabled aria-label="Play demo">Play</button>
+      <button type="button" class="demo-play" data-demo-play disabled aria-label="Play demo"><span class="icon-play"></span></button>
       <span class="demo-clock"><output data-demo-clock>0.00</output> / <span data-demo-total>{first.baselineS.toFixed(2)}</span> s</span>
       <span class="demo-scrub-hint">Drag to compare at any moment</span>
       <div class="demo-phase-key" aria-label="Timeline legend"><span data-kind="action">Action inference</span><span data-kind="language">Language inference</span><span data-kind="move">Execution</span></div>
@@ -49,6 +49,6 @@ const first = demos[0];
   </div>
   <figcaption class="demo-caption">
     <p>The baseline finishes each language response before moving. OxyGen carries language generation across action updates.</p>
-    <details><summary>Measurement details</summary><p>π<sub>0.5</sub> on one RTX 4090; OxyGen decodes one token per request per update. The replay combines logged model inference time with simulation at 20 Hz, played at 1×. Action and language phases follow the original renderer’s timing split.</p></details>
+    <details><summary>Measurement details</summary><p>Both runs use the same frozen π<sub>0.5</sub> policy and task; OxyGen changes the inference schedule and KV-cache handling, not the policy or target actions. Action inference, language inference, and execution are shown as separate phases reconstructed from the logged run. <a href="https://github.com/air-embodied-brain/OxyGen/blob/main/README.md" target="_blank" rel="noreferrer">Timing and hardware details in the repo README ↗</a>.</p></details>
   </figcaption>
 </figure>
