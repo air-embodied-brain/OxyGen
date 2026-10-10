@@ -7,7 +7,8 @@ import Design from "./Design.astro";
 // measured mean frame latencies (10 actions / action frequency) from the
 // LIBERO ablation: baseline, shared KV only, OxyGen. Prefix and denoise widths
 // follow the synchronized stage profile (Appendix tab:small-n-profile); the
-// rest of each frame is drawn as language decoding.
+// remaining width includes decoding and other frame work. The stage profile
+// and original frame totals are separate measurements, so widths are illustrative.
 const frameMs = (hz: number) => (10 / hz) * 1000;
 const lab = ablation.rtx4090;
 const PREFIX = stageProfile.prefixMs;
@@ -91,7 +92,7 @@ function layout(mode: (typeof modes)[number]) {
       <span><i style="background: var(--action)"></i>action denoising</span>
       <span><i style="background: var(--language)"></i>language decoding</span>
     </div>
-    <figcaption class="caption">π<sub>0.5</sub> on an RTX 4090; 30-token requests, <i>k</i> = 5, one new request per frame. Frame totals are measured; stage widths follow the paper's stage profile.</figcaption>
+    <figcaption class="caption">π<sub>0.5</sub> on an RTX 4090; 30-token requests, <i>k</i> = 5, one new request per frame. Frame totals come from the original ablation. Stage widths are illustrative, using the separate camera-ready profile (prefill ≈ {PREFIX.toFixed(1)} ms, denoising ≈ {DENOISE.toFixed(1)} ms); the remaining width includes decoding and other frame work.</figcaption>
   </figure>
   <aside class="c9-12">
     <div class="fig-head"><span class="title">Per frame</span></div>

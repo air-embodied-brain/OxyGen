@@ -1,6 +1,6 @@
 ---
 import { tradeoff } from "../data/paper-figures";
-import { scaling, starvla, xiaomi } from "../data/paper-tables";
+import { scaling, starvla, tensorParallel, xiaomi } from "../data/paper-tables";
 
 // Speedup over isolated execution with 30-token requests. π0.5 values are
 // action-frequency ratios from the LIBERO results (S=10); the others are
@@ -29,13 +29,16 @@ const groups = [
     label: "Backbone size (Qwen3.5 via StarVLA)",
     rows: [
       ...["0.8B", "2B", "4B", "9B"].map((b) => ({ name: `Qwen3.5-${b}`, note: "", ...qwen(b, 1) })),
-      { name: "Qwen3.5-9B", note: "two GPUs, TP = 2", ...qwen("9B", 2) },
     ],
   },
 ];
-const MAX = 7;
+const MAX = Math.ceil(Math.max(...groups.flatMap((group) => group.rows.flatMap((row) => [row.k1, row.k5]))));
+const scalingK5 = scaling.filter((row) => row.N === 30).map((row) => row.k5);
+const tp1 = tensorParallel[0];
+const tp2 = tensorParallel[1];
 const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
 const shortN = starvla[2].find((r) => r.N === 5)!.k5;
+const shortN3 = starvla[3].find((r) => r.N === 5)!.k5;
 const shortN4 = starvla[4].find((r) => r.N === 5)!.k5;
 const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
 ---
@@ -66,22 +69,28 @@ const boundary = xiaomi.find((r) => r.N === 10)!.k10!;
       <span><i style="background: var(--action)"></i>k = 5</span>
       <span><i style="width: 1px; height: 12px; background: var(--ink)"></i>1×</span>
     </div>
+    <figcaption class="caption">π<sub>0.5</sub>: original paper measurements. Other rows: camera-ready remeasurements on RTX 4090 with an i9-13900K. StarVLA and Qwen3.5 use <i>S</i> = 4. Different host and software setups mean absolute latency is not compared across these groups.</figcaption>
+    <p class="caption"><b>Tensor parallelism.</b> On a separate eight-GPU RTX 4090 server (PCIe, no NVLink), paired 9B runs retain {tp1.k5.toFixed(2)}× / {tp2.k5.toFixed(2)}× speedups at TP = 1 / 2 (<i>N</i> = 30, <i>k</i> = 5). OxyGen frame latency rises from {tp1.oxygenMs.toFixed(1)} to {tp2.oxygenMs.toFixed(1)} ms: the second GPU does not reduce latency in this setup.</p>
   </figure>
 
   <aside class="c9-12">
     <div class="fig-head"><span class="title">Notes</span></div>
     <div class="side-note">
       <strong>{n30(starvla[2]).k1.toFixed(2)}×</strong>
-      <p>StarVLA at <i>k</i> = 1, the largest single-GPU gain: 30 in-flight requests share every decoding step.</p>
+      <p>StarVLA with one action expert at <i>k</i> = 1: 30 in-flight requests share every decoding step.</p>
     </div>
     <div class="side-note">
       <strong>{shortN.toFixed(2)}× → {shortN4.toFixed(2)}×</strong>
-      <p>With 5-token answers, nothing is batched across frames. The gain then comes from sharing the prefix, and grows as StarVLA goes from two to four experts.</p>
+      <p>With 5-token answers, nothing is batched across frames. The gain then comes from sharing the prefix, and grows as StarVLA goes from two to four experts (including language), with {shortN3.toFixed(2)}× at three experts.</p>
     </div>
     <div class="side-note">
       <strong>{boundary.toFixed(2)}×</strong>
-      <p>The one slowdown: Xiaomi when each request finishes within a single frame (<i>N</i> = <i>k</i> = 10). Every setting with <i>N</i> &gt; <i>k</i> is faster.</p>
+      <p>The one slowdown: Xiaomi when each request finishes within a single frame (<i>N</i> = <i>k</i> = 10). Every tested Xiaomi and StarVLA setting with <i>N</i> &gt; <i>k</i> is faster.</p>
     </div>
-    <p class="caption">All runs on RTX 4090. Xiaomi-Robotics-0 and StarVLA use their native implementations. StarVLA's extra heads were trained separately, so these runs measure system scaling, not a jointly trained policy; Qwen3.5 runs use randomly initialized action heads.</p>
+    <div class="side-note">
+      <strong>{Math.min(...scalingK5).toFixed(2)}–{Math.max(...scalingK5).toFixed(2)}×</strong>
+      <p>At <i>k</i> = 5, gains remain similar as Qwen3.5 grows from 0.8B to 9B.</p>
+    </div>
+    <p class="caption">Each speedup uses its own configuration's isolated baseline. Xiaomi, StarVLA and Qwen3.5 are camera-ready performance measurements on one RTX 4090 with random parameters; they measure runtime scaling. Policy success is evaluated separately below with the official π<sub>0.5</sub> checkpoint.</p>
   </aside>
 </div>

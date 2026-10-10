@@ -1,61 +1,66 @@
-// Values copied from the camera-ready paper (NeurIPS-2026---OxyGen, tex/).
+// Camera-ready paper and adopted dodo first-run tables (2026-10-08).
+// Rounded to paper precision; see DATA_SOURCES.md for evidence and hardware.
 // Speedups are OxyGen frame-latency speedups over isolated execution.
 
 export type SpeedupRow = { N: number; baselineMs: number; k1: number; k5: number; k10: number | null };
 
-/** Appendix, tab:xiaomi-full. One RTX 4090, S=5. */
+/** Appendix, tab:cross-model-results; full sweep from dodo xiaomi_full.csv. RTX 4090, S=5. */
 export const xiaomi: SpeedupRow[] = [
-  { N: 5, baselineMs: 469.4, k1: 1.89, k5: 1.03, k10: null },
-  { N: 10, baselineMs: 681.1, k1: 2.61, k5: 1.4, k10: 0.92 },
-  { N: 15, baselineMs: 911.3, k1: 3.52, k5: 1.87, k10: null },
-  { N: 20, baselineMs: 1118.6, k1: 4.16, k5: 2.31, k10: 1.46 },
-  { N: 30, baselineMs: 1540.9, k1: 5.5, k5: 3.14, k10: 1.98 },
+  { N: 5, baselineMs: 171.8, k1: 2.05, k5: 1.09, k10: null },
+  { N: 10, baselineMs: 249.9, k1: 2.91, k5: 1.49, k10: 0.96 },
+  { N: 15, baselineMs: 327.9, k1: 3.7, k5: 1.94, k10: null },
+  { N: 20, baselineMs: 406.3, k1: 4.47, k5: 2.39, k10: 1.47 },
+  { N: 30, baselineMs: 562.8, k1: 5.83, k5: 3.23, k10: 2.03 },
 ];
 
-/** Appendix, tab:starvla-full. Shared Qwen3-VL-4B prefix; E counts all experts. */
+/** Appendix, tab:cross-model-results; full sweep from dodo starvla_full.csv. E counts all experts; S=4. */
 export const starvla: Record<2 | 3 | 4, SpeedupRow[]> = {
   2: [
-    { N: 5, baselineMs: 422.4, k1: 1.87, k5: 1.07, k10: null },
-    { N: 10, baselineMs: 603.8, k1: 2.75, k5: 1.51, k10: 1.0 },
-    { N: 15, baselineMs: 790.7, k1: 3.71, k5: 1.99, k10: null },
-    { N: 20, baselineMs: 962.3, k1: 4.44, k5: 2.47, k10: 1.57 },
-    { N: 30, baselineMs: 1351.5, k1: 6.18, k5: 3.41, k10: 2.18 },
+    { N: 5, baselineMs: 144.8, k1: 2.22, k5: 1.23, k10: null },
+    { N: 10, baselineMs: 211.8, k1: 3.2, k5: 1.71, k10: 1.13 },
+    { N: 15, baselineMs: 278.6, k1: 4.11, k5: 2.22, k10: null },
+    { N: 20, baselineMs: 344.9, k1: 5.0, k5: 2.73, k10: 1.73 },
+    { N: 30, baselineMs: 478.0, k1: 6.64, k5: 3.6, k10: 2.35 },
   ],
   3: [
-    { N: 5, baselineMs: 523.1, k1: 2.0, k5: 1.21, k10: null },
-    { N: 10, baselineMs: 724.9, k1: 2.79, k5: 1.67, k10: 1.12 },
-    { N: 15, baselineMs: 906.7, k1: 3.38, k5: 2.05, k10: null },
-    { N: 20, baselineMs: 1092.1, k1: 4.2, k5: 2.48, k10: 1.67 },
-    { N: 30, baselineMs: 1449.0, k1: 5.53, k5: 3.32, k10: 2.19 },
+    { N: 5, baselineMs: 184.1, k1: 2.34, k5: 1.4, k10: null },
+    { N: 10, baselineMs: 250.7, k1: 3.13, k5: 1.82, k10: 1.25 },
+    { N: 15, baselineMs: 317.0, k1: 3.9, k5: 2.28, k10: null },
+    { N: 20, baselineMs: 383.6, k1: 4.64, k5: 2.74, k10: 1.8 },
+    { N: 30, baselineMs: 515.8, k1: 6.05, k5: 3.53, k10: 2.38 },
   ],
   4: [
-    { N: 5, baselineMs: 599.2, k1: 2.24, k5: 1.36, k10: null },
-    { N: 10, baselineMs: 776.4, k1: 2.94, k5: 1.74, k10: 1.17 },
-    { N: 15, baselineMs: 985.7, k1: 3.66, k5: 2.21, k10: null },
-    { N: 20, baselineMs: 1144.5, k1: 4.27, k5: 2.6, k10: 1.76 },
-    { N: 30, baselineMs: 1541.3, k1: 5.83, k5: 3.48, k10: 2.34 },
+    { N: 5, baselineMs: 209.4, k1: 2.66, k5: 1.59, k10: null },
+    { N: 10, baselineMs: 276.3, k1: 3.44, k5: 2.01, k10: 1.37 },
+    { N: 15, baselineMs: 342.4, k1: 4.2, k5: 2.45, k10: null },
+    { N: 20, baselineMs: 409.1, k1: 4.91, k5: 2.91, k10: 1.92 },
+    { N: 30, baselineMs: 541.2, k1: 6.3, k5: 3.69, k10: 2.49 },
   ],
 };
 
-export type ScalingRow = { backbone: string; tp: number; N: number; baselineMs: number; k1: number; k5: number; k10: number };
+export type ScalingRow = SpeedupRow & { backbone: string; tp: number };
 
-/** Appendix, tab:model-scaling. Qwen3.5 backbones via StarVLA; randomly initialized action heads. */
+/** Appendix, tab:model-scaling. Dodo single-GPU performance runs with random parameters. */
 export const scaling: ScalingRow[] = [
-  { backbone: "0.8B", tp: 1, N: 10, baselineMs: 563.4, k1: 2.71, k5: 1.59, k10: 1.1 },
-  { backbone: "0.8B", tp: 1, N: 20, baselineMs: 901.9, k1: 4.24, k5: 2.53, k10: 1.67 },
-  { backbone: "0.8B", tp: 1, N: 30, baselineMs: 1257.5, k1: 5.94, k5: 3.53, k10: 2.34 },
-  { backbone: "2B", tp: 1, N: 10, baselineMs: 605.9, k1: 2.76, k5: 1.65, k10: 1.14 },
-  { backbone: "2B", tp: 1, N: 20, baselineMs: 936.1, k1: 4.24, k5: 2.51, k10: 1.71 },
-  { backbone: "2B", tp: 1, N: 30, baselineMs: 1267.5, k1: 5.73, k5: 3.44, k10: 2.29 },
-  { backbone: "4B", tp: 1, N: 10, baselineMs: 779.8, k1: 2.74, k5: 1.61, k10: 1.1 },
-  { backbone: "4B", tp: 1, N: 20, baselineMs: 1246.3, k1: 4.32, k5: 2.64, k10: 1.73 },
-  { backbone: "4B", tp: 1, N: 30, baselineMs: 1728.0, k1: 6.07, k5: 3.6, k10: 2.4 },
-  { backbone: "9B", tp: 1, N: 10, baselineMs: 798.1, k1: 2.82, k5: 1.63, k10: 1.12 },
-  { backbone: "9B", tp: 1, N: 20, baselineMs: 1261.4, k1: 4.33, k5: 2.58, k10: 1.72 },
-  { backbone: "9B", tp: 1, N: 30, baselineMs: 1725.9, k1: 5.96, k5: 3.5, k10: 2.3 },
-  { backbone: "9B", tp: 2, N: 10, baselineMs: 905.7, k1: 2.93, k5: 1.69, k10: 1.12 },
-  { backbone: "9B", tp: 2, N: 20, baselineMs: 1435.0, k1: 4.72, k5: 2.68, k10: 1.74 },
-  { backbone: "9B", tp: 2, N: 30, baselineMs: 1983.5, k1: 6.52, k5: 3.71, k10: 2.38 },
+  { backbone: "0.8B", tp: 1, N: 10, baselineMs: 196.4, k1: 2.91, k5: 1.65, k10: 1.12 },
+  { backbone: "0.8B", tp: 1, N: 20, baselineMs: 313.6, k1: 4.62, k5: 2.62, k10: 1.7 },
+  { backbone: "0.8B", tp: 1, N: 30, baselineMs: 429.0, k1: 6.3, k5: 3.58, k10: 2.32 },
+  { backbone: "2B", tp: 1, N: 10, baselineMs: 211.3, k1: 2.99, k5: 1.71, k10: 1.14 },
+  { backbone: "2B", tp: 1, N: 20, baselineMs: 331.2, k1: 4.65, k5: 2.65, k10: 1.73 },
+  { backbone: "2B", tp: 1, N: 30, baselineMs: 453.3, k1: 6.31, k5: 3.62, k10: 2.34 },
+  { backbone: "4B", tp: 1, N: 10, baselineMs: 274.0, k1: 3.03, k5: 1.7, k10: 1.12 },
+  { backbone: "4B", tp: 1, N: 20, baselineMs: 437.9, k1: 4.82, k5: 2.72, k10: 1.76 },
+  { backbone: "4B", tp: 1, N: 30, baselineMs: 602.9, k1: 6.55, k5: 3.71, k10: 2.39 },
+  { backbone: "9B", tp: 1, N: 10, baselineMs: 316.7, k1: 3.22, k5: 1.68, k10: 1.13 },
+  { backbone: "9B", tp: 1, N: 20, baselineMs: 523.6, k1: 5.23, k5: 2.73, k10: 1.72 },
+  { backbone: "9B", tp: 1, N: 30, baselineMs: 731.9, k1: 7.18, k5: 3.79, k10: 2.39 },
+];
+
+/** Appendix, Tensor parallelism paragraph. Historical paired runs on a separate
+ * eight-RTX-4090 server (PCIe, no NVLink); never compare against dodo TP=1. */
+export const tensorParallel = [
+  { tp: 1, N: 30, baselineMs: 1725.9, oxygenMs: 493.4, k1: 5.96, k5: 3.50 },
+  { tp: 2, N: 30, baselineMs: 1983.5, oxygenMs: 535.3, k1: 6.52, k5: 3.71 },
 ];
 
 /** Appendix, tab:quality. Success rate (%), OxyGen mean and 95% CI over 10 seeds. */
@@ -84,7 +89,7 @@ export const robot = {
 };
 
 /** Appendix, tab:small-n-profile. Synchronized stage profile, π0.5-LIBERO, S=10, RTX 4090 (ms, rounded mean over N=1–5). */
-export const stageProfile = { prefixMs: 45.1, denoiseMs: 20.4 };
+export const stageProfile = { prefixMs: 44.0, denoiseMs: 20.4 };
 
 /** Main text §4.5 and Appendix, tab:quality: evaluation protocol for the LIBERO success rates. */
 export const qualityProtocol = { seeds: 10, rollouts: 20000 };
