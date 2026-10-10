@@ -12,8 +12,8 @@ const authors = [
 
 // Schematic schedule, not measured stage durations. Both rows share one time
 // scale. Repeat six OxyGen batches so request shades also loop seamlessly.
-// Each request stays in its lane and darkens across successive batches.
-// When it finishes, a new pale request replaces it in the same lane.
+// Each request stays in its lane and fades across successive batches.
+// When it finishes, a new dark request replaces it in the same lane.
 const schedule = [
   { name: "Isolated", phrase: "language blocks action generation", batch: 1, period: 240, action: 44, language: 182 },
   { name: "OxyGen", phrase: "language resumes across frames in batches", batch: 6, period: 80, action: 44, language: 24 },
@@ -69,7 +69,7 @@ const schedule = [
                 <g class="schedule-tape">
                   {Array.from({length: 11}, (_,i) => <g transform={`translate(${i * run.period} 0)`}>
                     <rect x="0" y="17" width={run.action} height="7" fill="var(--action)" />
-                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" opacity={run.batch === 1 ? 1 : 0.25 + 0.75 * ((run.batch - 1 - row + i) % run.batch) / (run.batch - 1)} />)}
+                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" opacity={run.batch === 1 ? 1 : 1 - 0.75 * ((run.batch - 1 - row + i) % run.batch) / (run.batch - 1)} />)}
                   </g>)}
                 </g>
               </svg>
