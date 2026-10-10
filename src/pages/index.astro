@@ -79,14 +79,14 @@ const resources = [
       <div class="performance-primary">
         <p class="label"><span class="model-name">π<sub>0.5</sub></span> · actions &amp; language</p>
         <div class="joint-metrics">
-          <div class="joint-gain"><strong>{peakSpeedup.toFixed(1)}<small>×</small></strong><p>faster in both outputs</p></div>
-          <div class="metric-comparison"><strong><span>{Math.round(headlineBaseline[1])}</span><i>→</i>{Math.round(peak[1])}<small>Hz</small></strong><p>action frequency (H=10)</p></div>
-          <div class="metric-comparison"><strong><span>{Math.round(headlineBaseline[2])}</span><i>→</i>{Math.round(peak[2])}<small>tok/s</small></strong><p>language throughput</p></div>
+          <div class="joint-gain"><strong><span data-count-up>{peakSpeedup.toFixed(1)}</span><small>×</small></strong><p>faster in both outputs</p></div>
+          <div class="metric-comparison"><strong><span class="metric-baseline">{Math.round(headlineBaseline[1])}</span><i>→</i><span data-count-up>{Math.round(peak[1])}</span><small>Hz</small></strong><p>action frequency (H=10)</p></div>
+          <div class="metric-comparison"><strong><span class="metric-baseline">{Math.round(headlineBaseline[2])}</span><i>→</i><span data-count-up>{Math.round(peak[2])}</span><small>tok/s</small></strong><p>language throughput</p></div>
         </div>
       </div>
       <div class="performance-transfer">
         <p class="label">Speedup across backbones</p>
-        <div class="transfer-metrics"><div><strong>{xiaomi.at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>Xiaomi-Robotics-0</p></div><div><strong>{starvla[2].at(-1)!.k1.toFixed(2)}<small>×</small></strong><p>StarVLA</p></div></div>
+        <div class="transfer-metrics"><div><strong><span data-count-up>{xiaomi.at(-1)!.k1.toFixed(2)}</span><small>×</small></strong><p>Xiaomi-Robotics-0</p></div><div><strong><span data-count-up>{starvla[2].at(-1)!.k1.toFixed(2)}</span><small>×</small></strong><p>StarVLA</p></div></div>
       </div>
     </div>
 

@@ -2114,7 +2114,7 @@ table.data td.bar {
 .summary-heading strong { font-size: 17px; font-weight: 600; color: var(--action); }
 .joint-metrics { grid-template-columns: .85fr 1fr 1.25fr; gap: 16px; align-items: baseline; }
 .performance-groups .joint-gain strong, .performance-transfer strong, .performance-groups .metric-comparison strong { font-size: 36px; }
-.metric-comparison strong span { font-size: 22px; color: var(--muted); }
+.metric-comparison strong .metric-baseline { font-size: 22px; color: var(--muted); }
 .metric-comparison strong i { font: normal 19px var(--sans); margin: 0 5px; color: var(--muted); }
 .performance-groups strong small { font: 20px/1 var(--sans); color: var(--ink-soft); }
 .performance-groups p:not(.label) { font-size: 13px; margin-top: 4px; }
