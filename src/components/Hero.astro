@@ -11,7 +11,9 @@ const authors = [
 ];
 
 // Schematic schedule, not measured stage durations. Both rows share one time
-// scale and repeat a whole tile, so the scrolling loop has no seam.
+// scale. Repeat six OxyGen batches so request shades also loop seamlessly.
+// Each request keeps its shade as it moves up a lane in subsequent batches;
+// a new request enters at the bottom as the oldest leaves at the top.
 const schedule = [
   { name: "Isolated", phrase: "language blocks action generation", batch: 1, period: 240, action: 44, language: 182 },
   { name: "OxyGen", phrase: "language resumes across frames in batches", batch: 6, period: 80, action: 44, language: 24 },
@@ -50,10 +52,12 @@ const schedule = [
     </div>
 
     <div class="c9-12 hero-summary">
+      <div class="summary-highlight">
       <p class="summary-heading"><span class="label summary-label">TL;DR</span><strong>Let robots talk while they act.</strong></p>
       <p class="dek">
         OxyGen shares what both tasks have already computed, letting language unfold across action updates instead of holding up the next move.
       </p>
+      </div>
 
       <figure class="schedule-demo" aria-label="Illustrative inference schedule: isolated execution finishes each language request before the next action update; OxyGen batches language across updates.">
 
@@ -63,9 +67,9 @@ const schedule = [
             <div class="schedule-window" aria-hidden="true">
               <svg viewBox="0 0 320 42" preserveAspectRatio="none">
                 <g class="schedule-tape">
-                  {Array.from({length: 9}, (_,i) => <g transform={`translate(${i * run.period} 0)`}>
+                  {Array.from({length: 11}, (_,i) => <g transform={`translate(${i * run.period} 0)`}>
                     <rect x="0" y="17" width={run.action} height="7" fill="var(--action)" />
-                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" opacity={run.batch === 1 ? 1 : 0.3 + 0.7 * row / (run.batch - 1)} />)}
+                    {Array.from({length:run.batch},(_,row) => <rect x={run.action + 4} y={run.batch === 1 ? 17 : 3 + row * 6} width={run.language} height="5" fill="var(--language)" opacity={run.batch === 1 ? 1 : 0.25 + 0.75 * ((row + i) % run.batch) / (run.batch - 1)} />)}
                   </g>)}
                 </g>
               </svg>

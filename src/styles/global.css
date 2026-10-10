@@ -2047,8 +2047,8 @@ table.data td.bar {
 .schedule-run { margin-top: 12px; }
 .schedule-window { overflow: hidden; margin-top: 6px; }
 .schedule-window svg { display: block; width: 100%; height: 28px; }
-.schedule-tape { animation: schedule-scroll 9s linear infinite; }
-@keyframes schedule-scroll { to { transform: translateX(-240px); } }
+.schedule-tape { animation: schedule-scroll 18s linear infinite; }
+@keyframes schedule-scroll { to { transform: translateX(-480px); } }
 .schedule-run p { margin: 0; font: 13px/1.35 var(--sans); color: var(--muted); }
 .schedule-demo .key { margin-top: 12px; }
 .schedule-demo .caption { margin-top: 8px; }
@@ -2102,10 +2102,14 @@ table.data td.bar {
 /* Compact opening identity and evidence. */
 .byline .project-affiliation { font: 400 16px/1.5 var(--sans); color: var(--ink); }
 .masthead .byline { margin-top: 18px; }
-.byline .names { margin-bottom: 4px; gap: 2px 14px; justify-content: space-between; }
+.byline .names { margin-bottom: 4px; gap: 2px 20px; justify-content: flex-start; }
 .masthead .byline a, .masthead .links a { text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 4px; text-decoration-thickness: 1px; border: 0; padding: 0; }
 .masthead .byline a:hover, .masthead .links a:hover { color: var(--action); text-decoration-color: var(--action); }
-.masthead .links { margin-top: 12px; gap: 8px 24px; justify-content: space-between; font-size: 16px; font-weight: 500; }
+.masthead .links { margin-top: 12px; gap: 8px 20px; justify-content: flex-start; font-size: 16px; font-weight: 500; }
+.byline .names > span, .masthead .links > a { position: relative; }
+.byline .names > span + span::before, .masthead .links > a + a::before { content: "·"; position: absolute; left: -12px; color: var(--muted); font-weight: 400; }
+.summary-highlight { background: color-mix(in srgb, var(--action) 6%, var(--paper)); padding: 14px 16px; }
+.hero-summary .summary-highlight .dek { margin: 0; }
 .summary-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 8px; }
 .summary-heading strong { font-size: 17px; font-weight: 600; color: var(--action); }
 .joint-metrics { grid-template-columns: .85fr 1fr 1.25fr; gap: 16px; align-items: baseline; }
