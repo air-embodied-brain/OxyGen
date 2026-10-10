@@ -2102,10 +2102,10 @@ table.data td.bar {
 /* Compact opening identity and evidence. */
 .byline .project-affiliation { font: 400 16px/1.5 var(--sans); color: var(--ink); }
 .masthead .byline { margin-top: 18px; }
-.byline .names { margin-bottom: 4px; gap: 2px 20px; justify-content: flex-start; }
+.byline .names { margin-bottom: 8px; gap: 2px 20px; justify-content: flex-start; }
 .masthead .byline a, .masthead .links a { text-decoration: underline; text-decoration-color: var(--hair); text-underline-offset: 4px; text-decoration-thickness: 1px; border: 0; padding: 0; }
 .masthead .byline a:hover, .masthead .links a:hover { color: var(--action); text-decoration-color: var(--action); }
-.masthead .links { margin-top: 12px; gap: 8px 20px; justify-content: flex-start; font-size: 16px; font-weight: 500; }
+.masthead .links { margin-top: 8px; line-height: 1.5; gap: 8px 20px; justify-content: flex-start; font-size: 16px; font-weight: 500; }
 .byline .names > span, .masthead .links > a { position: relative; }
 .byline .names > span + span::before, .masthead .links > a + a::before { content: "·"; position: absolute; left: -12px; color: var(--muted); font-weight: 400; }
 .summary-highlight { background: color-mix(in srgb, var(--action) 6%, var(--paper)); padding: 14px 16px; }
@@ -2124,3 +2124,5 @@ table.data td.bar {
  .performance-groups { margin-top: 24px; }
  .performance-groups + #demo { margin-top: 26px; }
 }
+
+.performance-groups .model-name { text-transform: none; }
