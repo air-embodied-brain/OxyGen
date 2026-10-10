@@ -188,20 +188,21 @@ function initDemo() {
       progress.textContent = `Step ${step} / ${run.lastStep}`;
       const output = root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!;
       const latest = run.memory.filter(item => item.time <= t).at(-1);
-      const activeCall = run.calls.find(call => call.start <= t && t < call.end);
+      const activeCall = run.calls.filter(call => call.start <= t).at(-1) ?? run.calls[0];
       const activeLanguage = segment?.kind === "language";
       const inferenceElapsed = run.segments.reduce((sum, item) => {
         if (item.kind === "move" || item.start >= t) return sum;
         return sum + Math.max(0, Math.min(item.end, t) - item.start);
       }, 0);
       root.querySelector<HTMLElement>(`[data-demo-inference-elapsed="${side}"]`)!.textContent = `Inference ${inferenceElapsed.toFixed(2)} s`;
-      const currentText = activeCall?.updates.at(-1)?.text ?? latest?.text ?? "—";
+      const previousCall = run.calls.filter(call => call.end <= t).at(-1);
+      const currentText = activeCall?.updates.at(-1)?.text ?? previousCall?.updates.at(-1)?.text ?? run.calls[0]?.updates[0]?.text ?? "Waiting for output";
       root.querySelector<HTMLElement>(`[data-demo-output-text="${side}"]`)!.textContent = currentText;
       output.disabled = side !== "oxygen";
-      output.dataset.active = side === "oxygen" && activeCall ? "true" : "false";
+      output.dataset.active = side === "oxygen" ? "true" : "false";
       const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
       if (activeCall) {
-        popover.innerHTML = activeCall.updates.map((item, index) => `<div><span>Request ${activeCall.updates.length - 1 - index === 0 ? "t" : `t-${activeCall.updates.length - 1 - index}`}</span><b>${item.text || "…"}</b></div>`).join("");
+        popover.innerHTML = activeCall.updates.map((item, index) => `<div><span>Request ${index === 0 ? "t" : `t-${index}`}</span><b>${item.text || "…"}</b></div>`).join("");
       } else popover.innerHTML = latest ? `<div><span>Latest request</span><b>${latest.text}</b></div>` : "<div><span>Output</span><b>—</b></div>";
     }
   };
@@ -263,6 +264,11 @@ function initDemo() {
       for (const side of sides) {
         const inference = replay[side].segments.filter(segment => segment.kind !== "move").reduce((sum, segment) => sum + segment.end - segment.start, 0);
         root.querySelector(`[data-demo-inference="${side}"]`)!.textContent = `${inference.toFixed(1)} s`;
+        if (side === "oxygen") {
+          const baselineInference = replay.baseline.segments.filter(segment => segment.kind !== "move").reduce((sum, segment) => sum + segment.end - segment.start, 0);
+          root.querySelector(`[data-demo-inference-speedup="oxygen"]`)!.textContent = `(${(baselineInference / inference).toFixed(2)}×)`;
+          root.querySelector(`[data-demo-e2e-speedup="oxygen"]`)!.textContent = `(${(replay.total / replay.oxygen.duration).toFixed(2)}×)`;
+        }
       }
       for (const side of sides) {
         const track = root.querySelector(`[data-demo-track="${side}"]`)!;

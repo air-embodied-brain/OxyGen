@@ -2242,3 +2242,16 @@ table.data td.bar {
 .demo-output:disabled { color: var(--ink-soft); }
 .demo-output-popover { bottom: calc(100% + 8px); }
 .demo-output [data-demo-output-text] { display: inline-block; max-width: calc(100% - 62px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+
+/* Output card: the label and action share one BibTeX-style pale field. */
+.demo-pane-heads > div { border-top: 0; }
+.demo-output-box { display: flex; align-items: center; min-width: 0; width: 100%; height: 28px; box-sizing: border-box; margin-top: 6px; padding: 0 0 0 9px; border: 1px solid var(--hair); background: var(--paper-deep); color: var(--ink-soft); font: 13px/1.25 var(--serif); }
+.demo-output-label { display: inline-flex; align-items: center; align-self: stretch; margin-left: -9px; margin-right: 8px; padding: 0 8px; background: var(--action); color: var(--paper); font: 600 10px/1 var(--sans); letter-spacing: .07em; }
+.demo-output-box [data-demo-output-text] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.demo-output-expand { flex: 0 0 auto; align-self: stretch; margin-left: auto; padding: 0 9px; border-left: 1px solid var(--hair); color: var(--action); font: 600 11px var(--sans); white-space: nowrap; }
+.demo-output-expand:hover:not(:disabled) { background: color-mix(in srgb, var(--action) 8%, var(--paper-deep)); }
+.demo-output-expand:disabled { color: var(--muted); cursor: default; }
+.demo-output-box[data-demo-output-box="baseline"] .demo-output-label { background: var(--baseline); }
+.demo-output-popover { bottom: calc(100% + 8px); }
+.demo-output-box { grid-column: 1 / -1; }
+.demo-output-box[data-demo-output-box="baseline"] .demo-output-expand { visibility: hidden; }
