@@ -1,3 +1,7 @@
+#resources {
+  padding-bottom: clamp(44px, 6vw, 72px);
+}
+
 .resources {
   margin: 0;
   padding: 0;

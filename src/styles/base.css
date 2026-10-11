@@ -234,23 +234,6 @@ dd {
   grid-column: 1 / -1;
 }
 
-.colophon {
-  margin-top: var(--section-gap);
-  padding: 16px 0 44px;
-  border-top: 1px solid var(--rule);
-  font-family: var(--sans);
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.colophon p {
-  margin: 0;
-}
-
-.colophon p:last-child {
-  text-align: right;
-}
-
 .section-head h2 {
   grid-column: 1 / span 7;
   margin: 0;
@@ -283,9 +266,6 @@ dd {
   }
   .section-head .dek {
     margin-top: 10px;
-  }
-  .colophon p:last-child {
-    text-align: left;
   }
 }
 
