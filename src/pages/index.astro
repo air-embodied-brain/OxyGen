@@ -42,8 +42,6 @@ const overall = quality.at(-1)!;
 
 const robotBase = robot.baseline.action + robot.baseline.language;
 const robotOurs = robot.oxygen.action + robot.oxygen.language;
-const dispatchMs = robot.oxygen.action;
-const motionEndMs = dispatchMs + robot.executionWindowMs;
 const pctOfBase = (v: number) => ((v / robotBase) * 100).toFixed(2);
 
 const resources = [
@@ -152,20 +150,18 @@ const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class
           <figure class="robot-timeline" data-bar-reveal>
             <div class="robot-gridlines" aria-hidden="true">{[0, 200, 400, 600, 800, 1000].map(t => <i style={`left:${pctOfBase(t)}%`}></i>)}</div>
             {[{name: "Isolated baseline", action: robot.baseline.action, language: robot.baseline.language, total: robotBase}, {name: "OxyGen", action: robot.oxygen.action, language: robot.oxygen.language, total: robotOurs}].map(row => (
-              <div class="robot-measure-row">
+              <div class="robot-measure-row" style={`--action-end:${pctOfBase(row.action)}%`}>
                 <strong>{row.name}</strong>
-                <div class="robot-track"><i data-grow class="robot-action" style={`width:${pctOfBase(row.action)}%;--delay:0ms`}></i><i data-grow class="robot-language" style={`width:${pctOfBase(row.language)}%;--delay:850ms`}></i></div>
+                <div class="robot-lane-stack">
+                  <div data-grow class="robot-motion" style={`margin-left:${pctOfBase(row.action)}%;width:${pctOfBase(robot.executionWindowMs)}%;--delay:var(--phase-delay)`}></div>
+                  <span class="robot-dispatch-marker" style={`left:${pctOfBase(row.action)}%`}>dispatch</span>
+                  <div class="robot-track"><i data-grow class="robot-action" style={`width:${pctOfBase(row.action)}%;--delay:0ms`}></i><i data-grow class="robot-language" style={`width:${pctOfBase(row.language)}%;--delay:var(--phase-delay)`}></i></div>
+                </div>
                 <span class="robot-total"><span data-reveal-count={row.total}>{row.total.toFixed(0)}</span> ms</span>
               </div>
             ))}
-            <div class="robot-measure-row robot-motion-row">
-              <span></span><div class="robot-motion-track" style={`--dispatch:${pctOfBase(dispatchMs)}%`}>
-                <span class="robot-dispatch">dispatch</span>
-                <div data-grow class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%;--delay:1700ms`}>Motion window</div>
-              </div><span class="robot-total"><span data-reveal-count={robot.executionWindowMs}>{robot.executionWindowMs}</span> ms</span>
-            </div>
             <div class="robot-axis"><div>{[0, 200, 400, 600, 800, 1000].map(t => <span style={`left:${pctOfBase(t)}%`}>{t}</span>)}</div><span>ms</span></div>
-            <div class="robot-chart-notes"><div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span></div>
+            <div class="robot-chart-notes"><div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span><span><i class="motion-key"></i>Motion window · {robot.executionWindowMs} ms</span></div>
             <ResultDetails id="robot-details"><p>π<sub>0.5</sub> on Jetson AGX Thor: <i>H</i> = 10, <i>S</i> = 10, <i>N</i> = 30, <i>k</i> = 5. Input: three 224 × 224 RGB views. Action timings include prefill and denoising; the speedup compares total inference time.</p><p>The motion window illustrates where physical execution could overlap language after action dispatch. It uses measured inference stages and a {robot.executionWindowMs} ms execution window; communication overhead is omitted. All bars share the same time scale.</p></ResultDetails></div>
           </figure>
         </div>

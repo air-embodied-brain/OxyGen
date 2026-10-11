@@ -2330,10 +2330,8 @@ table.data td.bar {
 .robot-track i { display: flex; align-items: center; padding-left: 8px; box-sizing: border-box; color: var(--paper); font: 13px var(--sans); }
 .robot-action { background: var(--action); }
 .robot-language { background: var(--language); }
-.robot-motion-track { position: relative; padding-top: 27px; }
-.robot-motion-track::before { content: ''; position: absolute; left: var(--dispatch); top: 0; bottom: 0; border-left: 1px dashed var(--muted); }
-.robot-dispatch { position: absolute; top: 4px; left: var(--dispatch); padding-left: 7px; color: var(--muted); font-size: 12px; }
-.robot-motion { height: 26px; display: flex; align-items: center; justify-content: center; background: var(--paper-deep); border: 1px solid var(--baseline); font-size: 13px; color: var(--muted); }
+.robot-motion-track { position: relative; }
+.robot-motion { height: 9px; margin-bottom: 5px; background: var(--paper-deep); border: 1px solid var(--baseline); box-sizing: border-box; }
 .robot-chart-notes { position: absolute; right: 0; bottom: 0; width: 45%; text-align: right; }
 .robot-chart-notes .key { margin-top: 0; justify-content: flex-end; gap: 8px 14px; }
 .robot-timeline .result-details { margin-top: 8px; }
@@ -2355,16 +2353,13 @@ table.data td.bar {
 .bib-line { display: block; white-space: pre-wrap; }
 .bib-field { padding-left: 1em; text-indent: 0; }
 .robot-timeline { --label-width: 132px; --total-width: 78px; }
-.robot-measure-row { display: grid; grid-template-columns: var(--label-width) minmax(0,1fr) var(--total-width); align-items: center; gap: 14px; position: relative; min-height: 58px; }
+.robot-measure-row { --phase-delay: 700ms; display: grid; grid-template-columns: var(--label-width) minmax(0,1fr) var(--total-width); align-items: center; gap: 14px; position: relative; min-height: 58px; }
 .robot-measure-row > strong { font: 600 14px var(--sans); }
 .robot-measure-row .robot-track { position: relative; border-bottom: 1px dotted var(--hair); }
 .robot-measure-row .robot-track i { padding: 0; }
 .robot-total { text-align: right; white-space: nowrap; font: 19px var(--display); font-variant-numeric: tabular-nums; }
-.robot-motion-row { min-height: 58px; }
-.robot-motion-row .robot-motion-track { padding-top: 0; }
-.robot-motion-row .robot-total { padding-top: 0; }
-.robot-motion-row .robot-dispatch { top: -20px; }
-.robot-motion-row .robot-motion-track::before { top: -29px; }
+.robot-lane-stack { position: relative; min-width: 0; }
+.robot-dispatch-marker { position: absolute; top: -17px; transform: translateX(-50%); color: var(--muted); font: 10px var(--sans); white-space: nowrap; }
 .robot-motion { box-sizing: border-box; white-space: nowrap; }
 .robot-gridlines { position: absolute; left: calc(var(--label-width) + 14px); right: calc(var(--total-width) + 14px); top: 0; height: 174px; pointer-events: none; }
 .robot-gridlines i { position: absolute; height: 100%; border-left: 1px solid var(--hair); opacity: .55; }
@@ -2375,8 +2370,10 @@ table.data td.bar {
 .robot-axis > span { text-align: right; }
 .robot-chart-notes { position: static; width: auto; display: flex; align-items: baseline; justify-content: flex-end; gap: 20px; margin-top: 4px; }
 .robot-chart-notes .result-details { margin-top: 0; }
+.motion-key { width: 18px; height: 7px; border: 1px solid var(--baseline); background: var(--paper-deep); box-sizing: border-box; }
 [data-bar-reveal].reveal-ready [data-grow] { transform: scaleX(0); transform-origin: left; }
 [data-bar-reveal].reveal-playing [data-grow] { animation: bar-reveal 1000ms cubic-bezier(.2,.7,.3,1) var(--delay, 0ms) both; }
+#robot [data-bar-reveal].reveal-playing [data-grow] { animation-duration: 700ms; }
 @keyframes bar-reveal { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* Requested local chart reveals remain brief and finite under reduced motion. */
@@ -2388,11 +2385,10 @@ table.data td.bar {
   }
   #results [data-bar-reveal].reveal-playing [data-grow],
   #robot [data-bar-reveal].reveal-playing [data-grow] {
-    animation-duration: 600ms;
-    animation-delay: 0ms;
+    animation-duration: 450ms;
   }
-  #robot [data-bar-reveal].reveal-playing [data-grow].robot-language { animation-delay: 450ms; }
-  #robot [data-bar-reveal].reveal-playing [data-grow].robot-motion { animation-delay: 900ms; }
+  #robot .robot-measure-row { --phase-delay: 450ms; }
+  }
 }
 
 /* Pause existing illustrative loops without rewinding their shared clock. */
