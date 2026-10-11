@@ -436,16 +436,22 @@ function draw(panel: Element) {
   panel.classList.add("drawn");
 }
 
-function drawOnFirstView(root: HTMLElement, targets: () => Element[]) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return;
-      for (const target of targets()) draw(target);
-      observer.disconnect();
-    },
-    { threshold: 0.35 },
-  );
+function observeAnimation(root: HTMLElement, play: () => void) {
+  let played = false;
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) played = false;
+      if (entry.intersectionRatio >= .6 && !played) {
+        played = true;
+        play();
+      }
+    }
+  }, { threshold: [0, .6] });
   observer.observe(root);
+}
+
+function drawOnFirstView(root: HTMLElement, targets: () => Element[]) {
+  observeAnimation(root, () => { for (const target of targets()) draw(target); });
 }
 
 function initTradeoff() {
@@ -485,20 +491,20 @@ function initBarReveal() {
   for (const root of $all<HTMLElement>("[data-bar-reveal]")) {
     root.classList.add("reveal-ready");
     const counts = $all<HTMLElement>("[data-reveal-count]", root);
-    counts.forEach(el => el.textContent = "0");
-    const observer = new IntersectionObserver(entries => {
-      if (!entries.some(entry => entry.isIntersecting)) return;
+    let frame = 0;
+    observeAnimation(root, () => {
+      cancelAnimationFrame(frame);
+      root.classList.remove("reveal-playing");
+      void root.getBoundingClientRect();
       root.classList.add("reveal-playing");
       const start = performance.now();
       const tick = (now: number) => {
-        const progress = Math.min((now - start) / 1400, 1);
+        const progress = Math.min((now - start) / 2700, 1);
         for (const el of counts) el.textContent = String(Math.round(Number(el.dataset.revealCount) * (1 - (1 - progress) ** 3)));
-        if (progress < 1) requestAnimationFrame(tick);
+        if (progress < 1) frame = requestAnimationFrame(tick);
       };
-      requestAnimationFrame(tick);
-      observer.disconnect();
-    }, { threshold: .25 });
-    observer.observe(root);
+      frame = requestAnimationFrame(tick);
+    });
   }
 }
 

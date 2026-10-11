@@ -154,14 +154,14 @@ const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class
             {[{name: "Isolated baseline", action: robot.baseline.action, language: robot.baseline.language, total: robotBase}, {name: "OxyGen", action: robot.oxygen.action, language: robot.oxygen.language, total: robotOurs}].map(row => (
               <div class="robot-measure-row">
                 <strong>{row.name}</strong>
-                <div class="robot-track"><i data-grow class="robot-action" style={`width:${pctOfBase(row.action)}%;--delay:0ms`}></i><i data-grow class="robot-language" style={`width:${pctOfBase(row.language)}%;--delay:450ms`}></i></div>
+                <div class="robot-track"><i data-grow class="robot-action" style={`width:${pctOfBase(row.action)}%;--delay:0ms`}></i><i data-grow class="robot-language" style={`width:${pctOfBase(row.language)}%;--delay:850ms`}></i></div>
                 <span class="robot-total"><span data-reveal-count={row.total}>{row.total.toFixed(0)}</span> ms</span>
               </div>
             ))}
             <div class="robot-measure-row robot-motion-row">
               <span></span><div class="robot-motion-track" style={`--dispatch:${pctOfBase(dispatchMs)}%`}>
                 <span class="robot-dispatch">dispatch</span>
-                <div data-grow class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%;--delay:900ms`}>Motion window</div>
+                <div data-grow class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%;--delay:1700ms`}>Motion window</div>
               </div><span class="robot-total"><span data-reveal-count={robot.executionWindowMs}>{robot.executionWindowMs}</span> ms</span>
             </div>
             <div class="robot-axis"><div>{[0, 200, 400, 600, 800, 1000].map(t => <span style={`left:${pctOfBase(t)}%`}>{t}</span>)}</div><span>ms</span></div>
