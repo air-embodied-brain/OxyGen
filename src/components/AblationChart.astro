@@ -18,24 +18,22 @@ const H = 250;
 const M = { l: 36, r: 84, t: 22, b: 40 };
 const INSET = 14;
 const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l - M.r - 2 * INSET);
-const N = ablationN.at(-1);
+
 ---
 
 <figure data-ablation>
   <div class="fig-head">
     <span class="title">Batching keeps actions fast as language grows.</span>
-    <div class="switch" role="tablist" aria-label="Device">
-      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-ablation-device={d.id}>{d.label}</button>)}
-    </div>
+    <div class="chart-controls"><div class="switch" role="tablist" aria-label="Device">
+      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-ablation-device={d.id} data-gain={`${(ablation[d.id].ours.at(-1)! / ablation[d.id].baseline.at(-1)!).toFixed(1)}×`}>{d.label}</button>)}
+    </div><span class="chart-gain" data-chart-gain>{(ablation.rtx4090.ours.at(-1)! / ablation.rtx4090.baseline.at(-1)!).toFixed(1)}×</span></div>
   </div>
   <div class="grid">
     {devices.map((d, i) => {
       const data = ablation[d.id];
       const sy = (v: number) => H - M.b - (v / d.max) * (H - M.t - M.b);
-      const gain = data.ours.at(-1)! / data.baseline.at(-1)!;
       return (
         <div class:list={[d.cls, "chart", i !== 0 && "off"]} data-ablation-panel={d.id}>
-          <div class="panel-head"><span>{d.label}</span><span class="gain">{gain.toFixed(1)}×<small>at {N}-token requests</small></span></div>
           <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${d.label}: action frequency by request length for each execution mode`}>
             <g class="gridlines">{d.ticks.slice(1).map((t) => <line x1={M.l} x2={W - M.r} y1={sy(t)} y2={sy(t)} />)}</g>
             <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>

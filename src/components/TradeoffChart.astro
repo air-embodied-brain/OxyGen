@@ -14,7 +14,7 @@ const series: { key: SeriesKey; label: string; short: string; cls: string }[] = 
 ];
 
 const W = 528;
-const H = 310;
+const H = 280;
 const M = { l: 36, r: 84, t: 22, b: 40 };
 const axes = {
   rtx4090: { x: 110, y: 240, xs: [0, 20, 40, 60, 80, 100], ys: [0, 60, 120, 180, 240] },
@@ -31,9 +31,9 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
 <figure data-tradeoff>
   <div class="fig-head">
     <span class="title">Action frequency and language throughput rise together.</span>
-    <div class="switch" role="tablist" aria-label="Device">
-      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id}>{d.label}</button>)}
-    </div>
+    <div class="chart-controls"><div class="switch" role="tablist" aria-label="Device">
+      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id} data-gain={`${gain(tradeoff.libero[d.id]).toFixed(1)}×`}>{d.label}</button>)}
+    </div><span class="chart-gain" data-chart-gain>{gain(tradeoff.libero.rtx4090).toFixed(1)}×</span></div>
   </div>
   <div class="grid">
     {devices.map((d, i) => {
@@ -45,7 +45,6 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
           const parallelBelow = pts.parallel[0][2] < pts.baseline[0][2];
           return (
             <div data-panel={d.id} class:list={[d.cls, "chart", i !== 0 && "off"]}>
-              <div class="panel-head"><span>{d.label}</span><span class="gain">{gain(pts).toFixed(1)}×<small>at 30-token requests</small></span></div>
               <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`LIBERO on ${d.label}: action frequency versus language throughput`}>
                 <g class="gridlines">{ax.ys.slice(1).map((v) => <line x1={M.l} x2={W - M.r} y1={sy(d.id, v)} y2={sy(d.id, v)} />)}</g>
                 <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>

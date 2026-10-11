@@ -6,6 +6,7 @@ import DemoPlayer from "../components/DemoPlayer.astro";
 import Method from "../components/Method.astro";
 import TradeoffChart from "../components/TradeoffChart.astro";
 import AblationChart from "../components/AblationChart.astro";
+import ResultDetails from "../components/ResultDetails.astro";
 import Generality from "../components/Generality.astro";
 import { citation, links } from "../data/site";
 import { memoryAdapter as mem, overhead, quality, qualityProtocol, robot, xiaomi, starvla } from "../data/paper-tables";
@@ -139,54 +140,31 @@ const resources = [
     <section class="section" id="robot" data-title="On the robot">
       <SectionHead number="4" label="On-board measurement">
         <Fragment slot="title">Lower latency, <em>on board.</em></Fragment>
-        On Jetson AGX Thor, OxyGen overlaps language with motion while cutting control-cycle latency {(robotBase / robotOurs).toFixed(1)}×.
+        {(robotBase / robotOurs).toFixed(1)}× faster inference on Jetson AGX Thor, with room for language during motion.
       </SectionHead>
       <div class="grid onboard-grid">
         <figure class="c1-4 plate setup-plate">
           <img src={`${base}images/humanoid-jetson-thor.webp`} alt="Humanoid robot with an on-board NVIDIA Jetson AGX Thor" loading="lazy" width="1200" height="1600" />
-          <figcaption class="caption"><b>SETUP</b> On-board Jetson AGX Thor.<br />3 RGB views · 224 × 224.</figcaption>
+          <figcaption class="caption">On-board Jetson AGX Thor.</figcaption>
         </figure>
         <div class="c5-12 onboard-measurement">
-          <p class="measurement-protocol">π<sub>0.5</sub> · Jetson AGX Thor · H = 10 · S = 10 · N = 30 · k = 5</p>
-          <div class="fig-head"><span class="title">One control cycle: faster inference, overlapping language.</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}× faster</span></div>
-          <div class="onboard-evidence">
-          <div class="latency">
-            <div class="latency-row">
-              <h4>Isolated baseline <span>{robotBase.toFixed(0)}<small>ms</small></span></h4>
-              <div class="latency-track">
-                <div class="seg act" style={`width: ${pctOfBase(robot.baseline.action)}%`}>{robot.baseline.action}</div>
-                <div class="seg lang" style={`width: ${pctOfBase(robot.baseline.language)}%`}>language {robot.baseline.language}</div>
+          <div class="fig-head"><span class="title">Faster inference leaves room for language during motion.</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}×</span></div>
+          <figure class="robot-timeline">
+            <div class="robot-lane">
+              <div class="robot-lane-title"><strong>Isolated baseline</strong><span>{robotBase.toFixed(0)} ms</span></div>
+              <div class="robot-track"><i class="robot-action" style={`width:${pctOfBase(robot.baseline.action)}%`}>{robot.baseline.action}</i><i class="robot-language" style={`width:${pctOfBase(robot.baseline.language)}%`}>{robot.baseline.language}</i></div>
+            </div>
+            <div class="robot-lane">
+              <div class="robot-lane-title"><strong>OxyGen</strong><span class="c-action">{robotOurs.toFixed(0)} ms</span></div>
+              <div class="robot-track"><i class="robot-action" style={`width:${pctOfBase(robot.oxygen.action)}%`}>{robot.oxygen.action.toFixed(0)}</i><i class="robot-language" style={`width:${pctOfBase(robot.oxygen.language)}%`}>{robot.oxygen.language.toFixed(0)}</i></div>
+              <div class="robot-motion-track" style={`--dispatch:${pctOfBase(dispatchMs)}%`}>
+                <span class="robot-dispatch">dispatch</span>
+                <div class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%`}>Motion window · {robot.executionWindowMs} ms</div>
               </div>
             </div>
-            <div class="latency-row">
-              <h4>OxyGen <span class="c-action">{robotOurs.toFixed(0)}<small>ms</small></span></h4>
-              <div class="latency-track">
-                <div class="seg act" style={`width: ${pctOfBase(robot.oxygen.action)}%`}>{robot.oxygen.action}</div>
-                <div class="seg lang" style={`width: ${pctOfBase(robot.oxygen.language)}%`}>{robot.oxygen.language}</div>
-
-              </div>
-            </div>
-          </div>
-          <div class="key" style="margin-top: 16px">
-            <span><i style="background: var(--action)"></i>action path: prefill and denoising</span>
-            <span><i style="background: var(--language)"></i>language path</span>
-          </div>
-          <div class="overlap-study">
-            <figure class="overlap-figure">
-              <svg viewBox="0 0 540 140" role="img" aria-label={`Illustrative schedule: ${dispatchMs} ms action inference, then ${robot.oxygen.language} ms language alongside ${robot.executionWindowMs} ms physical execution. Dispatch overhead omitted.`}>
-                <text x="0" y="14">GPU inference</text>
-                <rect x="0" y="24" width={dispatchMs} height="26" fill="var(--action)" />
-                <rect x={dispatchMs} y="24" width={robot.oxygen.language} height="26" fill="var(--language)" />
-                <text class="overlap-inside" x="10" y="42">actions · {dispatchMs.toFixed(0)} ms</text><text class="overlap-inside" x={dispatchMs + 10} y="42">language · {robot.oxygen.language.toFixed(0)} ms</text>
-                <text x="0" y="70">Robot motion</text><rect x={dispatchMs} y="80" width={robot.executionWindowMs} height="26" class="motion-window" />
-                <text x={dispatchMs + 12} y="98">physical execution · {robot.executionWindowMs} ms</text>
-                <line x1={dispatchMs} x2={dispatchMs} y1="20" y2="110" class="dispatch-line" />
-                <text x={dispatchMs} y="121" text-anchor="middle">dispatch</text>
-                <text x="0" y="138">0</text><text x={dispatchMs} y="138" text-anchor="middle">{dispatchMs.toFixed(0)}</text><text x={robotOurs} y="138" text-anchor="middle">{robotOurs.toFixed(0)}</text><text x={motionEndMs} y="138" text-anchor="end">{motionEndMs.toFixed(0)} ms</text>
-              </svg>
-            </figure>
-          </div>
-          </div>
+            <div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span><span><i style="background:var(--baseline)"></i>execution window</span></div>
+            <ResultDetails id="robot-details"><p>π<sub>0.5</sub> on Jetson AGX Thor: <i>H</i> = 10, <i>S</i> = 10, <i>N</i> = 30, <i>k</i> = 5. Input: three 224 × 224 RGB views. Action timings include prefill and denoising; the speedup compares total inference time.</p><p>The motion window illustrates where physical execution could overlap language after action dispatch. It uses measured inference stages and a {robot.executionWindowMs} ms execution window; communication overhead is omitted. All bars share the same time scale.</p></ResultDetails>
+          </figure>
         </div>
       </div>
     </section>
@@ -195,12 +173,12 @@ const resources = [
       <SectionHead number="5" label="Resources">
         <Fragment slot="title">Read it, run it, <em>build on it.</em></Fragment>
       </SectionHead>
-      <div class="grid">
+      <div class="grid resources-grid">
         <div class="c1-6">
           <div class="fig-head"><span class="title">Links</span></div>
           <ul class="resources">
             {resources.map((r) => (
-              <li class:list={[r.title === "Paper" || r.title === "Code" ? "primary-resource" : ""]}><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
+              <li><a href={r.href} target="_blank" rel="noreferrer"><strong>{r.title}</strong><span>{r.text}</span><em>{r.meta}</em></a></li>
             ))}
           </ul>
         </div>

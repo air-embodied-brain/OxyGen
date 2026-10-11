@@ -456,6 +456,7 @@ function initTradeoff() {
   for (const button of buttons) {
     button.addEventListener("click", () => {
       select(buttons, button);
+      root.querySelector("[data-chart-gain]")!.textContent = button.dataset.gain!;
       for (const panel of $all<HTMLElement>("[data-panel]", root)) {
         panel.classList.toggle("off", panel.dataset.panel !== button.dataset.device);
       }
@@ -472,6 +473,7 @@ function initAblation() {
   const panels = () => $all<HTMLElement>("[data-ablation-panel]:not(.off)", root);
   for (const button of buttons) button.addEventListener("click", () => {
     select(buttons, button);
+    root.querySelector("[data-chart-gain]")!.textContent = button.dataset.gain!;
     for (const panel of $all<HTMLElement>("[data-ablation-panel]", root)) panel.classList.toggle("off", panel.dataset.ablationPanel !== button.dataset.ablationDevice);
     for (const panel of panels()) draw(panel);
   });
