@@ -37,7 +37,7 @@ function initTheme() {
 }
 
 /**
- * Counts the headline numbers up from zero once, on first load. The display
+ * Counts the headline numbers up from zero when the highlights enter view. The display
  * face has proportional digits, so each number gets a box as wide as the widest
  * value it will show; the unit after it stays still while the digits change,
  * then the box eases to the final width.
@@ -65,61 +65,67 @@ function initCountUp() {
     const final = probe.getBoundingClientRect().width;
     probe.remove();
     el.style.width = `${Math.ceil(widest)}px`;
-    return { el, text, value, decimals, final };
+    return { el, text, value, decimals, final, widest };
   });
-  const start = performance.now();
-  const frame = (now: number) => {
-    const t = Math.min(1, (now - start) / duration);
+  let raf = 0;
+  observeAnimation(targets[0].closest<HTMLElement>(".performance-groups")!, () => {
+    cancelAnimationFrame(raf);
     for (const item of items) {
-      item.el.textContent = t < 1 ? (item.value * ease(t)).toFixed(item.decimals) : item.text;
+      item.el.style.transition = "none";
+      item.el.style.width = `${Math.ceil(item.widest)}px`;
     }
-    if (t < 1) {
-      requestAnimationFrame(frame);
-      return;
-    }
-    for (const item of items) {
-      item.el.style.transition = "width 0.35s ease";
-      item.el.style.width = `${Math.ceil(item.final)}px`;
-    }
-  };
-  requestAnimationFrame(frame);
+    const start = performance.now();
+    const frame = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      for (const item of items) {
+        item.el.textContent = t < 1 ? (item.value * ease(t)).toFixed(item.decimals) : item.text;
+      }
+      if (t < 1) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      for (const item of items) {
+        item.el.style.transition = "width 0.35s ease";
+        item.el.style.width = `${Math.ceil(item.final)}px`;
+      }
+    };
+    raf = requestAnimationFrame(frame);
+  });
 }
 
-/** Reveal the latency breakdown once, in execution order. */
+/** Reveal the latency breakdown on entry, in execution order. */
 function initStageAnimation() {
   const root = document.querySelector<HTMLElement>("[data-stage-animation]");
-  if (!root || reducedMotion) return;
+  if (!root) return;
   const rows = $all<HTMLElement>(".lane", root);
   root.classList.add("stage-ready");
   for (const count of $all<HTMLElement>("[data-stage-count]", root)) count.textContent = "0";
-  const observer = new IntersectionObserver(entries => {
-    if (!entries.some(entry => entry.isIntersecting)) return;
-    observer.disconnect();
-    void document.fonts.ready.then(() => {
-      const start = performance.now();
-      const duration = 420;
-      const stageEnd = Math.max(...rows.map(row => row.querySelectorAll(".block").length)) * duration;
-      const ease = (x: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
-      const animate = (now: number) => {
-        const elapsed = now - start;
-        for (const row of rows) {
-          $all<HTMLElement>(".block", row).forEach((block, index) => {
-            block.style.transform = `scaleX(${ease((elapsed - index * duration) / duration)})`;
-          });
-          const count = row.querySelector<HTMLElement>("[data-stage-count]")!;
-          count.textContent = String(Math.round(Number(count.dataset.stageCount) * ease(elapsed / stageEnd)));
-        }
-        $all<HTMLElement>(".batch-layers i", root).forEach((layer, index) => {
-          layer.style.opacity = String((.7 - index * .2) * ease((elapsed - stageEnd - index * 120) / 180));
+  let raf = 0;
+  observeAnimation(root, () => {
+    cancelAnimationFrame(raf);
+    const start = performance.now();
+    const duration = 420;
+    const stageEnd = Math.max(...rows.map(row => row.querySelectorAll(".block").length)) * duration;
+    const ease = (x: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      for (const row of rows) {
+        $all<HTMLElement>(".block", row).forEach((block, index) => {
+          block.style.transform = `scaleX(${ease((elapsed - index * duration) / duration)})`;
         });
-        const textProgress = ease((elapsed - stageEnd - 450) / 250);
-        for (const label of $all<HTMLElement>(".stage-block-label", root)) label.style.opacity = String(textProgress);
-        if (elapsed < stageEnd + 700) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
-    });
-  }, { threshold: .45 });
-  observer.observe(root);
+        const count = row.querySelector<HTMLElement>("[data-stage-count]")!;
+        count.textContent = String(Math.round(Number(count.dataset.stageCount) * ease(elapsed / stageEnd)));
+      }
+      $all<HTMLElement>(".batch-layers i", root).forEach((layer, index) => {
+        layer.style.opacity = String((.7 - index * .2) * ease((elapsed - stageEnd - index * 120) / 180));
+      });
+      const textProgress = ease((elapsed - stageEnd - 450) / 250);
+      for (const label of $all<HTMLElement>(".stage-block-label", root)) label.style.opacity = String(textProgress);
+      if (elapsed < stageEnd + 700) raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+
+  });
 }
 
 /**
@@ -153,7 +159,6 @@ function initDesign() {
     }
   };
   const clock = root.querySelector<SVGElement>(".ring-1");
-  let playing = false;
   const step = () => {
     frame += 1;
     if (frame >= frames) {
@@ -170,18 +175,11 @@ function initDesign() {
   };
   // The left panel's CSS animation is the clock: each loop advances one frame.
   clock?.addEventListener("animationiteration", step);
-  const observer = new IntersectionObserver((entries) => {
-    const visible = entries.some((e) => e.isIntersecting);
-    if (visible && !playing) {
-      playing = true;
-      root.classList.add("playing");
-      show(frame);
-    } else if (!visible && playing) {
-      playing = false;
-      root.classList.remove("playing");
-    }
+  observeVisibility(root, visible => {
+    root.classList.add("playing");
+    root.classList.toggle("motion-paused", !visible);
+    show(frame);
   });
-  observer.observe(root);
 }
 
 function initDemo() {
@@ -205,7 +203,8 @@ function initDemo() {
   let replay: Replay | undefined;
   let taskId = tabs[0].dataset.id!;
   let animation = 0;
-  let wantsPlay = false;
+  let wantsPlay = true;
+  let visible = false;
   let dragging = false;
   const data = fetch(`${root.dataset.base}data/demo-timelines.json`).then(response => {
     if (!response.ok) throw new Error("Replay data unavailable");
@@ -268,7 +267,7 @@ function initDemo() {
     if (!video.paused) animation = requestAnimationFrame(tick);
   };
   const start = () => {
-    if (!replay || video.readyState < 1) return;
+    if (!visible || !replay || video.readyState < 1) return;
     if (video.currentTime >= replay.total - 0.001) video.currentTime = 0;
     void video.play().catch(() => { wantsPlay = false; updateButton(); });
   };
@@ -418,14 +417,11 @@ function initDemo() {
     });
   }
   void load(tabs[0]);
-  if (!reducedMotion) {
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        wantsPlay = true; start(); observer.disconnect();
-      }
-    }, { threshold: 0.6 });
-    observer.observe(video);
-  }
+  observeVisibility(video, next => {
+    visible = next;
+    if (visible && wantsPlay) start();
+    else if (!visible) video.pause();
+  });
 }
 
 /** Draws a chart panel's lines once. */
@@ -435,21 +431,30 @@ function draw(panel: Element) {
   panel.classList.add("drawn");
 }
 
-function observeAnimation(root: HTMLElement, play: () => void) {
-  let played = false;
-  // Pixel visibility remains reachable even when a table is taller than the viewport.
+/** Enter after enough pixels are visible; pause only after fully leaving. */
+function observeVisibility(root: HTMLElement, update: (visible: boolean) => void) {
+  let active = false;
   const check = () => {
     const rect = root.getBoundingClientRect();
-    const visible = Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
-    if (visible <= 0) played = false;
-    if (!played && visible >= Math.min(rect.height * .6, innerHeight * .35)) {
-      played = true;
-      play();
-    }
+    const pixels = Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
+    const next = !document.hidden && (active ? pixels > 0 : pixels >= Math.min(rect.height * .6, innerHeight * .35));
+    if (next !== active) { active = next; update(active); }
   };
+  update(false);
   window.addEventListener("scroll", check, { passive: true });
   window.addEventListener("resize", check, { passive: true });
+  document.addEventListener("visibilitychange", check);
+  new ResizeObserver(check).observe(root);
   check();
+}
+
+function observeAnimation(root: HTMLElement, play: () => void) {
+  observeVisibility(root, visible => { if (visible) play(); });
+}
+
+function initSchedule() {
+  const root = document.querySelector<HTMLElement>(".schedule-demo");
+  if (root) observeVisibility(root, visible => root.classList.toggle("motion-paused", !visible));
 }
 
 function drawOnFirstView(root: HTMLElement, targets: () => Element[]) {
@@ -567,6 +572,7 @@ export function initPage() {
   initTheme();
   void document.fonts.ready.then(initCountUp);
   initStageAnimation();
+  initSchedule();
   initDesign();
   initDemo();
   initTradeoff();

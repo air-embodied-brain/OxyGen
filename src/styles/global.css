@@ -2394,3 +2394,10 @@ table.data td.bar {
   #robot [data-bar-reveal].reveal-playing [data-grow].robot-language { animation-delay: 450ms; }
   #robot [data-bar-reveal].reveal-playing [data-grow].robot-motion { animation-delay: 900ms; }
 }
+
+/* Pause existing illustrative loops without rewinding their shared clock. */
+.schedule-demo.motion-paused .schedule-tape,
+.design.playing.motion-paused .dg-ring,
+.design.playing.motion-paused .dg-kvrow,
+.design.playing.motion-paused .dg-slot-k,
+.design.playing.motion-paused .dg-done.finishing { animation-play-state: paused; }
