@@ -983,7 +983,7 @@ dd {
 .compact-result .result-line span { color: var(--ink-soft); }
 .compact-result .result-line .method-settings-trigger { margin-left: auto; }
 
-.chart .drawn path {
+.chart.drawn path, .chart .drawn path {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
   animation: draw 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
@@ -1522,7 +1522,7 @@ table.data td.bar {
     scroll-behavior: auto;
   }
 
-  .chart .drawn path {
+  .chart.drawn path, .chart .drawn path {
     animation: none;
     stroke-dasharray: none;
   }
@@ -2349,3 +2349,30 @@ table.data td.bar {
 #resources .citation pre { margin: 0; }
 
 #resources .citation pre, #resources .citation code { font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+
+/* Aligned citation fields, with hanging continuation lines. */
+#resources .citation pre { white-space: normal; }
+.bib-line { display: block; white-space: pre-wrap; }
+.bib-field { padding-left: 2.5em; text-indent: -1.5em; }
+.robot-timeline { --label-width: 132px; --total-width: 78px; }
+.robot-measure-row { display: grid; grid-template-columns: var(--label-width) minmax(0,1fr) var(--total-width); align-items: center; gap: 14px; position: relative; min-height: 58px; }
+.robot-measure-row > strong { font: 600 14px var(--sans); }
+.robot-measure-row .robot-track { position: relative; border-bottom: 1px dotted var(--hair); }
+.robot-measure-row .robot-track i { padding: 0; }
+.robot-total { text-align: right; white-space: nowrap; font: 19px var(--display); font-variant-numeric: tabular-nums; }
+.robot-motion-row { min-height: 66px; }
+.robot-motion-row .robot-motion-track { padding-top: 22px; }
+.robot-motion-row .robot-total { padding-top: 22px; }
+.robot-motion { box-sizing: border-box; white-space: nowrap; }
+.robot-gridlines { position: absolute; left: calc(var(--label-width) + 14px); right: calc(var(--total-width) + 14px); top: 0; height: 174px; pointer-events: none; }
+.robot-gridlines i { position: absolute; height: 100%; border-left: 1px solid var(--hair); opacity: .55; }
+.robot-gridlines i:first-child { border-color: var(--ink); }
+.robot-axis { margin: 8px 0 0 calc(var(--label-width) + 14px); display: grid; grid-template-columns: 1fr var(--total-width); gap: 14px; color: var(--muted); font: 11px var(--sans); }
+.robot-axis > div { position: relative; height: 20px; }
+.robot-axis > div span { position: absolute; transform: translateX(-50%); }
+.robot-axis > span { text-align: right; }
+.robot-chart-notes { position: static; width: auto; display: flex; align-items: baseline; justify-content: flex-end; gap: 20px; margin-top: 4px; }
+.robot-chart-notes .result-details { margin-top: 0; }
+[data-bar-reveal].reveal-ready [data-grow] { transform: scaleX(0); transform-origin: left; }
+[data-bar-reveal].reveal-playing [data-grow] { animation: bar-reveal 600ms cubic-bezier(.2,.7,.3,1) var(--delay, 0ms) both; }
+@keyframes bar-reveal { from { transform: scaleX(0); } to { transform: scaleX(1); } }

@@ -480,6 +480,28 @@ function initAblation() {
   drawOnFirstView(root, panels);
 }
 
+function initBarReveal() {
+  if (reducedMotion) return;
+  for (const root of $all<HTMLElement>("[data-bar-reveal]")) {
+    root.classList.add("reveal-ready");
+    const counts = $all<HTMLElement>("[data-reveal-count]", root);
+    counts.forEach(el => el.textContent = "0");
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      root.classList.add("reveal-playing");
+      const start = performance.now();
+      const tick = (now: number) => {
+        const progress = Math.min((now - start) / 1400, 1);
+        for (const el of counts) el.textContent = String(Math.round(Number(el.dataset.revealCount) * (1 - (1 - progress) ** 3)));
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      observer.disconnect();
+    }, { threshold: .25 });
+    observer.observe(root);
+  }
+}
+
 function initTooltip() {
   const tip = document.querySelector<HTMLElement>("#tooltip");
   if (!tip) return;
@@ -503,7 +525,7 @@ function initCitation() {
   const text = document.querySelector<HTMLElement>("#citation-text");
   button?.addEventListener("click", async () => {
     if (!text) return;
-    await navigator.clipboard.writeText(text.textContent ?? "");
+    await navigator.clipboard.writeText(text.dataset.citation ?? text.textContent ?? "");
     const label = button.querySelector("span");
     if (!label) return;
     label.textContent = "Copied";
@@ -539,6 +561,7 @@ export function initPage() {
   initDemo();
   initTradeoff();
   initAblation();
+  initBarReveal();
   initTooltip();
   initCitation();
 }

@@ -37,7 +37,7 @@ const MAX = Math.ceil(Math.max(...groups.flatMap((group) => group.rows.flatMap((
 const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
 ---
 
-<div class="generality">
+<div class="generality" data-bar-reveal>
   <figure>
     <div class="fig-head"><span class="title">Speedups transfer across VLA architectures, expert counts and backbone sizes.</span></div>
     <table class="data">
@@ -50,7 +50,7 @@ const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
           {group.rows.map((row) => (
             <tr>
               <td class="name">{row.name}{row.note && <small>{row.note}</small>}</td>
-              <td class="bar"><div class="spark" style={`--one: ${pct(1)}`}><i class="k1" style={`width: ${pct(row.k1)}%`}></i><i style={`width: ${pct(row.k5)}%`}></i><span>{row.k1.toFixed(2)}× / {row.k5.toFixed(2)}×</span></div></td>
+              <td class="bar"><div class="spark" style={`--one: ${pct(1)}`}><i data-grow class="k1" style={`width: ${pct(row.k1)}%`}></i><i data-grow style={`width: ${pct(row.k5)}%`}></i><span>{row.k1.toFixed(2)}× / {row.k5.toFixed(2)}×</span></div></td>
             </tr>
           ))}
         </tbody>

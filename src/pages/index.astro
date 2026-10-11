@@ -53,6 +53,7 @@ const resources = [
   { href: links.model, title: "Adapter", text: "π0.5 textual-memory LoRA", meta: "Hugging Face ↗" },
   { href: links.dataset, title: "Dataset", text: "LIBERO textual-memory annotations", meta: "Hugging Face ↗" },
 ];
+const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class="bib-line ${line.startsWith(" ") ? "bib-field" : ""}">${line.trimStart().replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</span>`).join(String.fromCharCode(10));
 ---
 
 <BaseLayout
@@ -148,19 +149,22 @@ const resources = [
         </figure>
         <div class="c5-12 onboard-measurement">
           <div class="fig-head"><span class="title">Faster inference leaves room for language during motion.</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}×</span></div>
-          <figure class="robot-timeline">
-            <div class="robot-lane">
-              <div class="robot-lane-title"><strong>Isolated baseline</strong><span>{robotBase.toFixed(0)} ms</span></div>
-              <div class="robot-track"><i class="robot-action" style={`width:${pctOfBase(robot.baseline.action)}%`}>{robot.baseline.action}</i><i class="robot-language" style={`width:${pctOfBase(robot.baseline.language)}%`}>{robot.baseline.language}</i></div>
-            </div>
-            <div class="robot-lane">
-              <div class="robot-lane-title"><strong>OxyGen</strong><span class="c-action">{robotOurs.toFixed(0)} ms</span></div>
-              <div class="robot-track"><i class="robot-action" style={`width:${pctOfBase(robot.oxygen.action)}%`}>{robot.oxygen.action.toFixed(0)}</i><i class="robot-language" style={`width:${pctOfBase(robot.oxygen.language)}%`}>{robot.oxygen.language.toFixed(0)}</i></div>
-              <div class="robot-motion-track" style={`--dispatch:${pctOfBase(dispatchMs)}%`}>
-                <span class="robot-dispatch">dispatch</span>
-                <div class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%`}>Motion window · {robot.executionWindowMs} ms</div>
+          <figure class="robot-timeline" data-bar-reveal>
+            <div class="robot-gridlines" aria-hidden="true">{[0, 200, 400, 600, 800, 1000].map(t => <i style={`left:${pctOfBase(t)}%`}></i>)}</div>
+            {[{name: "Isolated baseline", action: robot.baseline.action, language: robot.baseline.language, total: robotBase}, {name: "OxyGen", action: robot.oxygen.action, language: robot.oxygen.language, total: robotOurs}].map(row => (
+              <div class="robot-measure-row">
+                <strong>{row.name}</strong>
+                <div class="robot-track"><i data-grow class="robot-action" style={`width:${pctOfBase(row.action)}%;--delay:0ms`}></i><i data-grow class="robot-language" style={`width:${pctOfBase(row.language)}%;--delay:450ms`}></i></div>
+                <span class="robot-total"><span data-reveal-count={row.total}>{row.total.toFixed(0)}</span> ms</span>
               </div>
+            ))}
+            <div class="robot-measure-row robot-motion-row">
+              <span></span><div class="robot-motion-track" style={`--dispatch:${pctOfBase(dispatchMs)}%`}>
+                <span class="robot-dispatch">dispatch</span>
+                <div data-grow class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%;--delay:900ms`}>Motion window</div>
+              </div><span class="robot-total"><span data-reveal-count={robot.executionWindowMs}>{robot.executionWindowMs}</span> ms</span>
             </div>
+            <div class="robot-axis"><div>{[0, 200, 400, 600, 800, 1000].map(t => <span style={`left:${pctOfBase(t)}%`}>{t}</span>)}</div><span>ms</span></div>
             <div class="robot-chart-notes"><div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span></div>
             <ResultDetails id="robot-details"><p>π<sub>0.5</sub> on Jetson AGX Thor: <i>H</i> = 10, <i>S</i> = 10, <i>N</i> = 30, <i>k</i> = 5. Input: three 224 × 224 RGB views. Action timings include prefill and denoising; the speedup compares total inference time.</p><p>The motion window illustrates where physical execution could overlap language after action dispatch. It uses measured inference stages and a {robot.executionWindowMs} ms execution window; communication overhead is omitted. All bars share the same time scale.</p></ResultDetails></div>
           </figure>
@@ -184,7 +188,7 @@ const resources = [
         <div class="c7-12 citation">
 
           <div class="fig-head"><span class="title">Citation</span><button id="copy-citation" class="copy" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="1.5"></rect><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"></path></svg><span>Copy BibTeX</span></button></div>
-          <pre><code id="citation-text">{citation}</code></pre>
+          <pre><code id="citation-text" data-citation={citation} set:html={bibHtml} /></pre>
         </div>
       </div>
     </section>
