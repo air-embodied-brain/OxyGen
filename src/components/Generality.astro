@@ -63,7 +63,7 @@ const pct = (v: number) => ((v / MAX) * 100).toFixed(2);
     </div>
     <ResultDetails id="generality-details" label="Details (three experiments)">
       <p>Shared details for the throughput, batching and transfer experiments.</p>
-      <p>All use π<sub>0.5</sub> on LIBERO, 30-token requests, and speedup over each configuration’s isolated baseline. <i>k</i> is the per-frame decoding budget; <i>S</i> = 10 for π<sub>0.5</sub>. The throughput chart compares RTX 4090 and Jetson AGX Thor; the batching chart uses <i>k</i> = 5. Ringed points match the same workload.</p>
+      <p>The throughput and batching panels use π<sub>0.5</sub> on LIBERO; the transfer table reports each model’s 30-token row against its own isolated baseline. <i>k</i> is the per-frame decoding budget; <i>S</i> = 10 for π<sub>0.5</sub>. The throughput chart compares RTX 4090 and Jetson AGX Thor, while the batching chart uses <i>k</i> = 5. Ringed points match the π<sub>0.5</sub> workload.</p>
       <p>Transfer runs use one RTX 4090 and an i9-13900K (Xiaomi <i>S</i> = 5; StarVLA/Qwen3.5 <i>S</i> = 4). Runtime scaling uses random parameters; policy quality is validated separately with the official checkpoint.</p>
     </ResultDetails>
   </figure>
