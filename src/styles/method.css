@@ -326,12 +326,23 @@
 #method .design .grid > .c1-6,
 #method .design .grid > .c7-12 {
   display: grid;
-  grid-template-rows: auto 250px auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  min-width: 0;
 }
 
 #method .design .chart {
   display: flex;
   align-items: center;
+  min-height: 250px;
+  aspect-ratio: 528 / 250;
+  width: 100%;
+  min-width: 0;
+}
+
+.design .chart svg {
+  min-width: 0;
+  flex: 0 0 100%;
 }
 
 #method .design .design-key {

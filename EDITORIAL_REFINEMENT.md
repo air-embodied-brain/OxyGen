@@ -14,3 +14,13 @@
 | 验收必须可读、可对照 | 固定目录 `../review-artifacts/site-coordination/` 保存源码基线、基线/最终截图、真实动效中间态/终态、CHECKS与REVIEW；Details同时核对document y、scrollY和页面高度，不冻结滚动 | 1220×1004、950×420、390×844，两种动效偏好；1440深色与950窄屏截图；独立侧栏终验 | 本地检查及独立终验通过；本轮本地提交归档，不push或部署 |
 
 独立终验（2026-10-11）：统筹者已通过真实侧栏 Method / Results / Robot / Demo、深浅主题及390px手机 Method / Results / Demo；设备鼠标/键盘、Details/Escape、暂停/batch交互通过。已复核最终截图、6组回归、data/public无修改及diff检查。
+
+## Hero / Method 局部修复 — 2026-10-11
+
+| 问题 | 已落实 | 验收 | 状态 |
+|---|---|---|---|
+| Method frame 标识与 observation 不对齐 | 共用 x 与宽度，文字居中，容纳最长 `frame t+5` | 真实侧栏820px及字体加载前后几何检查 | 独立终验通过 |
+| Hero 作者换行后两列留白失衡、分隔点悬空 | 有界标题字号与列内间距分配；作者使用尾随分隔点；保留文字资源链接，媒体规则合并 | 真实侧栏950/1050px及多宽度截图 | 独立终验通过 |
+| Method 中间宽度标题遮挡及全页横向溢出 | 内容行高与比例布局；grid最小列宽、子项及SVG尺寸约束，不裁切页面 | 11宽度×深浅×字体前后共44组检查；截图、build、diff检查通过 | 独立终验通过 |
+
+回退基线：`23f1d8b`。证据：`../review-artifacts/hero-method/REVIEW.md`及其baseline/final截图。本轮仅上述三项实现与本记录；数据、动效时序和其他章节不变。本地提交归档，不push或部署。

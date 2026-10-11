@@ -11,6 +11,7 @@ const FRAMES = 6;
 // Left panel geometry
 const W = 516;
 const H = 200;
+const observationWidth = 78;
 
 // Right panel geometry
 const LW = 64; // label column
@@ -35,8 +36,8 @@ const steady = B; // first frame where the batch is full (0-based)
             </marker>
           </defs>
 
-          <rect class="dg-frame-badge" x="0" y="16" width="100" height="28" />
-          <text class="dg-label dg-frame-no" x="10" y="35" data-frame-label>frame t</text>
+          <rect class="dg-frame-badge" x="0" y="16" width={observationWidth} height="28" />
+          <text class="dg-label dg-frame-no" x={observationWidth / 2} y="35" text-anchor="middle" data-frame-label>frame t</text>
 
           <!-- highlight rings, lit in turn as the frame is processed -->
           <rect class="dg-ring ring-1" x="-3" y="75" width="84" height="78" />
@@ -47,7 +48,7 @@ const steady = B; // first frame where the batch is full (0-based)
 
           <!-- observation -->
           <g transform="translate(0 78)">
-            <rect class="dg-frame" x="0" y="0" width="78" height="72" />
+            <rect class="dg-frame" x="0" y="0" width={observationWidth} height="72" />
             {[0, 1, 2].map((i) => <rect class="dg-img" x={8 + i * 21} y="10" width="17" height="17" />)}
             <line class="dg-text-line" x1="8" x2="70" y1="40" y2="40" />
             <line class="dg-text-line" x1="8" x2="52" y1="50" y2="50" />
