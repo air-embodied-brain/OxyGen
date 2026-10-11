@@ -11,6 +11,10 @@ npm run dev
 
 Run `npm run build` before submitting changes. The GitHub Actions workflow builds the site with the `/OxyGen` base path and deploys `dist/` to GitHub Pages.
 
+## Favicon source
+
+The site favicon uses outline paths derived from the bundled Libre Baskerville Bold 700 font. It has no runtime font dependency; the font is distributed under the SIL Open Font License 1.1. The favicon SVG includes the same attribution comment.
+
 ## Data provenance
 
 Every measured number on the page lives in `src/data/` and is traced to its paper location and raw evidence in [DATA_SOURCES.md](DATA_SOURCES.md), which also explains how to replace results after a re-run.
