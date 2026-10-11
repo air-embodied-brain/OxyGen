@@ -140,12 +140,11 @@ const resources = [
     <section class="section" id="robot" data-title="On the robot">
       <SectionHead number="4" label="On-board measurement">
         <Fragment slot="title">Lower latency, <em>on board.</em></Fragment>
-        {(robotBase / robotOurs).toFixed(1)}× faster inference on Jetson AGX Thor, with room for language during motion.
+        {(robotBase / robotOurs).toFixed(1)}× faster inference on the on-board Jetson AGX Thor, with room for language during motion.
       </SectionHead>
       <div class="grid onboard-grid">
         <figure class="c1-4 plate setup-plate">
           <img src={`${base}images/humanoid-jetson-thor.webp`} alt="Humanoid robot with an on-board NVIDIA Jetson AGX Thor" loading="lazy" width="1200" height="1600" />
-          <figcaption class="caption">On-board Jetson AGX Thor.</figcaption>
         </figure>
         <div class="c5-12 onboard-measurement">
           <div class="fig-head"><span class="title">Faster inference leaves room for language during motion.</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}×</span></div>
@@ -162,8 +161,8 @@ const resources = [
                 <div class="robot-motion" style={`margin-left:${pctOfBase(dispatchMs)}%;width:${pctOfBase(robot.executionWindowMs)}%`}>Motion window · {robot.executionWindowMs} ms</div>
               </div>
             </div>
-            <div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span><span><i style="background:var(--baseline)"></i>execution window</span></div>
-            <ResultDetails id="robot-details"><p>π<sub>0.5</sub> on Jetson AGX Thor: <i>H</i> = 10, <i>S</i> = 10, <i>N</i> = 30, <i>k</i> = 5. Input: three 224 × 224 RGB views. Action timings include prefill and denoising; the speedup compares total inference time.</p><p>The motion window illustrates where physical execution could overlap language after action dispatch. It uses measured inference stages and a {robot.executionWindowMs} ms execution window; communication overhead is omitted. All bars share the same time scale.</p></ResultDetails>
+            <div class="robot-chart-notes"><div class="key"><span><i style="background:var(--action)"></i>action generation</span><span><i style="background:var(--language)"></i>language generation</span></div>
+            <ResultDetails id="robot-details"><p>π<sub>0.5</sub> on Jetson AGX Thor: <i>H</i> = 10, <i>S</i> = 10, <i>N</i> = 30, <i>k</i> = 5. Input: three 224 × 224 RGB views. Action timings include prefill and denoising; the speedup compares total inference time.</p><p>The motion window illustrates where physical execution could overlap language after action dispatch. It uses measured inference stages and a {robot.executionWindowMs} ms execution window; communication overhead is omitted. All bars share the same time scale.</p></ResultDetails></div>
           </figure>
         </div>
       </div>

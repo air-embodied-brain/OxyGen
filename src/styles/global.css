@@ -2321,7 +2321,7 @@ table.data td.bar {
 /* One time scale and one OxyGen inference bar for both comparisons. */
 #robot .setup-plate { padding-top: 0; }
 #robot .onboard-grid { align-items: start; }
-.robot-timeline { font-family: var(--sans); }
+.robot-timeline { position: relative; font-family: var(--sans); }
 .robot-lane + .robot-lane { margin-top: 20px; }
 .robot-lane-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; font-size: 14px; }
 .robot-lane-title strong { font-weight: 600; }
@@ -2334,7 +2334,8 @@ table.data td.bar {
 .robot-motion-track::before { content: ''; position: absolute; left: var(--dispatch); top: 0; bottom: 0; border-left: 1px dashed var(--muted); }
 .robot-dispatch { position: absolute; top: 4px; left: var(--dispatch); padding-left: 7px; color: var(--muted); font-size: 12px; }
 .robot-motion { height: 26px; display: flex; align-items: center; justify-content: center; background: var(--paper-deep); border: 1px solid var(--baseline); font-size: 13px; color: var(--muted); }
-.robot-timeline .key { margin-top: 15px; }
+.robot-chart-notes { position: absolute; right: 0; bottom: 0; width: 45%; text-align: right; }
+.robot-chart-notes .key { margin-top: 0; justify-content: flex-end; gap: 8px 14px; }
 .robot-timeline .result-details { margin-top: 8px; }
 
 #robot .setup-plate img { width: 190px; }
@@ -2346,3 +2347,5 @@ table.data td.bar {
 #resources .resources strong { font: 500 15px/1.4 var(--sans); }
 #resources .resources span, #resources .resources em { font-size: 13px; }
 #resources .citation pre { margin: 0; }
+
+#resources .citation pre, #resources .citation code { font-family: var(--sans); font-size: 14px; line-height: 1.5; }
