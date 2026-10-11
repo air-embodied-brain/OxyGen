@@ -430,7 +430,6 @@ function initDemo() {
 
 /** Draws a chart panel's lines once. */
 function draw(panel: Element) {
-  if (reducedMotion) return;
   panel.classList.remove("drawn");
   void (panel as HTMLElement).getBoundingClientRect();
   panel.classList.add("drawn");
@@ -438,20 +437,25 @@ function draw(panel: Element) {
 
 function observeAnimation(root: HTMLElement, play: () => void) {
   let played = false;
-  const observer = new IntersectionObserver(entries => {
-    for (const entry of entries) {
-      if (!entry.isIntersecting) played = false;
-      if (entry.intersectionRatio >= .6 && !played) {
-        played = true;
-        play();
-      }
+  // Pixel visibility remains reachable even when a table is taller than the viewport.
+  const check = () => {
+    const rect = root.getBoundingClientRect();
+    const visible = Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
+    if (visible <= 0) played = false;
+    if (!played && visible >= Math.min(rect.height * .6, innerHeight * .35)) {
+      played = true;
+      play();
     }
-  }, { threshold: [0, .6] });
-  observer.observe(root);
+  };
+  window.addEventListener("scroll", check, { passive: true });
+  window.addEventListener("resize", check, { passive: true });
+  check();
 }
 
 function drawOnFirstView(root: HTMLElement, targets: () => Element[]) {
-  observeAnimation(root, () => { for (const target of targets()) draw(target); });
+  const replay = () => { for (const target of targets()) draw(target); };
+  observeAnimation(root, replay);
+  return replay;
 }
 
 function initTradeoff() {
@@ -459,6 +463,7 @@ function initTradeoff() {
   if (!root) return;
   const buttons = $all<HTMLButtonElement>("[data-device]", root);
   const panels = () => $all<HTMLElement>("[data-panel]:not(.off)", root);
+  const replay = drawOnFirstView(root, panels);
   for (const button of buttons) {
     button.addEventListener("click", () => {
       select(buttons, button);
@@ -466,10 +471,9 @@ function initTradeoff() {
       for (const panel of $all<HTMLElement>("[data-panel]", root)) {
         panel.classList.toggle("off", panel.dataset.panel !== button.dataset.device);
       }
-      for (const panel of panels()) draw(panel);
+      replay();
     });
   }
-  drawOnFirstView(root, panels);
 }
 
 function initAblation() {
@@ -477,29 +481,29 @@ function initAblation() {
   if (!root) return;
   const buttons = $all<HTMLButtonElement>("[data-ablation-device]", root);
   const panels = () => $all<HTMLElement>("[data-ablation-panel]:not(.off)", root);
+  const replay = drawOnFirstView(root, panels);
   for (const button of buttons) button.addEventListener("click", () => {
     select(buttons, button);
     root.querySelector("[data-chart-gain]")!.textContent = button.dataset.gain!;
     for (const panel of $all<HTMLElement>("[data-ablation-panel]", root)) panel.classList.toggle("off", panel.dataset.ablationPanel !== button.dataset.ablationDevice);
-    for (const panel of panels()) draw(panel);
+    replay();
   });
-  drawOnFirstView(root, panels);
 }
 
 function initBarReveal() {
-  if (reducedMotion) return;
   for (const root of $all<HTMLElement>("[data-bar-reveal]")) {
     root.classList.add("reveal-ready");
     const counts = $all<HTMLElement>("[data-reveal-count]", root);
     let frame = 0;
     observeAnimation(root, () => {
+      root.classList.add("reveal-ready");
       cancelAnimationFrame(frame);
       root.classList.remove("reveal-playing");
       void root.getBoundingClientRect();
       root.classList.add("reveal-playing");
       const start = performance.now();
       const tick = (now: number) => {
-        const progress = Math.min((now - start) / 2700, 1);
+        const progress = Math.min((now - start) / (reducedMotion ? 1500 : 2700), 1);
         for (const el of counts) el.textContent = String(Math.round(Number(el.dataset.revealCount) * (1 - (1 - progress) ** 3)));
         if (progress < 1) frame = requestAnimationFrame(tick);
       };

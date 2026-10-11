@@ -2378,3 +2378,19 @@ table.data td.bar {
 [data-bar-reveal].reveal-ready [data-grow] { transform: scaleX(0); transform-origin: left; }
 [data-bar-reveal].reveal-playing [data-grow] { animation: bar-reveal 1000ms cubic-bezier(.2,.7,.3,1) var(--delay, 0ms) both; }
 @keyframes bar-reveal { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Requested local chart reveals remain brief and finite under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  #results .chart.drawn path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 1s ease-out forwards;
+  }
+  #results [data-bar-reveal].reveal-playing [data-grow],
+  #robot [data-bar-reveal].reveal-playing [data-grow] {
+    animation-duration: 600ms;
+    animation-delay: 0ms;
+  }
+  #robot [data-bar-reveal].reveal-playing [data-grow].robot-language { animation-delay: 450ms; }
+  #robot [data-bar-reveal].reveal-playing [data-grow].robot-motion { animation-delay: 900ms; }
+}
