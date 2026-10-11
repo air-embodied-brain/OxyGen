@@ -148,9 +148,8 @@ const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class
         <div class="c5-12 onboard-measurement">
           <div class="fig-head"><span class="title">Faster inference leaves room for language during motion.</span><span class="onboard-gain">{(robotBase / robotOurs).toFixed(1)}×</span></div>
           <figure class="robot-timeline" data-bar-reveal>
-            <div class="robot-gridlines" aria-hidden="true">{[0, 200, 400, 600, 800, 1000].map(t => <i style={`left:${pctOfBase(t)}%`}></i>)}</div>
             {[{name: "Isolated baseline", action: robot.baseline.action, language: robot.baseline.language, total: robotBase}, {name: "OxyGen", action: robot.oxygen.action, language: robot.oxygen.language, total: robotOurs}].map(row => (
-              <div class="robot-measure-row" style={`--action-end:${pctOfBase(row.action)}%`}>
+              <div class="robot-measure-row">
                 <strong>{row.name}</strong>
                 <div class="robot-lane-stack">
                   <div data-grow class="robot-motion" style={`margin-left:${pctOfBase(row.action)}%;width:${pctOfBase(robot.executionWindowMs)}%;--delay:var(--phase-delay)`}></div>

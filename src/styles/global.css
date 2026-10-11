@@ -2322,17 +2322,11 @@ table.data td.bar {
 #robot .setup-plate { padding-top: 0; }
 #robot .onboard-grid { align-items: start; }
 .robot-timeline { position: relative; font-family: var(--sans); }
-.robot-lane + .robot-lane { margin-top: 20px; }
-.robot-lane-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; font-size: 14px; }
-.robot-lane-title strong { font-weight: 600; }
-.robot-lane-title > span { font: 21px var(--display); }
-.robot-track { display: flex; height: 26px; }
+.robot-track { display: flex; align-items: center; height: 32px; }
 .robot-track i { display: flex; align-items: center; padding-left: 8px; box-sizing: border-box; color: var(--paper); font: 13px var(--sans); }
 .robot-action { background: var(--action); }
 .robot-language { background: var(--language); }
-.robot-motion-track { position: relative; }
-.robot-motion { height: 9px; margin-bottom: 5px; background: var(--paper-deep); border: 1px solid var(--baseline); box-sizing: border-box; }
-.robot-chart-notes { position: absolute; right: 0; bottom: 0; width: 45%; text-align: right; }
+.robot-motion { position: absolute; top: -11px; height: 9px; background: var(--baseline); border: 0; box-sizing: border-box; }
 .robot-chart-notes .key { margin-top: 0; justify-content: flex-end; gap: 8px 14px; }
 .robot-timeline .result-details { margin-top: 8px; }
 
@@ -2353,24 +2347,24 @@ table.data td.bar {
 .bib-line { display: block; white-space: pre-wrap; }
 .bib-field { padding-left: 1em; text-indent: 0; }
 .robot-timeline { --label-width: 132px; --total-width: 78px; }
-.robot-measure-row { --phase-delay: 700ms; display: grid; grid-template-columns: var(--label-width) minmax(0,1fr) var(--total-width); align-items: center; gap: 14px; position: relative; min-height: 58px; }
+.robot-measure-row { --phase-delay: 700ms; display: grid; grid-template-columns: var(--label-width) minmax(0,1fr) var(--total-width); align-items: center; gap: 14px; position: relative; min-height: 32px; }
 .robot-measure-row > strong { font: 600 14px var(--sans); }
-.robot-measure-row .robot-track { position: relative; border-bottom: 1px dotted var(--hair); }
-.robot-measure-row .robot-track i { padding: 0; }
+.robot-measure-row .robot-track { position: relative; }
+.robot-track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dotted var(--hair); }
+.robot-track::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px solid var(--ink); }
+.robot-measure-row + .robot-measure-row { margin-top: 30px; }
+.robot-timeline { padding-top: 30px; }
+.robot-measure-row .robot-track i { position: relative; height: 26px; padding: 0; }
 .robot-total { text-align: right; white-space: nowrap; font: 19px var(--display); font-variant-numeric: tabular-nums; }
 .robot-lane-stack { position: relative; min-width: 0; }
-.robot-dispatch-marker { position: absolute; top: -17px; transform: translateX(-50%); color: var(--muted); font: 10px var(--sans); white-space: nowrap; }
-.robot-motion { box-sizing: border-box; white-space: nowrap; }
-.robot-gridlines { position: absolute; left: calc(var(--label-width) + 14px); right: calc(var(--total-width) + 14px); top: 0; height: 174px; pointer-events: none; }
-.robot-gridlines i { position: absolute; height: 100%; border-left: 1px solid var(--hair); opacity: .55; }
-.robot-gridlines i:first-child { border-color: var(--ink); }
-.robot-axis { margin: 8px 0 0 calc(var(--label-width) + 14px); display: grid; grid-template-columns: 1fr var(--total-width); gap: 14px; color: var(--muted); font: 11px var(--sans); }
-.robot-axis > div { position: relative; height: 20px; }
+.robot-dispatch-marker { position: absolute; top: -27px; transform: translateX(-50%); color: var(--muted); font: 10px var(--sans); white-space: nowrap; }
+.robot-axis { margin: 24px 0 0 calc(var(--label-width) + 14px); display: grid; grid-template-columns: 1fr var(--total-width); gap: 14px; color: var(--faint); font: 10.5px var(--mono); }
+.robot-axis > div { position: relative; height: 14px; }
 .robot-axis > div span { position: absolute; transform: translateX(-50%); }
 .robot-axis > span { text-align: right; }
 .robot-chart-notes { position: static; width: auto; display: flex; align-items: baseline; justify-content: flex-end; gap: 20px; margin-top: 4px; }
 .robot-chart-notes .result-details { margin-top: 0; }
-.motion-key { width: 18px; height: 7px; border: 1px solid var(--baseline); background: var(--paper-deep); box-sizing: border-box; }
+.motion-key { width: 18px; height: 7px; border: 0; background: var(--baseline); }
 [data-bar-reveal].reveal-ready [data-grow] { transform: scaleX(0); transform-origin: left; }
 [data-bar-reveal].reveal-playing [data-grow] { animation: bar-reveal 1000ms cubic-bezier(.2,.7,.3,1) var(--delay, 0ms) both; }
 #robot [data-bar-reveal].reveal-playing [data-grow] { animation-duration: 700ms; }
@@ -2388,7 +2382,6 @@ table.data td.bar {
     animation-duration: 450ms;
   }
   #robot .robot-measure-row { --phase-delay: 450ms; }
-  }
 }
 
 /* Pause existing illustrative loops without rewinding their shared clock. */
