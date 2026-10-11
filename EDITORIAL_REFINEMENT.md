@@ -1,43 +1,16 @@
-# Desktop editorial refinement — 2026-10-10
+# 全站视觉与结构工作清单 — 2026-10-11
 
-Baseline: `website-editorial` at `f2ed456`, with camera-ready data aligned.
-Working branch: `website-editorial-refinement`.
+| 问题 | 拟改 / 已落实 | 验收 | 状态 |
+|---|---|---|---|
+| 全站视觉缺少统一语义 | 保留纸底与编辑式字体；采用 paper `#fffefa`、ink `#292825`、墨蓝 `#315f78`、砖红 `#a33a31`。阶段、实验系列、表面、文字角色集中在 `src/styles/tokens.css`；深色使用同色系可辨版本 | 桌面、窄屏、390px 深浅截图；细线、小字、图例可读 | 完成；独立浏览器终验通过 |
+| k 色阶跨图不一致且表格重叠误导 | 统一 k1/k5/k10 系列 token；Generality 改上下两根细条，同零点、1×参考线与尺度，数字继续合并显示；消融的 OxyGen 使用独立语义，避免误称 k1 | 曲线与表格同 k 同色；双条不相互遮挡；数值与比例不变 | 完成 |
+| 标题、图例、说明、详情与强调层级分散 | 统一角色字号、图例几何、caption/Details 节奏；保留首屏指标与紧凑数据读数的层级差异；修正 motion 图例优先级 | 逐节检查密度、留白和对齐；SVG 字号补偿有效 | 完成 |
+| Demo / 设备控件与 Details 行为重复 | 提取 `DeviceTabs`；共用 tabs 选择/焦点样式与键盘行为；`ResultDetails` 复用于所有实验说明。原生 popover 统一外部点击/Escape/expanded 状态，OUTPUT 仍锚定文本框 | 设备/任务鼠标与键盘、详情关闭、单行输出、完整 batch、视频播放/暂停/拖动、复制与主题切换 | 完成 |
+| 历史覆盖、失效样式与脚本职责混杂 | `global.css` 仅做入口；tokens/base/shared/各节/motion 分文件拥有规则。移除旧 memory/contact/overlap/output 等无效结构及重复覆盖；脚本按 demo/charts/motion/visibility/popovers 分责；移除孤立注释、未用变量和表格 scoped/global 双重所有权 | 样式声明1943→1364；build零错误/警告/提示；数据文件无修改；diff检查通过 | 完成 |
+| 手机仍套桌面密度 | 390px 下修正标题列宽、指标分组、表格双条、总数列与刻度密度；任务按钮换行，OUTPUT单行省略；Method示意图局部横向滚动以保留文字 | 页面无横向溢出；手机图内可横滑并可键盘聚焦，实验说明不超视口 | 完成；局部横滑有意保留 |
+| 精修布局与科学语义易被统一化抹平 | 保留首屏分组/作者链接/TL;DR，Demo双画面与手动暂停意图，Method同步示意和分阶段图，Results桌面左图右表/共享Details/质量与能耗简行，Robot独立dispatch薄条，Resources对齐与BibTeX缩进 | 无恢复FIG/TABLE、Contact、应用节或冗余表格；不暗示动作有损，不声称实测overlap | 保留并验证 |
+| 动效回归风险 | 保留有限增长与循环示意各自生命周期，不合并万能动画器；两种偏好均可见，离屏循环暂停，入视口/返回/设备切换重播 | 首屏3.7/71/213/5.83/6.64；KV524/469/176；Robot1030/393、motion333ms，普通700/700ms、reduce450/450ms；低视口可触发 | 完成 |
+| 高风险抽象和既有专用表现 | KV与Robot仅共用视觉语汇，不合并数据/动画组件；阶段示意、曲线、视频保留专用逻辑；复制按钮与任务表头保留不同形态；字体预加载策略不改 | 可维护边界不牺牲章节表达、正确时序与字体稳定 | 有意保留，无待实施项 |
+| 验收必须可读、可对照 | 固定目录 `../review-artifacts/site-coordination/` 保存源码基线、基线/最终截图、真实动效中间态/终态、CHECKS与REVIEW；Details同时核对document y、scrollY和页面高度，不冻结滚动 | 1220×1004、950×420、390×844，两种动效偏好；1440深色与950窄屏截图；独立侧栏终验 | 本地检查及独立终验通过；本轮本地提交归档，不push或部署 |
 
-## Direction
-
-Warm paper, homepage typography, fine rules, 1080px editorial grid. Promotional
-research page, with technical depth in the blog. Performance and model transfer
-lead; success is validation. The robot photo is a setup reference, not a demo.
-Mobile-specific design and dark-theme refinement remain deferred.
-
-## Current section decisions
-
-The author rejected the first two refinement passes as visually worse. This
-pass uses actual section screenshots and independent visual review, removing
-the extra structures that weakened the original composition.
-
-- Hero: retain the original masthead; four aligned performance columns show
-  π0.5 speedup, concurrent action rate and Xiaomi/StarVLA transfer. One common
-  protocol line. Integer frequency consistently rounds 70.9 to 71 Hz.
-- Demo: video and task selection stay together in the original two-column
-  arrangement; no detached full-width selectors or duplicate giant readout.
-- Method: two concise panel titles, aligned captions, no oversized transition
-  paragraph; compact measured-benefit notes alongside the latency diagram.
-- Results: each figure has one heading. Matched-workload points and direct
-  ablation labels guide reading. Models, experts and Qwen sizes share one
-  table, with three short interpretations and scoped protocol notes.
-- Robot: setup photograph and caption align; hardware settings occupy one
-  short line. Measured inference and illustrative overlap remain distinct,
-  with a compact timeline starting the execution window at dispatch.
-- Application: concise introduction, aligned memory log and two metrics;
-  zeroed-adapter validation stays secondary.
-- Resources: equal heading baselines, restrained link typography, visible
-  BibTeX and copy button. No explanatory paragraph or empty collapsed column.
-
-Independent agent reviewed each section visually; a separate agent implemented
-and screenshot-reviewed the generality table. Primary agent also inspected the
-section images and integrated requested alignment/spacing corrections.
-
-Desktop validation: 1280/1440/1920px, completed count-up and chart entry
-animations, lazy image loaded. Check video/configuration switching, citation
-copy, build and whitespace. These checks supplement visual inspection.
+独立终验（2026-10-11）：统筹者已通过真实侧栏 Method / Results / Robot / Demo、深浅主题及390px手机 Method / Results / Demo；设备鼠标/键盘、Details/Escape、暂停/batch交互通过。已复核最终截图、6组回归、data/public无修改及diff检查。

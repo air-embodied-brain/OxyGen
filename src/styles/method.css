@@ -1,0 +1,456 @@
+.lanes {
+  display: grid;
+  gap: 14px;
+}
+
+.lane {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--sans);
+}
+
+.lane-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.lane-track {
+  position: relative;
+  height: 28px;
+  border-left: 1px solid var(--ink);
+}
+
+.lane-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px dotted var(--hair);
+}
+
+.block {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--paper);
+}
+
+.block.prefill {
+  background: var(--baseline);
+}
+
+.block.prefill.repeat {
+  background: repeating-linear-gradient(-45deg, var(--baseline) 0 4px, transparent 4px 7px);
+  box-shadow: inset 0 0 0 1px var(--baseline);
+  color: var(--ink);
+}
+
+.block.denoise {
+  background: var(--action);
+}
+
+.block.decode {
+  background: var(--language);
+}
+
+.lane-axis {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 72px;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: var(--text-tick);
+  color: var(--faint);
+}
+
+.lane-axis div {
+  position: relative;
+  height: 14px;
+}
+
+.lane-axis div span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+@media (max-width: 680px) {
+  .lane,
+.lane-axis {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+  .lane-name {
+    grid-column: 1 / -1;
+  }
+  .lane-axis > span:first-child {
+    display: none;
+  }
+  .block.prefill,
+.block.denoise {
+    font-size: 0;
+  }
+}
+
+.lane-total {
+  text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1.1;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 18px;
+}
+
+.roman {
+  margin-right: 4px;
+  font-family: var(--serif);
+  color: var(--action);
+}
+
+.design .panel-head {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.chart .dg-frame {
+  fill: var(--paper);
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+}
+
+.chart .dg-img {
+  fill: var(--paper-deep);
+  stroke: var(--muted);
+  stroke-width: 0.8;
+}
+
+.chart .dg-text-line {
+  stroke: var(--faint);
+  stroke-width: 2;
+}
+
+.chart .dg-prefill {
+  fill: var(--baseline);
+}
+
+.chart .dg-kv {
+  fill: var(--paper-deep);
+  stroke: var(--ink-soft);
+  stroke-width: 0.8;
+}
+
+.chart .dg-slot {
+  fill: none;
+  stroke: var(--language);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 1.5;
+}
+
+.chart .dg-action {
+  fill: var(--action);
+}
+
+.chart .dg-token {
+  fill: var(--language);
+}
+
+.chart .dg-batch {
+  fill: color-mix(in srgb, var(--language) 10%, transparent);
+  stroke: var(--language);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart .dg-link {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+
+.chart .dg-head {
+  fill: var(--ink-soft);
+}
+
+.chart .dg-label {
+  fill: var(--ink);
+  font-size: calc(13px * var(--s, 1));
+  font-weight: 600;
+}
+
+.chart .dg-small {
+  fill: var(--muted);
+  font-size: calc(11.5px * var(--s, 1));
+}
+
+.chart .dg-on-dark {
+  fill: var(--paper);
+  font-size: calc(13px * var(--s, 1));
+  font-weight: 600;
+}
+
+.chart .dg-on-dark-small {
+  fill: var(--paper);
+  font-size: calc(11.5px * var(--s, 1));
+}
+
+.design > .grid {
+  align-items: start;
+}
+
+.design-key {
+  margin-top: 12px;
+}
+
+.chart .dg-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.4;
+  opacity: 0;
+}
+
+.design.playing .dg-ring {
+  animation: var(--cycle) linear infinite;
+}
+
+.design.playing .ring-1 {
+  animation-name: ring-a;
+}
+
+.design.playing .ring-2 {
+  animation-name: ring-b;
+}
+
+.design.playing .ring-3 {
+  animation-name: ring-c;
+}
+
+.design.playing .ring-4 {
+  animation-name: ring-d;
+}
+
+.design.playing .dg-kvrow {
+  animation: kvrow var(--cycle) linear infinite;
+  animation-delay: calc(var(--i) * var(--cycle) * 0.025);
+}
+
+.design.playing .dg-slot-k {
+  animation: slot var(--cycle) linear infinite;
+}
+
+.chart .dg-slider {
+  transform: translateX(var(--x));
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+}
+
+.chart .dg-cell {
+  transition: opacity 0.4s ease;
+}
+
+.design.playing .dg-cell.future {
+  opacity: 0.12;
+}
+
+.design.playing .dg-slider.reset {
+  opacity: 0;
+}
+
+@media(min-width:901px) {
+  .design .panel-head {
+    font-size: 16px;
+    margin-bottom: 14px;
+  }
+}
+
+.method-design-note {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.method-design-note + .method-benefits {
+  margin-top: 26px;
+}
+
+.method-caption-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  margin-top: 18px;
+}
+
+.method-caption-row .caption {
+  margin: 0;
+}
+
+.method-design-note button {
+  font: 14px var(--sans);
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: var(--hair);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+#method .method-benefits .lane,
+#method .method-benefits .lane-axis {
+  grid-template-columns: 182px minmax(0, 1fr) 80px;
+  gap: 20px;
+}
+
+#method .method-benefits .lane-name {
+  font-size: 15px;
+}
+
+#method .method-benefits .lane-track {
+  height: 36px;
+}
+
+#method .section-head .dek {
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+#method .section-head {
+  margin-bottom: 14px;
+}
+
+#method .design .grid > .c1-6,
+#method .design .grid > .c7-12 {
+  display: grid;
+  grid-template-rows: auto 250px auto;
+}
+
+#method .design .chart {
+  display: flex;
+  align-items: center;
+}
+
+#method .design .design-key {
+  margin-top: 10px;
+  align-self: end;
+}
+
+.chart .dg-frame-badge {
+  fill: var(--paper-deep);
+  stroke: var(--action);
+  stroke-width: 1.5;
+}
+
+.chart .dg-frame-no {
+  font-variant-numeric: tabular-nums;
+  fill: var(--action);
+}
+
+.chart .dg-done {
+  fill: var(--action);
+  font-size: calc(12px * var(--s, 1));
+  font-weight: 700;
+  opacity: 0;
+}
+
+.chart .dg-done.completed {
+  opacity: 1;
+}
+
+.design.playing .dg-done.finishing {
+  animation: method-completion var(--cycle) linear infinite;
+}
+
+#method .method-benefits .block.batch-decode {
+  overflow: visible;
+}
+
+.batch-layers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.batch-layers i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  top: calc(-5px - var(--layer) * 5px);
+  background: var(--language);
+  opacity: calc(.7 - var(--layer) * .2);
+}
+
+#method .method-benefits .lanes {
+  margin-top: 22px;
+  gap: 24px;
+}
+
+#method .method-benefits .block {
+  font-size: 13px;
+}
+
+.method-caption-row > .result-details, .method-design-note > .result-details {
+  margin: 0;
+}
+
+@media (max-width: 680px) {
+  #method .method-benefits .lane, #method .method-benefits .lane-axis {
+    grid-template-columns: minmax(0,1fr) 70px;
+    gap: 8px;
+  }
+  #method .method-benefits .lane-name {
+    grid-column: 1 / -1;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  #method .method-benefits .lane-track {
+    height: 32px;
+  }
+  #method .method-benefits .lane-axis > span:first-child {
+    display: none;
+  }
+  #method .method-benefits .block {
+    font-size: 11px;
+  }
+  .method-caption-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .method-caption-row .caption {
+    flex-basis: 100%;
+  }
+  .design .grid > div {
+    min-width: 0;
+  }
+  .design .chart {
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .design .chart svg {
+    min-width: 500px;
+  }
+  .lane-total {
+    white-space: nowrap;
+    font-size: 16px;
+  }
+  #method .method-benefits .lanes {
+    gap: 32px;
+  }
+  #method .method-benefits .block.decode {
+    overflow: visible;
+  }
+  #method .method-benefits .block.decode .stage-block-label {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    color: var(--ink);
+    font-size: 11px;
+  }
+}
+
+/* Small screens preserve diagram text through local scrolling, not page overflow. */

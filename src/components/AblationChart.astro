@@ -1,4 +1,5 @@
 ---
+import DeviceTabs from "./DeviceTabs.astro";
 import { ablation, ablationN } from "../data/paper-figures";
 
 const devices = [
@@ -9,7 +10,7 @@ const series = [
   { key: "baseline", label: "Isolated baseline", cls: "s-baseline" },
   { key: "parallel", label: "Parallel (MPS)", cls: "s-parallel" },
   { key: "no_batching", label: "+ KV sharing", cls: "s-nobatch" },
-  { key: "ours", label: "+ batching = OxyGen", cls: "s-k1" },
+  { key: "ours", label: "+ batching = OxyGen", cls: "s-ours" },
 ] as const;
 
 const W = 528;
@@ -21,19 +22,17 @@ const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l 
 
 ---
 
-<figure data-ablation>
+<figure data-ablation data-device-chart>
   <div class="fig-head">
     <span class="title">Batching keeps actions fast as language grows.</span>
-    <div class="chart-controls"><div class="switch" role="tablist" aria-label="Device">
-      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-ablation-device={d.id} data-gain={`${(ablation[d.id].ours.at(-1)! / ablation[d.id].baseline.at(-1)!).toFixed(1)}×`}>{d.label}</button>)}
-    </div><span class="chart-gain" data-chart-gain>{(ablation.rtx4090.ours.at(-1)! / ablation.rtx4090.baseline.at(-1)!).toFixed(1)}×</span></div>
+    <DeviceTabs id="ablation" devices={devices.map(d => ({ id: d.id, label: d.label, gain: `${(ablation[d.id].ours.at(-1)! / ablation[d.id].baseline.at(-1)!).toFixed(1)}×` }))} />
   </div>
   <div class="grid">
     {devices.map((d, i) => {
       const data = ablation[d.id];
       const sy = (v: number) => H - M.b - (v / d.max) * (H - M.t - M.b);
       return (
-        <div class:list={[d.cls, "chart", i !== 0 && "off"]} data-ablation-panel={d.id}>
+        <div class:list={[d.cls, "chart", i !== 0 && "off"]} id={`ablation-${d.id}`} role="tabpanel" aria-labelledby={`ablation-tab-${d.id}`} data-chart-panel={d.id}>
           <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${d.label}: action frequency by request length for each execution mode`}>
             <g class="gridlines">{d.ticks.slice(1).map((t) => <line x1={M.l} x2={W - M.r} y1={sy(t)} y2={sy(t)} />)}</g>
             <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>
@@ -58,7 +57,7 @@ const sx = (i: number) => M.l + INSET + (i / (ablationN.length - 1)) * (W - M.l 
     })}
   </div>
   <div class="key">
-    {series.map((s) => <span class={s.cls}><i class="line" style="background: currentColor"></i>{s.label}</span>)}
+    {series.map((s) => <span class={s.cls}><i class="line" style={`background: var(--series-${s.key === "no_batching" ? "kv" : s.key})`}></i>{s.label}</span>)}
     <span><i class="dash"></i>one frame of decoding only</span>
   </div>
 </figure>

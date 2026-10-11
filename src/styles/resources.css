@@ -1,0 +1,147 @@
+.resources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resources a {
+  display: grid;
+  grid-template-columns: 68px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hair);
+  text-decoration: none;
+}
+
+.resources span {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.resources em {
+  font-family: var(--sans);
+  font-style: normal;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.resources a:hover strong,
+.resources a:hover em {
+  color: var(--action);
+}
+
+@media (max-width: 680px) {
+  .resources a {
+    grid-template-columns: 68px minmax(0,1fr) auto;
+  }
+  .resources span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+.resources strong {
+  font: 500 15px/1.4 var(--sans);
+}
+
+.citation .fig-head {
+  align-items: center;
+}
+
+.copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.copy svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.copy:hover,
+.copy.done {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.citation pre {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--hair);
+  background: var(--sheet);
+  white-space: normal;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+#resources .resources-grid > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+#resources .resources-grid .fig-head {
+  height: 42px;
+  min-height: 42px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+#resources .resources {
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  flex: 1;
+}
+
+#resources .resources span,
+#resources .resources em {
+  font-size: 13px;
+}
+
+#resources .citation pre,
+#resources .citation code {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.bib-line {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.bib-field {
+  padding-left: 1em;
+  text-indent: 0;
+}
+
+@media (max-width: 680px) {
+  #resources .resources a {
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: 2px 12px;
+    padding: 10px 0;
+  }
+  #resources .resources span {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .bib-line {
+    overflow-wrap: anywhere;
+  }
+}

@@ -1,11 +1,12 @@
 ---
+import ResultDetails from "./ResultDetails.astro";
 import { demos } from "../data/site";
 const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const first = demos[0];
 ---
 
 <figure class="interactive-demo" data-demo data-base={base}>
-  <div class="demo-tasks" role="tablist" aria-label="Demo tasks"><span class="demo-tasks-label">LIBERO examples</span>
+  <div class="demo-tasks tabs" role="tablist" aria-label="Demo tasks"><span class="demo-tasks-label">LIBERO examples</span>
     {demos.map((demo, index) => (
       <button role="tab" type="button" id={`task-${demo.id}`} aria-controls="demo-panel" aria-selected={index === 0 ? "true" : "false"} tabindex={index === 0 ? 0 : -1}
         data-id={demo.id} data-label={demo.title} data-task={demo.task} data-oxygen={demo.oxygenS} data-baseline={demo.baselineS}>
@@ -23,7 +24,7 @@ const first = demos[0];
       <source src={`${base}videos/${first.id}-interactive.mp4`} type="video/mp4" />
     </video><button type="button" class="demo-pause-overlay" data-demo-overlay aria-label="Play demo"><span></span><span></span></button></div>
     <div class="demo-panes demo-statuses">
-      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-inference-elapsed" data-demo-inference-elapsed={side}>Inference 0.00 s</span><span class="demo-step" data-demo-step={side}></span><div class="demo-output-box" data-demo-output-box={side}><span class="demo-output-label">OUTPUT:</span> <span data-demo-output-text={side}>—</span><button type="button" class="demo-output-expand" data-demo-output={side} disabled>expand batch</button></div><div class="demo-output-popover" data-demo-output-popover={side} hidden></div></div>)}
+      {['oxygen', 'baseline'].map(side => <div><span class="demo-phase" data-demo-phase={side}>Loading replay…</span><span class="demo-inference-elapsed" data-demo-inference-elapsed={side}>Inference 0.00 s</span><span class="demo-step" data-demo-step={side}></span><div class="demo-output-box" data-demo-output-box={side}><span class="demo-output-label">OUTPUT:</span> <span data-demo-output-text={side}>—</span><button type="button" class="demo-output-expand" data-demo-output={side} popovertarget={`demo-output-${side}`} aria-expanded="false" disabled>expand batch</button></div><div id={`demo-output-${side}`} class="details-popover demo-output-popover" popover data-anchor-popover data-demo-output-popover={side} aria-label="Active language batch"></div></div>)}
     </div>
     <div class="demo-playback">
       <button type="button" class="demo-play" data-demo-play disabled aria-label="Play demo"><span class="icon-play"></span></button>
@@ -45,6 +46,6 @@ const first = demos[0];
   </div>
   <figcaption class="demo-caption">
     <p>The baseline finishes each language response before moving. OxyGen carries language generation across action updates.</p>
-    <div class="demo-details-wrap"><button type="button" class="demo-details-toggle" data-demo-details aria-expanded="false">Measurement details</button><div class="demo-details-popover" data-demo-details-popover hidden><p>Both runs use the same frozen π<sub>0.5</sub> policy and task; OxyGen changes the inference schedule and KV-cache handling, not the policy or target actions. It does not change the target actions. Action inference, language inference, and execution are shown as separate phases reconstructed from the logged run.</p><p><a href="https://github.com/air-embodied-brain/OxyGen/blob/main/README.md" target="_blank" rel="noreferrer">Timing and hardware details in the repo README ↗</a></p></div></div>
+    <ResultDetails id="demo-details"><p>Both runs use the same frozen π<sub>0.5</sub> policy and task; OxyGen changes the inference schedule and KV-cache handling, not the policy or target actions. Action inference, language inference, and execution are shown as separate phases reconstructed from the logged run.</p><p><a href="https://github.com/air-embodied-brain/OxyGen/blob/main/README.md" target="_blank" rel="noreferrer">Timing and hardware details in the repo README ↗</a></p></ResultDetails>
   </figcaption>
 </figure>

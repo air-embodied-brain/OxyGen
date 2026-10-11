@@ -1,0 +1,149 @@
+.chart.drawn path,
+.chart .drawn path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.6s cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ring-a {
+  0%, 2% {
+    opacity: 0;
+  }
+  5%, 20% {
+    opacity: 1;
+  }
+  24%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ring-b {
+  0%, 22% {
+    opacity: 0;
+  }
+  26%, 42% {
+    opacity: 1;
+  }
+  46%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ring-c {
+  0%, 44% {
+    opacity: 0;
+  }
+  48%, 64% {
+    opacity: 1;
+  }
+  68%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes ring-d {
+  0%, 66% {
+    opacity: 0;
+  }
+  70%, 92% {
+    opacity: 1;
+  }
+  96%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes kvrow {
+  0%, 22% {
+    opacity: 0.25;
+  }
+  30%, 92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes slot {
+  0%, 74% {
+    fill: transparent;
+  }
+  78%, 94% {
+    fill: var(--language);
+  }
+  100% {
+    fill: transparent;
+  }
+}
+
+@keyframes method-completion {
+  0%, 84% {
+    opacity: 0;
+  }
+  85%, 100% {
+    opacity: 1;
+  }
+}
+
+[data-stage-animation].stage-ready .block {
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+[data-stage-animation].stage-ready .stage-block-label,
+[data-stage-animation].stage-ready .batch-layers i {
+  opacity: 0;
+}
+
+[data-stage-count] {
+  font-variant-numeric: tabular-nums;
+}
+
+[data-bar-reveal].reveal-ready [data-grow] {
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+[data-bar-reveal].reveal-playing [data-grow] {
+  animation: bar-reveal 1000ms cubic-bezier(.2,.7,.3,1) var(--delay, 0ms) both;
+}
+
+#robot [data-bar-reveal].reveal-playing [data-grow] {
+  animation-duration: 700ms;
+}
+
+@keyframes bar-reveal {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #results .chart.drawn path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 1s ease-out forwards;
+  }
+  #results [data-bar-reveal].reveal-playing [data-grow],
+#robot [data-bar-reveal].reveal-playing [data-grow] {
+    animation-duration: 450ms;
+  }
+}
+
+.schedule-demo.motion-paused .schedule-tape,
+.design.playing.motion-paused .dg-ring,
+.design.playing.motion-paused .dg-kvrow,
+.design.playing.motion-paused .dg-slot-k,
+.design.playing.motion-paused .dg-done.finishing {
+  animation-play-state: paused;
+}

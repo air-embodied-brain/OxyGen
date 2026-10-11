@@ -1,4 +1,5 @@
 ---
+import DeviceTabs from "./DeviceTabs.astro";
 import { tradeoff, type SeriesKey, type TradeoffPoint } from "../data/paper-figures";
 
 const devices = [
@@ -28,12 +29,10 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
 }
 ---
 
-<figure data-tradeoff>
+<figure data-tradeoff data-device-chart>
   <div class="fig-head">
     <span class="title">Action frequency and language throughput rise together.</span>
-    <div class="chart-controls"><div class="switch" role="tablist" aria-label="Device">
-      {devices.map((d, i) => <button type="button" role="tab" aria-selected={i === 0 ? "true" : "false"} data-device={d.id} data-gain={`${gain(tradeoff.libero[d.id]).toFixed(1)}×`}>{d.label}</button>)}
-    </div><span class="chart-gain" data-chart-gain>{gain(tradeoff.libero.rtx4090).toFixed(1)}×</span></div>
+    <DeviceTabs id="tradeoff" devices={devices.map(d => ({ id: d.id, label: d.label, gain: `${gain(tradeoff.libero[d.id]).toFixed(1)}×` }))} />
   </div>
   <div class="grid">
     {devices.map((d, i) => {
@@ -44,7 +43,7 @@ function gain(pts: Record<SeriesKey, TradeoffPoint[]>) {
           // On Thor, MPS falls below the sequential baseline, so the two labels swap sides.
           const parallelBelow = pts.parallel[0][2] < pts.baseline[0][2];
           return (
-            <div data-panel={d.id} class:list={[d.cls, "chart", i !== 0 && "off"]}>
+            <div id={`tradeoff-${d.id}`} role="tabpanel" aria-labelledby={`tradeoff-tab-${d.id}`} data-chart-panel={d.id} class:list={[d.cls, "chart", i !== 0 && "off"]}>
               <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`LIBERO on ${d.label}: action frequency versus language throughput`}>
                 <g class="gridlines">{ax.ys.slice(1).map((v) => <line x1={M.l} x2={W - M.r} y1={sy(d.id, v)} y2={sy(d.id, v)} />)}</g>
                 <g class="axis"><line x1={M.l} x2={W - M.r} y1={H - M.b} y2={H - M.b} /></g>

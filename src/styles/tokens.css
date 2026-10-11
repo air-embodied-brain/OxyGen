@@ -1,0 +1,72 @@
+/* Palette: paper and ink, blue for action, brick red for language.
+   Stage and series aliases remain separate even when they share a pigment. */
+
+:root, :root[data-theme="light"] {
+  --paper: #fffefa;
+  --paper-deep: #f3f1eb;
+  --sheet: #fffefa;
+  --ink: #292825;
+  --ink-soft: #454440;
+  --muted: #696760;
+  --faint: #77736b;
+  --rule: #292825;
+  --hair: #dedbd2;
+  --blue: #315f78;
+  --red: #a33a31;
+  --neutral: #8b877f;
+  --series-k1: #315f78;
+  --series-k5: #587b90;
+  --series-k10: #74909f;
+  --series-baseline: #7b776e;
+  --series-parallel: #aaa498;
+  --on-accent: #fffefa;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --paper: #1b1c1c;
+  --paper-deep: #242626;
+  --sheet: #202222;
+  --ink: #eeeae2;
+  --ink-soft: #d3d0c8;
+  --muted: #b1ada4;
+  --faint: #a4a095;
+  --rule: #ddd8cd;
+  --hair: #454640;
+  --blue: #90b7cc;
+  --red: #e19387;
+  --neutral: #98948b;
+  --series-k1: #90b7cc;
+  --series-k5: #7197af;
+  --series-k10: #587d94;
+  --series-baseline: #aaa69a;
+  --series-parallel: #78766e;
+  --on-accent: #1b1c1c;
+  color-scheme: dark;
+}
+
+:root {
+  --action: var(--blue);
+  --language: var(--red);
+  --baseline: var(--neutral);
+  --execution: var(--neutral);
+  --prefill: var(--neutral);
+  --series-kv: var(--red);
+  --series-ours: var(--blue);
+  --display: "Libre Baskerville", Georgia, serif;
+  --serif: "Source Serif 4 Variable", "Source Serif Pro", Georgia, serif;
+  --sans: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --page: 1080px;
+  --gutter: clamp(20px, 4vw, 40px);
+  --gap: 24px;
+  --head-h: 52px;
+  --section-gap: clamp(40px, 4.2vw, 56px);
+  --block-gap: clamp(36px, 4vw, 52px);
+  --text-figure: 17px;
+  --text-caption: 15px;
+  --text-control: 14px;
+  --text-legend: 12px;
+  --text-tick: 11px;
+  --surface-shadow: 0 8px 32px #17160f26;
+}

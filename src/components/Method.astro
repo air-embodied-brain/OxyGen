@@ -1,6 +1,7 @@
 ---
 import { ablation, ablationN } from "../data/paper-figures";
 import { stageProfile } from "../data/paper-tables";
+import ResultDetails from "./ResultDetails.astro";
 import Design from "./Design.astro";
 
 // One control frame of π0.5-LIBERO on RTX 4090 at N=30, k=5. Totals are
@@ -95,11 +96,10 @@ function layout(mode: (typeof modes)[number]) {
     </div>
     <div class="method-caption-row">
       <figcaption class="caption">Sharing KV removes redundant prefill; batching amortizes decoding across unfinished requests.</figcaption>
-      <button type="button" class="method-settings-trigger" popovertarget="method-settings">Measurement details</button>
-      <div id="method-settings" class="method-popover" popover>
+      <ResultDetails id="method-settings">
         <strong>RTX 4090 · π₀.₅ / LIBERO</strong>
         <p>H = 10 actions, S = 10 denoising steps, N = 30 tokens per language request, k = 5 decoding steps per frame. At steady state, six unfinished requests share a batch.</p>
         <p>Totals are derived from measured action frequency in the paper’s ablation (10 / Hz). Prefill ≈ {PREFIX.toFixed(1)} ms and denoising ≈ {DENOISE.toFixed(1)} ms come from a separate synchronized camera-ready profile. Stage widths are illustrative; the remainder includes decoding and other frame work.</p>
-      </div>
+      </ResultDetails>
     </div>
 </figure>

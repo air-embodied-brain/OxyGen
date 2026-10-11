@@ -1,0 +1,13 @@
+---
+interface Props {
+  id: string;
+  devices: { id: string; label: string; gain: string }[];
+}
+const { id, devices } = Astro.props;
+---
+<div class="chart-controls">
+  <div class="device-tabs tabs" role="tablist" aria-label="Device">
+    {devices.map((device, i) => <button type="button" role="tab" id={`${id}-tab-${device.id}`} aria-controls={`${id}-${device.id}`} aria-selected={i === 0 ? "true" : "false"} tabindex={i === 0 ? 0 : -1} data-device={device.id} data-gain={device.gain}>{device.label}</button>)}
+  </div>
+  <span class="chart-gain" data-chart-gain>{devices[0].gain}</span>
+</div>

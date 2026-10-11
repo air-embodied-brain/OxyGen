@@ -1,4 +1,5 @@
 ---
+import ResultDetails from "./ResultDetails.astro";
 // Schematic of OxyGen's per-frame flow (left) and cross-frame batching (right).
 // The right panel uses the paper's illustration setting (fig:timeline):
 // N = 12 tokens per request, k = 4 steps per frame, so B = 3 requests are active.
@@ -26,7 +27,7 @@ const steady = B; // first frame where the batch is full (0-based)
     <div class="c1-6">
       <div class="panel-head"><span><i class="roman">i.</i> One prefill, shared across experts</span></div>
 
-      <div class="chart">
+      <div class="chart" tabindex="0" role="region" aria-label="Scrollable mechanism illustration">
         <svg data-flow viewBox={`-5 14 ${W + 12} ${H + 4}`} role="img" aria-label="Per-frame flow: the observation is prefilled once, and the shared prefix KV cache feeds the action expert and a new language request">
           <defs>
             <marker id="dg-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -103,7 +104,7 @@ const steady = B; // first frame where the batch is full (0-based)
     <div class="c7-12">
       <div class="panel-head"><span><i class="roman">ii.</i> One batch, shared across frames</span></div>
 
-      <div class="chart">
+      <div class="chart" tabindex="0" role="region" aria-label="Scrollable mechanism illustration">
         <svg data-window viewBox={`0 0 ${W} ${TOP + ROW * FRAMES + 30}`} role="img" aria-label={`Cross-frame batching: each request needs ${N} tokens, advances ${K} per frame, so ${B} requests decode together in every frame`}>
           <!-- frame header and action lane -->
           {rows.map((f) => (
@@ -152,4 +153,4 @@ const steady = B; // first frame where the batch is full (0-based)
   </div>
 </figure>
 
-<div class="method-design-note"><button type="button" popovertarget="method-animation-settings">Illustration details</button><div id="method-animation-settings" class="method-popover" popover><strong>Cross-frame batching</strong><p>The illustration uses N = {N} tokens per request and k = {K} decoding steps per frame. After warm-up, {B} requests share a batch. A check marks completion and cache eviction. Each request keeps its own observation prefix and generated-token KV state.</p></div></div>
+<div class="method-design-note"><ResultDetails id="method-animation-settings" label="Illustration details" title="Cross-frame batching"><p>The illustration uses N = {N} tokens per request and k = {K} decoding steps per frame. After warm-up, {B} requests share a batch. A check marks completion and cache eviction. Each request keeps its own observation prefix and generated-token KV state.</p></ResultDetails></div>

@@ -1,11 +1,11 @@
 ---
-interface Props { id: string; label?: string; }
-const { id, label = "Measurement details" } = Astro.props;
+interface Props { id: string; label?: string; title?: string; inline?: boolean; }
+const { id, label = "Measurement details", title = "Measurement details", inline = false } = Astro.props;
 ---
-<div class="result-details">
-  <button type="button" class="method-settings-trigger" popovertarget={id}>{label}</button>
-  <div id={id} class="method-popover" popover aria-label="Measurement details">
-    <strong>Measurement details</strong>
+<div class:list={["result-details", inline && "result-details-inline"]}>
+  <button type="button" class="details-trigger" popovertarget={id} aria-expanded="false">{label}</button>
+  <div id={id} class="details-popover" popover role="dialog" tabindex="-1" autofocus aria-labelledby={`${id}-title`}>
+    <strong id={`${id}-title`}>{title}</strong>
     <slot />
   </div>
 </div>
