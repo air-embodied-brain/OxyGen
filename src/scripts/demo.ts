@@ -1,12 +1,13 @@
 import { $all, select, initTabs } from "./dom";
 import { observeVisibility } from "./visibility";
+import { replayOutput, type LanguageCall } from "./demo-output";
 
 export function initDemo() {
   const root = document.querySelector<HTMLElement>("[data-demo]");
   if (!root) return;
   type Phase = "action" | "language" | "move";
   type Segment = { start: number; end: number; kind: Phase; step: number };
-  type Side = { duration: number; segments: Segment[]; calls: { start: number; actionEnd: number; end: number; updates: { text: string; full: number; new: number; finished: boolean }[] }[]; memory: { time: number; text: string }[]; firstStep: number; lastStep: number };
+  type Side = { duration: number; segments: Segment[]; calls: LanguageCall[]; memory: { time: number; text: string }[]; firstStep: number; lastStep: number };
   type Replay = { total: number; controlDt: number; oxygen: Side; baseline: Side };
   const video = root.querySelector<HTMLVideoElement>("[data-demo-video]")!;
   const tabs = $all<HTMLButtonElement>("[role=tab]", root);
@@ -48,22 +49,29 @@ export function initDemo() {
       phase.dataset.kind = segment?.kind ?? "done";
       progress.textContent = `Step ${step} / ${run.lastStep}`;
       const output = root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!;
-      const latest = run.memory.filter(item => item.time <= t).at(-1);
-      const activeCall = run.calls.filter(call => call.start <= t).at(-1) ?? run.calls[0];
+      const { text: currentText, batch } = replayOutput(run, t);
       const inferenceElapsed = run.segments.reduce((sum, item) => {
         if (item.kind === "move" || item.start >= t) return sum;
         return sum + Math.max(0, Math.min(item.end, t) - item.start);
       }, 0);
       root.querySelector<HTMLElement>(`[data-demo-inference-elapsed="${side}"]`)!.textContent = `Inference ${inferenceElapsed.toFixed(2)} s`;
-      const previousCall = run.calls.filter(call => call.end <= t).at(-1);
-      const currentText = activeCall?.updates.at(-1)?.text ?? previousCall?.updates.at(-1)?.text ?? run.calls[0]?.updates[0]?.text ?? "Waiting for output";
       root.querySelector<HTMLElement>(`[data-demo-output-text="${side}"]`)!.textContent = currentText;
-      output.disabled = side !== "oxygen";
-      output.dataset.active = side === "oxygen" ? "true" : "false";
+      const canExpand = side === "oxygen" && Boolean(batch?.updates.length);
+      output.disabled = !canExpand;
+      output.dataset.active = String(canExpand);
       const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
-      if (activeCall) {
-        popover.innerHTML = activeCall.updates.map((item, index) => `<div><span>Request ${index === 0 ? "t" : `t-${index}`}</span><b>${item.text || "…"}</b></div>`).join("");
-      } else popover.innerHTML = latest ? `<div><span>Latest request</span><b>${latest.text}</b></div>` : "<div><span>Output</span><b>—</b></div>";
+      if (!canExpand) popover.hidePopover();
+      // Use textContent so recorded model text is never interpreted as markup.
+      popover.replaceChildren();
+      for (const [index, item] of (batch?.updates ?? []).entries()) {
+        const row = document.createElement("div");
+        const label = document.createElement("span");
+        label.textContent = `Request ${index === 0 ? "t" : `t-${index}`}`;
+        const content = document.createElement("b");
+        content.textContent = item.text || "…";
+        row.append(label, content);
+        popover.append(row);
+      }
     }
   };
   const updateButton = () => {
@@ -109,7 +117,10 @@ export function initDemo() {
       root.querySelector(`[data-demo-phase="${side}"]`)!.textContent = "Loading replay…";
       root.querySelector(`[data-demo-step="${side}"]`)!.textContent = "";
       root.querySelector<HTMLElement>(`[data-demo-output-text="${side}"]`)!.textContent = "—";
-      root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!.hidePopover();
+      root.querySelector<HTMLButtonElement>(`[data-demo-output="${side}"]`)!.disabled = true;
+      const popover = root.querySelector<HTMLElement>(`[data-demo-output-popover="${side}"]`)!;
+      popover.hidePopover();
+      popover.replaceChildren();
       root.querySelector(`[data-demo-track="${side}"]`)!.replaceChildren();
     }
     clock.value = "0.00";
