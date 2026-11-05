@@ -2,6 +2,8 @@ export const links = {
   paper: "https://arxiv.org/abs/2603.14371",
   code: "https://github.com/air-embodied-brain/OxyGen",
   blog: "https://xxxxyu.github.io/blog/oxygen-mot-vla-inference/",
+  wechat: "https://mp.weixin.qq.com/s/C6vMljcMy9yC27EQEc-FXA",
+  zhihu: "https://zhuanlan.zhihu.com/p/2093004931510821420",
   model: "https://huggingface.co/xxxxyu/oxygen-pi05-textual-memory-lora",
   dataset: "https://huggingface.co/datasets/xxxxyu/libero-textual-memory-annotations",
 };
