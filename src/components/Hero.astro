@@ -1,5 +1,5 @@
 ---
-import { links } from "../data/site";
+import { links, site } from "../data/site";
 
 const authors = [
   { name: "Xiangyu Li", affiliation: "1", homepage: "https://xxxxyu.github.io" },
@@ -20,16 +20,16 @@ const schedule = [
 ];
 ---
 
-<header class="masthead page" id="top">
+<header class="masthead page" id="top" data-font-priority="critical">
   <div class="masthead-top">
-    <span class="label"><b>NeurIPS 2026</b> · Main Track</span>
-    <span class="label">arXiv 2603.14371</span>
+    <span class="label"><b>{site.conference}</b> · {site.track}</span>
+    <span class="label">arXiv {site.arxiv}</span>
   </div>
 
   <div class="masthead-body grid">
     <div class="c1-7">
-      <h1>OxyGen</h1>
-      <p class="paper-title">Unified KV Cache Management for VLA Inference under Multi-Task Parallelism</p>
+      <h1>{site.name}</h1>
+      <p class="paper-title">{site.paperTitle}</p>
       <div class="byline">
         <div class="names">
           {authors.map((author) => (
@@ -54,7 +54,7 @@ const schedule = [
 
     <div class="c9-12 hero-summary">
       <div class="summary-highlight">
-      <p class="summary-heading"><span class="label summary-label">TL;DR</span><strong>Let robots talk while they act.</strong></p>
+      <p class="summary-heading"><span class="label summary-label">TL;DR</span><strong>{site.tagline}</strong></p>
       <p class="dek">
         OxyGen shares what both tasks have already computed, letting language unfold across action updates instead of holding up the next move.
       </p>

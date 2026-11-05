@@ -1,8 +1,8 @@
 ---
-import "@fontsource-variable/source-serif-4/opsz.css";
-import serifFont from "@fontsource-variable/source-serif-4/files/source-serif-4-latin-opsz-normal.woff2?url";
-import "@fontsource-variable/source-serif-4/opsz-italic.css";
-import "@fontsource-variable/jetbrains-mono";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { site } from "../data/site";
+import fontBootstrap from "../scripts/font-bootstrap.js?raw";
 import "../styles/global.css";
 
 interface Props {
@@ -15,7 +15,23 @@ const base = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
 const pageUrl = new URL(base, Astro.site).href;
-const socialImage = new URL(`${base}social-card.png`, Astro.site).href;
+const version = (file: string) => createHash("sha256").update(readFileSync(new URL(`../../public/${file}`, import.meta.url))).digest("hex").slice(0, 12);
+const socialImage = new URL(`${base}social-card.png?v=${version("social-card.png")}`, Astro.site).href;
+const scanningFonts = process.env.OXYGEN_FONT_SCAN === "1";
+interface GeneratedFont {
+  family: string; style: string; weight: string; tier: string;
+  file: string; range: string; text: string;
+}
+const fonts: GeneratedFont[] = scanningFonts ? [] : JSON.parse(readFileSync(
+  new URL("../../public/generated-fonts/manifest.json", import.meta.url), "utf8",
+)).fonts;
+const face = (font: GeneratedFont) => `@font-face{font-family:${JSON.stringify(font.family)};font-style:${font.style};font-weight:${font.weight};font-display:block;src:url("${base}generated-fonts/${font.file}") format("woff2");unicode-range:${font.range}}`;
+const criticalFonts = fonts.filter(font => font.tier === "critical");
+const fontConfig = JSON.stringify({
+  critical: criticalFonts,
+  page: fonts.filter(font => font.tier === "page"),
+  deferredCss: fonts.filter(font => font.tier === "page").map(face).join("\n"),
+}).replaceAll("<", "\\u003c");
 ---
 
 <!doctype html>
@@ -28,30 +44,36 @@ const socialImage = new URL(`${base}social-card.png`, Astro.site).href;
     <meta name="theme-color" content="#fffefa" />
     <link rel="canonical" href={pageUrl} />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={pageUrl} />
     <meta property="og:image" content={socialImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={site.socialImageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={socialImage} />
+    <meta name="twitter:image:alt" content={site.socialImageAlt} />
     <script is:inline>
       const savedTheme = localStorage.getItem("oxygen-theme");
       document.documentElement.dataset.theme = savedTheme || "light";
+      document.documentElement.dataset.fonts = "loading";
     </script>
-    <link rel="preload" href={`${base}fonts/LibreBaskerville-VariableFont_wght.woff2`} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={`${base}fonts/LibreBaskerville-Italic-VariableFont_wght.woff2`} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={`${base}fonts/SourceSans3VF-Upright.ttf.woff2`} as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href={serifFont} as="font" type="font/woff2" crossorigin />
-    <style is:inline set:html={`
-      @font-face { font-family: "Libre Baskerville"; src: url("${base}fonts/LibreBaskerville-VariableFont_wght.woff2") format("woff2"); font-weight: 400 700; font-display: block; }
-      @font-face { font-family: "Libre Baskerville"; src: url("${base}fonts/LibreBaskerville-Italic-VariableFont_wght.woff2") format("woff2"); font-weight: 400 700; font-style: italic; font-display: block; }
-      @font-face { font-family: "Source Sans 3"; src: url("${base}fonts/SourceSans3VF-Upright.ttf.woff2") format("woff2"); font-weight: 200 900; font-display: block; }
-      @font-face { font-family: "Source Sans 3"; src: url("${base}fonts/SourceSans3VF-Italic.ttf.woff2") format("woff2"); font-weight: 200 900; font-style: italic; font-display: block; }
-    `} />
-    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg?v=2`} />
+    {criticalFonts.map(font => <link rel="preload" href={`${base}generated-fonts/${font.file}`} as="font" type="font/woff2" crossorigin />)}
+    <style is:inline set:html={criticalFonts.map(face).join("\n")} />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg?v=${version("favicon.svg")}`} />
+    <link rel="icon" type="image/png" sizes="32x32" href={`${base}favicon-32.png?v=${version("favicon-32.png")}`} />
+    <link rel="apple-touch-icon" sizes="180x180" href={`${base}apple-touch-icon.png?v=${version("apple-touch-icon.png")}`} />
     <title>{title}</title>
   </head>
   <body>
     <slot />
+    {!scanningFonts && <script type="application/json" id="font-config" is:inline set:html={fontConfig} />}
+    {!scanningFonts && <script is:inline set:html={fontBootstrap} />}
   </body>
 </html>

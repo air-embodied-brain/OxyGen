@@ -3,3 +3,6 @@ dist/
 .astro/
 .DS_Store
 __pycache__/
+.venv/
+.font-render/
+public/generated-fonts/

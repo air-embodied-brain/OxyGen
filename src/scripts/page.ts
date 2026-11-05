@@ -48,11 +48,13 @@ export function initCitation() {
   });
 }
 
-export function initPage() {
+export async function initPage() {
+  // No text mutations or width measurements until the original fonts are ready.
+  await window.oxygenFontsReady;
   initChartText();
   initRunningHead();
   initTheme();
-  void document.fonts.ready.then(initCountUp);
+  initCountUp();
   initStageAnimation();
   initSchedule();
   initDesign();

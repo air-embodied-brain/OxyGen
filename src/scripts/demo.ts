@@ -1,6 +1,7 @@
 import { $all, select, initTabs } from "./dom";
 import { observeVisibility } from "./visibility";
 import { replayOutput, type LanguageCall } from "./demo-output";
+import { createVideoQueue } from "./video-queue";
 
 export function initDemo() {
   const root = document.querySelector<HTMLElement>("[data-demo]");
@@ -11,6 +12,8 @@ export function initDemo() {
   type Replay = { total: number; controlDt: number; oxygen: Side; baseline: Side };
   const video = root.querySelector<HTMLVideoElement>("[data-demo-video]")!;
   const tabs = $all<HTMLButtonElement>("[role=tab]", root);
+  const videoUrl = (id: string) => `${root.dataset.base}videos/${id}-interactive.mp4`;
+  const videoQueue = createVideoQueue(tabs.map(tab => videoUrl(tab.dataset.id!)), window.oxygenAssetsReady);
   const play = root.querySelector<HTMLButtonElement>("[data-demo-play]")!;
   const seek = root.querySelector<HTMLInputElement>("[data-demo-seek]")!;
   const tracks = root.querySelector<HTMLElement>("[data-demo-tracks]")!;
@@ -80,6 +83,7 @@ export function initDemo() {
     overlay.classList.toggle("is-paused", !playing);
     overlay.setAttribute("aria-label", playing ? "Pause demo" : "Play demo");
     play.setAttribute("aria-label", playing ? "Pause demo" : "Play demo");
+    overlay.disabled = video.readyState < 2;
   };
   const tick = () => {
     if (dragging) return;
@@ -101,13 +105,14 @@ export function initDemo() {
   const load = async (tab: HTMLButtonElement) => {
     const id = tab.dataset.id!;
     taskId = id;
+    root.dataset.videoState = "loading";
     video.pause();
     replay = undefined;
     play.disabled = true;
     seek.disabled = true;
     error.hidden = true;
     video.poster = `${root.dataset.base}posters/${id}-interactive.webp`;
-    video.querySelector("source")!.src = `${root.dataset.base}videos/${id}-interactive.mp4`;
+    if (video.hasAttribute("src")) { video.removeAttribute("src"); video.load(); }
     video.setAttribute("aria-label", `${tab.dataset.label}: synchronized OxyGen and isolated baseline replay`);
     root.querySelector("[role=tabpanel]")!.setAttribute("aria-labelledby", tab.id);
 
@@ -125,8 +130,15 @@ export function initDemo() {
     }
     clock.value = "0.00";
     head.style.left = "0%";
-    video.load();
+    const media = videoQueue.select(videoUrl(id)).then(src => {
+      if (taskId !== id) return;
+      video.src = src;
+      video.preload = "auto";
+      video.load();
+    });
     try {
+      // Metadata/timelines can prepare while still images finish; media IO is
+      // independently gated by the shared fonts + images promise above.
       const all = await data;
       if (taskId !== id) return;
       replay = all[id];
@@ -160,14 +172,15 @@ export function initDemo() {
     } catch {
       if (taskId === id) error.hidden = false;
     }
+    await media.catch(() => { if (taskId === id) mediaError(); });
   };
   video.addEventListener("loadedmetadata", () => {
     if (replay) { play.disabled = false; seek.disabled = false; }
     if (wantsPlay) start();
   });
-  const mediaError = () => { error.hidden = false; play.disabled = true; seek.disabled = true; };
+  video.addEventListener("loadeddata", () => { root.dataset.videoState = "ready"; updateButton(); });
+  const mediaError = () => { root.dataset.videoState = "error"; error.hidden = false; play.disabled = true; seek.disabled = true; overlay.disabled = true; };
   video.addEventListener("error", mediaError);
-  video.querySelector("source")!.addEventListener("error", mediaError);
   video.addEventListener("play", () => { updateButton(); cancelAnimationFrame(animation); tick(); });
   video.addEventListener("pause", () => { cancelAnimationFrame(animation); updateButton(); });
   video.addEventListener("seeked", () => { if (!dragging) render(video.currentTime); });
@@ -210,7 +223,7 @@ export function initDemo() {
   for (const tab of tabs) {
     tab.addEventListener("click", () => {
       if (tab.dataset.id === taskId) return;
-      wantsPlay = !video.paused;
+      if (video.readyState > 0) wantsPlay = !video.paused;
       select(tabs, tab);
       for (const item of tabs) item.tabIndex = item === tab ? 0 : -1;
       void load(tab);

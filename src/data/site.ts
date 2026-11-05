@@ -1,3 +1,15 @@
+export const site = {
+  name: "OxyGen",
+  paperTitle: "Unified KV Cache Management for VLA Inference under Multi-Task Parallelism",
+  title: "OxyGen · Unified KV Cache Management for VLA Inference (NeurIPS 2026)",
+  description: "OxyGen lets Mixture-of-Transformers VLAs generate actions and language together. Shared KV and cross-frame batching give up to 3.7× speedup for π0.5 on RTX 4090 and Jetson AGX Thor.",
+  tagline: "Let robots talk while they act.",
+  conference: "NeurIPS 2026",
+  track: "Main Track",
+  arxiv: "2603.14371",
+  socialImageAlt: "OxyGen project overview in a paper-like light theme: shared KV and batched language let robots talk while they act, with 3.7× faster action and language generation.",
+};
+
 export const links = {
   paper: "https://arxiv.org/abs/2603.14371",
   code: "https://github.com/air-embodied-brain/OxyGen",

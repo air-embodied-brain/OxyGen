@@ -1,0 +1,49 @@
+/* The inline bootstrap adds line fragments before the first visible paint.
+   Fallback fonts reserve space only; their glyphs are never shown. */
+html[data-fonts="loading"] body {
+  visibility: hidden;
+}
+
+.font-placeholder {
+  color: transparent !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+  background: color-mix(in srgb, var(--ink) 8%, var(--paper));
+  border-radius: .22em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+a:has(.font-placeholder) {
+  text-decoration-color: transparent !important;
+}
+
+[data-svg-font-pending] {
+  fill: transparent !important;
+}
+
+.svg-font-placeholder {
+  fill: color-mix(in srgb, var(--ink) 8%, var(--paper));
+  stroke: none;
+}
+
+.demo-media-loading {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--muted);
+  font: 13px/1.4 var(--sans);
+}
+
+[data-video-state="ready"] .demo-media-loading,
+[data-video-state="error"] .demo-media-loading {
+  display: none;
+}
+
+.demo-pause-overlay:disabled span {
+  opacity: 0;
+}

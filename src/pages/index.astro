@@ -8,7 +8,7 @@ import TradeoffChart from "../components/TradeoffChart.astro";
 import AblationChart from "../components/AblationChart.astro";
 import ResultDetails from "../components/ResultDetails.astro";
 import Generality from "../components/Generality.astro";
-import { citation, links } from "../data/site";
+import { citation, links, site } from "../data/site";
 import { overhead, quality, qualityProtocol, robot, xiaomi, starvla } from "../data/paper-tables";
 import { tradeoff } from "../data/paper-figures";
 
@@ -51,10 +51,10 @@ const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class
 ---
 
 <BaseLayout
-  title="OxyGen · Unified KV Cache Management for VLA Inference (NeurIPS 2026)"
-  description="OxyGen lets Mixture-of-Transformers VLAs generate actions and language at the same time. Cross-task KV sharing and cross-frame continuous batching give up to 3.7× speedup on RTX 4090 and Jetson AGX Thor."
+  title={site.title}
+  description={site.description}
 >
-  <div class="running-head">
+  <div class="running-head" data-font-priority="critical">
     <div class="page">
       <a class="brand" href="#top">OxyGen</a>
       <span class="current" data-current></span>
@@ -71,7 +71,7 @@ const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class
   <Hero />
 
   <main class="page">
-    <div class="performance-groups" aria-label="Performance highlights">
+    <div class="performance-groups" aria-label="Performance highlights" data-font-priority="critical">
       <div class="performance-primary">
         <p class="label"><span class="model-name">π<sub>0.5</sub></span> · actions &amp; language</p>
         <div class="joint-metrics">
@@ -87,7 +87,7 @@ const bibHtml = citation.split(String.fromCharCode(10)).map(line => `<span class
     </div>
 
 
-    <section class="section" id="demo" data-title="Demo">
+    <section class="section" id="demo" data-title="Demo" data-font-priority="critical">
       <SectionHead number="1" label="Demo">
         <Fragment slot="title">Same task. <em>Less waiting.</em></Fragment>
       </SectionHead>

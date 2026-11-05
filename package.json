@@ -3,8 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "social": "node scripts/render-social-card.mjs",
+    "fonts": "node scripts/prepare-fonts.mjs",
+    "predev": "npm run social && npm run fonts",
     "dev": "astro dev",
-    "build": "astro check && astro build",
+    "prebuild": "npm run social",
+    "build": "npm run fonts && astro check && astro build && uv run --locked python scripts/build_font_subsets.py --check-rendered dist",
+    "test": "node --test tests/*.test.mjs && uv run --locked python -m unittest discover -s tests -v",
     "preview": "astro preview"
   },
   "dependencies": {
@@ -13,5 +18,9 @@
     "@fontsource-variable/source-serif-4": "^5.3.0",
     "astro": "^5.13.5",
     "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "sharp": "^0.34.5"
   }
 }
